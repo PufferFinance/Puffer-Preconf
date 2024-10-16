@@ -1272,7 +1272,9 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         blsPubKeyHashes[0] = pubkeyHash;
 
         BeaconChainHelperLib.InclusionProof[] memory proofs = new BeaconChainHelperLib.InclusionProof[](1);
+
         proofs[0] = BeaconProofs.eip4788ValidatorInclusionProof();
+        proofs[0].timestamp = block.number + avsManager.getRegistrationDelay() + 1;
         // Mock the getRootFromTimestamp function to return the expected beacon block root
         vm.mockCall(
             address(0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02),
@@ -1281,7 +1283,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         );
 
         // Verify the validator on the beacon chain
-        avsManager.verifyValidatorOnBeaconChain(blsPubKeyHashes, proofs);
+        avsManager.slashValidatorsWithInvalidIndex(proofs);
         vm.roll(block.number + avsManager.getRegistrationDelay() + 1);
 
         // Check that the validator is still registered
@@ -1289,7 +1291,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         assertTrue(validator.registered, "Validator should still be registered after successful verification");
     }
 
-    function testVerifyValidatorOnBeaconChainValidProofAndInvalidValidatorIndex() public {
+    function testSlashValidatorsWithInvalidIndex() public {
         _setupOperator();
         _registerOperator();
         vm.warp(block.timestamp + 50);
@@ -1316,6 +1318,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
         BeaconChainHelperLib.InclusionProof[] memory proofs = new BeaconChainHelperLib.InclusionProof[](1);
         proofs[0] = BeaconProofs.eip4788ValidatorInclusionProof();
+        proofs[0].timestamp = block.number + avsManager.getRegistrationDelay() + 1;
         // Mock the getRootFromTimestamp function to return the expected beacon block root
         vm.mockCall(
             address(0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02),
@@ -1324,7 +1327,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         );
 
         // Verify the validator on the beacon chain
-        avsManager.verifyValidatorOnBeaconChain(blsPubKeyHashes, proofs);
+        avsManager.slashValidatorsWithInvalidIndex(proofs);
 
         // Check that the validator is still registered
         ValidatorDataExtended memory validator = avsManager.getValidator(blsPubKeyHashes[0]);
@@ -1334,7 +1337,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         assertEq(operatorData.validatorCount, 0, "Operator should have no validators after slashing");
     }
 
-    function testVerifyValidatorOnBeaconChainValidProofAndInvalidValidatorPubkey() public {
+    function testSlashValidatorsWithInvalidPubkey() public {
         _setupOperator();
         _registerOperator();
         vm.warp(block.timestamp + 50);
@@ -1361,6 +1364,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
         BeaconChainHelperLib.InclusionProof[] memory proofs = new BeaconChainHelperLib.InclusionProof[](1);
         proofs[0] = BeaconProofs.eip4788ValidatorInclusionProof();
+        proofs[0].timestamp = block.number + avsManager.getRegistrationDelay() + 1;
         // Mock the getRootFromTimestamp function to return the expected beacon block root
         vm.mockCall(
             address(0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02),
@@ -1369,7 +1373,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         );
 
         // Verify the validator on the beacon chain
-        avsManager.verifyValidatorOnBeaconChain(blsPubKeyHashes, proofs);
+        avsManager.slashValidatorsWithInvalidPubkey(proofs);
 
         // Check that the validator is still registered
         ValidatorDataExtended memory validator = avsManager.getValidator(bytes32(uint256(1234)));
@@ -1379,7 +1383,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         assertEq(operatorData.validatorCount, 0, "Operator should have no validators after slashing");
     }
 
-    function testVerifyValidatorOnBeaconChainInvalidProof() public {
+    function testSlashValidatorsWithInvalidProof() public {
         _setupOperator();
         _registerOperator();
         vm.warp(block.timestamp + 50);
@@ -1414,8 +1418,8 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         );
 
         // Expect the verification to fail
-        vm.expectRevert(IUniFiAVSManager.InvalidValidatorProof.selector);
-        avsManager.verifyValidatorOnBeaconChain(blsPubKeyHashes, proofs);
+        vm.expectRevert(abi.encodeWithSelector(IUniFiAVSManager.InvalidValidatorProof.selector, pubkeyHash));
+        avsManager.slashValidatorsWithInvalidPubkey(proofs);
 
         // Check that the validator is not slashed nor deregistered
         vm.roll(block.number + avsManager.getDeregistrationDelay() + 1);

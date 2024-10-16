@@ -55,7 +55,8 @@ struct ValidatorRegistrationData {
     BN254.G1Point pubkeyG1;
     BN254.G2Point pubkeyG2;
     bytes32 salt;
-    uint256 expiry;
+    uint64 registeredAt;
+    uint64 expiry;
 }
 
 /**
@@ -68,8 +69,8 @@ struct ValidatorRegistrationParams {
     BN254.G1Point pubkeyG1;
     BN254.G2Point pubkeyG2;
     uint64 index;
-    bytes32 salt;
     uint256 expiry;
+    bytes32 salt;
 }
 
 /**

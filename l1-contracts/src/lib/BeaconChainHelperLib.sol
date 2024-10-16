@@ -23,6 +23,8 @@ library BeaconChainHelperLib {
         bytes32[] beaconBlockProofForState;
         // Proof of inclusion of the validator index in the beacon block
         bytes32[] beaconBlockProofForProposerIndex;
+        // Timestamp of the beacon block
+        uint256 timestamp;
     }
 
     /// @dev The validator pub key failed verification against the pub key hash tree root in the validator chunks
@@ -36,15 +38,8 @@ library BeaconChainHelperLib {
     /// @dev The proof that the actual validator index is a part of the beacon is invalid.
     error BeaconBlockProofForProposerIndex();
 
-    function verifyValidator(
-        bytes32 validatorBLSPubKeyHash,
-        bytes32 beaconBlockRoot,
-        InclusionProof memory inclusionProof
-    ) internal pure returns (bool) {
-        // Validator's BLS public key is verified against the hash tree root within Validator chunks
-        if (validatorBLSPubKeyHash != inclusionProof.validator[0]) {
-            revert InvalidValidatorBLSPubKey();
-        }
+    function verifyValidator(InclusionProof memory inclusionProof) internal returns (bool) {
+        (, bytes32 beaconBlockRoot) = getRootFromTimestamp(inclusionProof.timestamp);
 
         // Validator is verified against the validator list in the beacon state
         bytes32 validatorHashTreeRoot = MerkleUtils.merkleize(inclusionProof.validator);

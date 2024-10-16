@@ -39,6 +39,8 @@ contract UniFiAVSManager is
     bytes32 public constant VALIDATOR_REGISTRATION_TYPEHASH =
         keccak256("BN254ValidatorRegistration(address operator,bytes32 salt,uint256 expiry,uint64 index)");
 
+    uint256 public constant PROOF_TIMESTAMP_THRESHOLD = 12 hours;
+
     /**
      * @notice The EigenPodManager
      * @custom:oz-upgrades-unsafe-allow state-variable-immutable
@@ -285,7 +287,8 @@ contract UniFiAVSManager is
                 pubkeyG1: params.pubkeyG1,
                 pubkeyG2: params.pubkeyG2,
                 salt: params.salt,
-                expiry: params.expiry
+                expiry: uint64(params.expiry),
+                registeredAt: uint64(block.number)
             });
 
             $.validatorIndexes[params.index] = blsPubKeyHash;
@@ -337,7 +340,7 @@ contract UniFiAVSManager is
             );
 
             if (!isValid) {
-                _slashAndDeregisterValidator(blsPubKeyHash, validator.index);
+                _slashAndDeregisterValidator(blsPubKeyHash);
             }
         }
     }
@@ -346,41 +349,76 @@ contract UniFiAVSManager is
      * @inheritdoc IUniFiAVSManager
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function verifyValidatorOnBeaconChain(
-        bytes32[] calldata blsPubKeyHashes,
-        BeaconChainHelperLib.InclusionProof[] calldata proofs
-    ) external restricted {
-        if (blsPubKeyHashes.length != proofs.length) {
-            revert InvalidArrayLengths();
-        }
-
+    function slashValidatorsWithInvalidIndex(BeaconChainHelperLib.InclusionProof[] calldata proofs)
+        external
+        restricted
+    {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
 
-        for (uint256 i = 0; i < blsPubKeyHashes.length; i++) {
-            bytes32 blsPubKeyHash = blsPubKeyHashes[i];
+        for (uint256 i = 0; i < proofs.length; i++) {
             BeaconChainHelperLib.InclusionProof memory proof = proofs[i];
-            (, bytes32 beaconBlockRoot) = BeaconChainHelperLib.getRootFromTimestamp(block.timestamp - 12);
+            bytes32 blsPubKeyHash = proof.validator[0];
+            bool isValid = BeaconChainHelperLib.verifyValidator(proof);
 
-            bool isValid = BeaconChainHelperLib.verifyValidator(blsPubKeyHash, beaconBlockRoot, proof);
+            if (!isValid) {
+                revert InvalidValidatorProof(blsPubKeyHash);
+            }
 
-            if (isValid) {
-                ValidatorData storage validator = $.validators[blsPubKeyHash];
-                uint64 validatorIndex = validator.index;
+            ValidatorData storage validator = $.validators[blsPubKeyHash];
+            uint64 validatorIndex = validator.index;
 
-                if (validatorIndex != 0 && validatorIndex != proof.validatorIndex) {
-                    _slashAndDeregisterValidator(blsPubKeyHash, validatorIndex);
-                } else if (validatorIndex == 0) {
-                    bytes32 blsPubKeyHashFromIndex = $.validatorIndexes[proof.validatorIndex];
-                    validator = $.validators[blsPubKeyHashFromIndex];
+            if (validator.eigenPod != address(0)) {
+                revert InvalidValidatorType();
+            }
+            ValidatorRegistrationData storage validatorRegistrationData = $.validatorRegistrations[blsPubKeyHash];
+            uint64 registeredAt = validatorRegistrationData.registeredAt;
 
-                    if (validator.index != 0 && blsPubKeyHashFromIndex != blsPubKeyHash) {
-                        _slashAndDeregisterValidator(blsPubKeyHashFromIndex, uint64(proof.validatorIndex));
-                    } else {
-                        revert ValidatorNotFound();
-                    }
-                }
-            } else {
-                revert InvalidValidatorProof();
+            if (proof.timestamp < registeredAt || proof.timestamp > validator.registeredUntil) {
+                revert InvalidValidatorProof(blsPubKeyHash);
+            }
+
+            if (validatorIndex != proof.validatorIndex) {
+                _slashAndDeregisterValidator(blsPubKeyHash);
+            }
+        }
+    }
+
+    /**
+     * @inheritdoc IUniFiAVSManager
+     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
+     */
+    function slashValidatorsWithInvalidPubkey(BeaconChainHelperLib.InclusionProof[] calldata proofs)
+        external
+        restricted
+    {
+        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
+
+        for (uint256 i = 0; i < proofs.length; i++) {
+            BeaconChainHelperLib.InclusionProof memory proof = proofs[i];
+            uint256 index = proof.validatorIndex;
+
+            bool isValid = BeaconChainHelperLib.verifyValidator(proof);
+
+            if (!isValid) {
+                revert InvalidValidatorProof(proof.validator[0]);
+            }
+
+            bytes32 blsPubKeyHashFromIndex = $.validatorIndexes[index];
+            ValidatorData storage validator = $.validators[blsPubKeyHashFromIndex];
+            if (validator.eigenPod != address(0)) {
+                revert InvalidValidatorType();
+            }
+
+            ValidatorRegistrationData storage validatorRegistrationData =
+                $.validatorRegistrations[blsPubKeyHashFromIndex];
+            uint64 registeredAt = validatorRegistrationData.registeredAt;
+
+            if (proof.timestamp < registeredAt || proof.timestamp > validator.registeredUntil) {
+                revert InvalidValidatorProof(proof.validator[0]);
+            }
+
+            if (blsPubKeyHashFromIndex != proof.validator[0]) {
+                _slashAndDeregisterValidator(blsPubKeyHashFromIndex);
             }
         }
     }
@@ -795,19 +833,15 @@ contract UniFiAVSManager is
     /**
      * @dev Internal function to slash and deregister a validator
      * @param blsPubKeyHash The BLS public key hash of the validator
-     * @param validatorIndex The index of the validator
      */
-    function _slashAndDeregisterValidator(bytes32 blsPubKeyHash, uint64 validatorIndex) internal {
+    function _slashAndDeregisterValidator(bytes32 blsPubKeyHash) internal {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
         ValidatorData storage validator = $.validators[blsPubKeyHash];
         address operator = validator.operator;
 
-        if (validator.index == 0) {
+        uint64 validatorIndex = validator.index;
+        if (validatorIndex == 0) {
             revert ValidatorNotFound();
-        }
-
-        if (validator.registeredUntil <= block.number) {
-            revert ValidatorAlreadyDeregistered();
         }
 
         $.slashedOperators[operator].push(
@@ -817,7 +851,14 @@ contract UniFiAVSManager is
         // Update the registeredUntil field to deregister the validator immediately
         validator.registeredUntil = uint64(block.number);
 
-        delete $.validatorIndexes[validatorIndex];
+        delete $.validatorRegistrations[blsPubKeyHash];
+        delete $.validators[blsPubKeyHash];
+
+        // if the index and is pointing to the same validator, delete the index.
+        bytes32 pubkeyFromIndex = $.validatorIndexes[validatorIndex];
+        if (pubkeyFromIndex == blsPubKeyHash) {
+            delete $.validatorIndexes[validatorIndex];
+        }
 
         // Emit the ValidatorDeregistered event
         emit ValidatorDeregistered({ operator: operator, blsPubKeyHash: blsPubKeyHash });

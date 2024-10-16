@@ -116,7 +116,7 @@ library BeaconProofs {
         return proof;
     }
 
-    function eip4788ValidatorInclusionProof() internal pure returns (BeaconChainHelperLib.InclusionProof memory) {
+    function eip4788ValidatorInclusionProof() internal view returns (BeaconChainHelperLib.InclusionProof memory) {
         return BeaconChainHelperLib.InclusionProof({
             validator: validatorChunks(),
             validatorIndex: validatorIndex(),
@@ -125,7 +125,8 @@ library BeaconProofs {
             beaconStateProof: beaconStateProofForValidatorList(),
             beaconStateRoot: beaconStateRoot(),
             beaconBlockProofForState: beaconBlockProofForBeaconState(),
-            beaconBlockProofForProposerIndex: beaconBlockProofForProposer()
+            beaconBlockProofForProposerIndex: beaconBlockProofForProposer(),
+            timestamp: block.timestamp
         });
     }
 }

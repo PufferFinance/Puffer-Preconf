@@ -84,13 +84,16 @@ interface IUniFiAVSManager {
     error InvalidArrayLengths();
 
     /// @notice Thrown when a validator proof is invalid
-    error InvalidValidatorProof();
+    error InvalidValidatorProof(bytes32 blsPubKeyHash);
 
     /// @notice Thrown when a validator index is already used
     error ValidatorIndexAlreadyUsed();
 
     /// @notice Thrown when an operator is slashed
     error OperatorSlashed();
+
+    /// @notice Thrown when a validator is not backed by an EigenPod
+    error InvalidValidatorType();
 
     /**
      * @notice Emitted when a new operator is registered in the UniFi AVS.
@@ -304,15 +307,16 @@ interface IUniFiAVSManager {
     function verifyValidatorSignatures(bytes32[] calldata blsPubKeyHashes) external;
 
     /**
-     * @notice Verifies the validator's presence on the beacon chain.
-     * @param blsPubKeyHashes The BLS public key hashes of the validators.
+     * @notice Slashes validators with invalid pubkey.
      * @param proofs The inclusion proofs for each validator.
      */
-    function verifyValidatorOnBeaconChain(
-        bytes32[] calldata blsPubKeyHashes,
-        BeaconChainHelperLib.InclusionProof[] calldata proofs
-    ) external;
+    function slashValidatorsWithInvalidPubkey(BeaconChainHelperLib.InclusionProof[] calldata proofs) external;
 
+    /**
+     * @notice Slashes validators with invalid index.
+     * @param proofs The inclusion proofs for each validator.
+     */
+    function slashValidatorsWithInvalidIndex(BeaconChainHelperLib.InclusionProof[] calldata proofs) external;
     /**
      * @notice Retrieves information about a specific operator.
      * @param operator The address of the operator.
