@@ -788,7 +788,7 @@ contract UniFiAVSManager is
     {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
 
-        if (!BeaconChainHelperLib.verifyValidator(proof)) {
+        if (!BeaconChainHelperLib.verifyValidatorExistence(proof)) {
             revert InvalidValidatorProof(proof.validator[0]);
         }
 

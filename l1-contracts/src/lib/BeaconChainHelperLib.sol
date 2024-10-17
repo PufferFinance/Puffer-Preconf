@@ -21,7 +21,7 @@ library BeaconChainHelperLib {
         bytes32 beaconStateRoot;
         // Proof of inclusion of beacon state in the beacon block
         bytes32[] beaconBlockProofForState;
-        // Proof of inclusion of the validator index in the beacon block
+        // Proof of inclusion of the validator index in the beacon block. leave this empty if not needed.
         bytes32[] beaconBlockProofForProposerIndex;
         // Timestamp of the beacon block
         uint256 timestamp;
@@ -38,7 +38,7 @@ library BeaconChainHelperLib {
     /// @dev The proof that the actual validator index is a part of the beacon is invalid.
     error BeaconBlockProofForProposerIndex();
 
-    function verifyValidator(InclusionProof memory inclusionProof) internal returns (bool) {
+    function verifyValidatorExistence(InclusionProof memory inclusionProof) internal returns (bool) {
         (, bytes32 beaconBlockRoot) = getRootFromTimestamp(inclusionProof.timestamp);
 
         // Validator is verified against the validator list in the beacon state
@@ -72,19 +72,6 @@ library BeaconChainHelperLib {
             )
         ) {
             // Revert if the proof for the beacon state being a part of the beacon block fails
-            return false;
-        }
-
-        // Validator index is verified against the beacon block
-        if (
-            !MerkleUtils.verifyProof(
-                inclusionProof.beaconBlockProofForProposerIndex,
-                beaconBlockRoot,
-                MerkleUtils.toLittleEndian(inclusionProof.validatorIndex),
-                1
-            )
-        ) {
-            // Revert if the proof that the proposer index is a part of the beacon block fails
             return false;
         }
 
