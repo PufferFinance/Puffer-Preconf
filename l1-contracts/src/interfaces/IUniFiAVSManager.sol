@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-// EigenLayer Imports
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 import { BN254 } from "eigenlayer-middleware/libraries/BN254.sol";
-// Local Imports
 import { IAVSDirectoryExtended } from "../interfaces/EigenLayer/IAVSDirectoryExtended.sol";
 import "../structs/ValidatorData.sol";
 import "../structs/OperatorData.sol";
@@ -79,9 +77,6 @@ interface IUniFiAVSManager {
 
     /// @notice Thrown when a signature is expired
     error SignatureExpired();
-
-    /// @notice Thrown when the lengths of the input arrays are not equal
-    error InvalidArrayLengths();
 
     /// @notice Thrown when a validator proof is invalid
     error InvalidValidatorProof(bytes32 blsPubKeyHash);

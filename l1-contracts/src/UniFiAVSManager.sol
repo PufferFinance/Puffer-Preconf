@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-// OpenZeppelin Imports
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-
-// EigenLayer Imports
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
@@ -17,10 +14,8 @@ import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 import { BN254 } from "eigenlayer-middleware/libraries/BN254.sol";
-// Local Imports
 import { BLSSignatureCheckerLib } from "./lib/BLSSignatureCheckerLib.sol";
 import { BeaconChainHelperLib } from "./lib/BeaconChainHelperLib.sol";
-
 import { IUniFiAVSManager } from "./interfaces/IUniFiAVSManager.sol";
 import { UniFiAVSManagerStorage } from "./storage/UniFiAVSManagerStorage.sol";
 import "./structs/ValidatorData.sol";
@@ -38,8 +33,6 @@ contract UniFiAVSManager is
     address public constant BEACON_CHAIN_STRATEGY = 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
     bytes32 public constant VALIDATOR_REGISTRATION_TYPEHASH =
         keccak256("BN254ValidatorRegistration(address operator,bytes32 salt,uint256 expiry,uint64 index)");
-
-    uint256 public constant PROOF_TIMESTAMP_THRESHOLD = 12 hours;
 
     /**
      * @notice The EigenPodManager
@@ -353,31 +346,12 @@ contract UniFiAVSManager is
         external
         restricted
     {
-        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
-
         for (uint256 i = 0; i < proofs.length; i++) {
             BeaconChainHelperLib.InclusionProof memory proof = proofs[i];
             bytes32 blsPubKeyHash = proof.validator[0];
-            bool isValid = BeaconChainHelperLib.verifyValidator(proof);
+            (uint64 index,) = _validateProofAndGetValidatorKeys(proof, false);
 
-            if (!isValid) {
-                revert InvalidValidatorProof(blsPubKeyHash);
-            }
-
-            ValidatorData storage validator = $.validators[blsPubKeyHash];
-            uint64 validatorIndex = validator.index;
-
-            if (validator.eigenPod != address(0)) {
-                revert InvalidValidatorType();
-            }
-            ValidatorRegistrationData storage validatorRegistrationData = $.validatorRegistrations[blsPubKeyHash];
-            uint64 registeredAt = validatorRegistrationData.registeredAt;
-
-            if (proof.timestamp < registeredAt || proof.timestamp > validator.registeredUntil) {
-                revert InvalidValidatorProof(blsPubKeyHash);
-            }
-
-            if (validatorIndex != proof.validatorIndex) {
+            if (index != proof.validatorIndex) {
                 _slashAndDeregisterValidator(blsPubKeyHash);
             }
         }
@@ -391,34 +365,12 @@ contract UniFiAVSManager is
         external
         restricted
     {
-        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
-
         for (uint256 i = 0; i < proofs.length; i++) {
             BeaconChainHelperLib.InclusionProof memory proof = proofs[i];
-            uint256 index = proof.validatorIndex;
+            (, bytes32 storedBlsPubKeyHash) = _validateProofAndGetValidatorKeys(proof, true);
 
-            bool isValid = BeaconChainHelperLib.verifyValidator(proof);
-
-            if (!isValid) {
-                revert InvalidValidatorProof(proof.validator[0]);
-            }
-
-            bytes32 blsPubKeyHashFromIndex = $.validatorIndexes[index];
-            ValidatorData storage validator = $.validators[blsPubKeyHashFromIndex];
-            if (validator.eigenPod != address(0)) {
-                revert InvalidValidatorType();
-            }
-
-            ValidatorRegistrationData storage validatorRegistrationData =
-                $.validatorRegistrations[blsPubKeyHashFromIndex];
-            uint64 registeredAt = validatorRegistrationData.registeredAt;
-
-            if (proof.timestamp < registeredAt || proof.timestamp > validator.registeredUntil) {
-                revert InvalidValidatorProof(proof.validator[0]);
-            }
-
-            if (blsPubKeyHashFromIndex != proof.validator[0]) {
-                _slashAndDeregisterValidator(blsPubKeyHashFromIndex);
+            if (storedBlsPubKeyHash != proof.validator[0]) {
+                _slashAndDeregisterValidator(storedBlsPubKeyHash);
             }
         }
     }
@@ -828,6 +780,31 @@ contract UniFiAVSManager is
         $.deregistrationDelay = newDelay;
 
         emit DeregistrationDelaySet(oldDelay, newDelay);
+    }
+
+    function _validateProofAndGetValidatorKeys(BeaconChainHelperLib.InclusionProof memory proof, bool checkIndex)
+        internal
+        returns (uint64, bytes32)
+    {
+        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
+
+        if (!BeaconChainHelperLib.verifyValidator(proof)) {
+            revert InvalidValidatorProof(proof.validator[0]);
+        }
+
+        bytes32 storedBlsPubKeyHash = checkIndex ? $.validatorIndexes[proof.validatorIndex] : proof.validator[0];
+        ValidatorData storage validator = $.validators[storedBlsPubKeyHash];
+
+        if (validator.eigenPod != address(0)) {
+            revert InvalidValidatorType();
+        }
+
+        ValidatorRegistrationData storage validatorRegistrationData = $.validatorRegistrations[storedBlsPubKeyHash];
+        if (proof.timestamp < validatorRegistrationData.registeredAt || proof.timestamp > validator.registeredUntil) {
+            revert InvalidValidatorProof(proof.validator[0]);
+        }
+
+        return (validator.index, storedBlsPubKeyHash);
     }
 
     /**

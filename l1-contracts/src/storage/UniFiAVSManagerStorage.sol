@@ -27,7 +27,7 @@ abstract contract UniFiAVSManagerStorage {
         // Delay after which a validator can be considered registered
         uint64 registerationDelay;
         // Slashed operators mapping
-        mapping(address => InvalidValidator[]) slashedOperators; // operator => InvalidValidator[]
+        mapping(address operator => InvalidValidator[] invalidValidators) slashedOperators;
     }
 
     /**
