@@ -11,6 +11,13 @@ import "../structs/OperatorData.sol";
  * @custom:security-contact security@puffer.fi
  */
 abstract contract UniFiAVSManagerStorage {
+    /**
+     * @dev +-----------------------------------------------------------+
+     *      |                                                           |
+     *      | DO NOT CHANGE, REORDER, REMOVE EXISTING STORAGE VARIABLES |
+     *      |                                                           |
+     *      +-----------------------------------------------------------+
+     */
     struct UniFiAVSStorage {
         mapping(bytes32 => ValidatorData) validators;
         mapping(uint256 => bytes32) validatorIndexes;
@@ -24,7 +31,7 @@ abstract contract UniFiAVSManagerStorage {
         EnumerableSet.AddressSet allowlistedRestakingStrategies;
         // Mapping to store validator registration data
         mapping(bytes32 => ValidatorRegistrationData) validatorRegistrations;
-        // Delay after which a validator can be considered registered
+        // Delay (in blocks) after which a validator can be considered registered
         uint64 registerationDelay;
         // Slashed operators mapping
         mapping(address operator => InvalidValidator[] invalidValidators) slashedOperators;

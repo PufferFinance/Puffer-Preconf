@@ -55,6 +55,7 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
     uint256 public operatorPrivateKey;
 
     address public DAO = 0xC0896ab1A8cae8c2C1d27d011eb955Cca955580d;
+    address constant BEACON_CHAIN_STRATEGY = 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
 
     function setUp() public virtual {
         vm.createSelectFork(vm.rpcUrl("mainnet"), 20731077); // Replace with an appropriate block number
@@ -362,7 +363,7 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
 
         // Assert
         assertEq(restakedStrategies.length, 1, "Should have one restaked strategy");
-        assertEq(restakedStrategies[0], avsManager.BEACON_CHAIN_STRATEGY(), "Should be the Beacon Chain strategy");
+        assertEq(restakedStrategies[0], BEACON_CHAIN_STRATEGY, "Should be the Beacon Chain strategy");
     }
 
     function test_getRestakeableStrategies() public {
@@ -371,7 +372,7 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
 
         // Assert
         assertEq(restakeableStrategies.length, 1, "Should have one restakeable strategy");
-        assertEq(restakeableStrategies[0], avsManager.BEACON_CHAIN_STRATEGY(), "Should be the Beacon Chain strategy");
+        assertEq(restakeableStrategies[0], BEACON_CHAIN_STRATEGY, "Should be the Beacon Chain strategy");
     }
 
     function _registerOperator() internal {

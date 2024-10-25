@@ -39,8 +39,6 @@ library BeaconChainHelperLib {
     error BeaconBlockProofForProposerIndex();
 
     function verifyValidatorExistence(InclusionProof memory inclusionProof) internal returns (bool) {
-        (, bytes32 beaconBlockRoot) = getRootFromTimestamp(inclusionProof.timestamp);
-
         // Validator is verified against the validator list in the beacon state
         bytes32 validatorHashTreeRoot = MerkleUtils.merkleize(inclusionProof.validator);
         if (
@@ -64,6 +62,8 @@ library BeaconChainHelperLib {
             // Revert if the proof that the validator list is a part of the beacon state fails
             return false;
         }
+
+        (, bytes32 beaconBlockRoot) = getRootFromTimestamp(inclusionProof.timestamp);
 
         // Beacon state is verified against the beacon block
         if (

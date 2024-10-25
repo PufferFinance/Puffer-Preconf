@@ -11,7 +11,7 @@ import "../mocks/MockDelegationManager.sol";
 import "../mocks/MockAVSDirectory.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
-import "forge-std/console.sol";
+import { UniFiAVSDisputeManager } from "../../src/UniFiAVSDisputeManager.sol";
 
 contract UnitTestHelper is Test, BaseScript {
     address public constant ADDRESS_ZERO = address(0);
@@ -28,6 +28,7 @@ contract UnitTestHelper is Test, BaseScript {
     MockEigenPodManager public mockEigenPodManager;
     MockDelegationManager public mockDelegationManager;
     MockAVSDirectory public mockAVSDirectory;
+    UniFiAVSDisputeManager public disputeManager;
 
     address public DAO = makeAddr("DAO");
     address public COMMUNITY_MULTISIG = makeAddr("communityMultisig");
@@ -79,7 +80,7 @@ contract UnitTestHelper is Test, BaseScript {
             address(mockAVSDirectory),
             DEREGISTRATION_DELAY
         );
-
+        disputeManager = UniFiAVSDisputeManager(avsDeployment.disputeManagerProxy);
         // accessManager = AccessManager(avsDeployment.accessManager);
         timelock = avsDeployment.timelock;
         avsManager = UniFiAVSManager(avsDeployment.avsManagerProxy);

@@ -261,14 +261,14 @@ interface IUniFiAVSManager {
 
     /**
      * @notice Sets a new deregistration delay for operators.
-     * @param newDelay The new deregistration delay in seconds.
+     * @param newDelay The new deregistration delay in blocks.
      * @dev Restricted to the DAO
      */
     function setDeregistrationDelay(uint64 newDelay) external;
 
     /**
      * @notice Sets a new registration delay for validators.
-     * @param newDelay The new registration delay in seconds.
+     * @param newDelay The new registration delay in blocks.
      * @dev Restricted to the DAO
      */
     function setRegistrationDelay(uint64 newDelay) external;
@@ -403,14 +403,13 @@ interface IUniFiAVSManager {
 
     /**
      * @notice Returns the BLS message hash for a validator registration.
-     * @param typeHash The type hash for the message.
      * @param operator The address of the operator.
      * @param salt The salt for the message.
      * @param expiry The expiry for the message.
      * @param index The index for the message.
      * @return BN254.G1Point The BLS message hash.
      */
-    function blsMessageHash(bytes32 typeHash, address operator, bytes32 salt, uint256 expiry, uint256 index)
+    function blsMessageHash(address operator, bytes32 salt, uint256 expiry, uint256 index)
         external
         view
         returns (BN254.G1Point memory);

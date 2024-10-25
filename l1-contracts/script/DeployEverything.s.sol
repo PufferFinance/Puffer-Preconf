@@ -6,8 +6,8 @@ import { DeployUniFiAVSManager } from "script/DeployUniFiAVSManager.s.sol";
 import { SetupAccess } from "script/SetupAccess.s.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { AVSDeployment } from "script/DeploymentStructs.sol";
-import { console } from "forge-std/console.sol";
-
+import { UniFiAVSDisputeManager } from "../src/UniFiAVSDisputeManager.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 /**
  * @title Deploy all protocol contracts
  * @author Puffer Finance
@@ -15,6 +15,7 @@ import { console } from "forge-std/console.sol";
  * @dev Example on how to run the script
  *      forge script script/DeployEverything.s.sol:DeployEverything --rpc-url=$RPC_URL --sig 'run()' --broadcast
  */
+
 contract DeployEverything is BaseScript {
     address DAO;
 
@@ -28,16 +29,32 @@ contract DeployEverything is BaseScript {
 
         vm.startBroadcast(_deployerPrivateKey);
         AccessManager accessManager = new AccessManager(_broadcaster);
+
+        // Deploy DisputeManager
+        UniFiAVSDisputeManager disputeManagerImplementation = new UniFiAVSDisputeManager();
+        address disputeManager = address(
+            new ERC1967Proxy{ salt: bytes32("UniFiAVSDisputeManager") }(
+                address(disputeManagerImplementation),
+                abi.encodeCall(UniFiAVSDisputeManager.initialize, (address(accessManager)))
+            )
+        );
+
         vm.stopBroadcast();
 
         // 1. Deploy AVSManager
         (address avsManagerImplementation, address avsManagerProxy) = new DeployUniFiAVSManager().run(
-            address(accessManager), eigenPodManager, eigenDelegationManager, avsDirectory, initialDeregistrationDelay
+            address(accessManager),
+            eigenPodManager,
+            eigenDelegationManager,
+            avsDirectory,
+            initialDeregistrationDelay,
+            disputeManager
         );
 
         deployment.avsManagerImplementation = avsManagerImplementation;
         deployment.avsManagerProxy = avsManagerProxy;
         deployment.accessManager = address(accessManager);
+        deployment.disputeManagerProxy = disputeManager;
 
         // `anvil` in the terminal
         if (_localAnvil) {
@@ -65,6 +82,8 @@ contract DeployEverything is BaseScript {
         vm.serializeAddress(obj, "avsManagerImplementation", deployment.avsManagerImplementation);
         vm.serializeAddress(obj, "avsManagerProxy", deployment.avsManagerProxy);
         vm.serializeAddress(obj, "accessManager", deployment.accessManager);
+        vm.serializeAddress(obj, "disputeManagerImplementation", deployment.disputeManagerImplementation);
+        vm.serializeAddress(obj, "disputeManagerProxy", deployment.disputeManagerProxy);
         vm.serializeAddress(obj, "dao", DAO);
 
         string memory finalJson = vm.serializeString(obj, "", "");

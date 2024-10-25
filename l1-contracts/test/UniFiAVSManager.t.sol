@@ -20,6 +20,8 @@ contract UniFiAVSManagerTest is UnitTestHelper {
     using BN254 for BN254.G1Point;
     using Strings for uint256;
 
+    address constant BEACON_CHAIN_STRATEGY = 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
+
     bytes delegatePubKey = abi.encodePacked(uint256(1337));
 
     // TEST HELPERS
@@ -77,9 +79,8 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         params.index = validatorIndex;
 
         // Generate a valid signature
-        BN254.G1Point memory messagePoint = avsManager.blsMessageHash(
-            avsManager.VALIDATOR_REGISTRATION_TYPEHASH(), operator, params.salt, params.expiry, params.index
-        );
+        BN254.G1Point memory messagePoint =
+            avsManager.blsMessageHash(operator, params.salt, params.expiry, params.index);
 
         registrationSignature = messagePoint.scalar_mul(validatorPrivateKey);
         pubkeyHash = BN254.hashG1Point(params.pubkeyG1);
@@ -802,19 +803,19 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         _registerOperator();
 
         // Set shares for the operator
-        mockDelegationManager.setShares(operator, IStrategy(avsManager.BEACON_CHAIN_STRATEGY()), 100);
+        mockDelegationManager.setShares(operator, IStrategy(BEACON_CHAIN_STRATEGY), 100);
 
         address[] memory restakedStrategies = avsManager.getOperatorRestakedStrategies(operator);
 
         assertEq(restakedStrategies.length, 1, "Should return one restaked strategy");
-        assertEq(restakedStrategies[0], avsManager.BEACON_CHAIN_STRATEGY(), "Should return BEACON_CHAIN_STRATEGY");
+        assertEq(restakedStrategies[0], BEACON_CHAIN_STRATEGY, "Should return BEACON_CHAIN_STRATEGY");
     }
 
     function testGetRestakeableStrategies() public {
         address[] memory restakeableStrategies = avsManager.getRestakeableStrategies();
 
         assertEq(restakeableStrategies.length, 1, "Should return one restakeable strategy");
-        assertEq(restakeableStrategies[0], avsManager.BEACON_CHAIN_STRATEGY(), "Should return BEACON_CHAIN_STRATEGY");
+        assertEq(restakeableStrategies[0], BEACON_CHAIN_STRATEGY, "Should return BEACON_CHAIN_STRATEGY");
     }
 
     function testIsValidatorInChainId_AfterCommitmentChange() public {
@@ -949,7 +950,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         // Initially, only BEACON_CHAIN_STRATEGY should be allowlisted
         address[] memory initialStrategies = avsManager.getRestakeableStrategies();
         assertEq(initialStrategies.length, 1);
-        assertEq(initialStrategies[0], avsManager.BEACON_CHAIN_STRATEGY());
+        assertEq(initialStrategies[0], BEACON_CHAIN_STRATEGY);
 
         // Add a new strategy
         vm.prank(DAO);
@@ -960,10 +961,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         // Check that the new strategy is added
         address[] memory updatedStrategies = avsManager.getRestakeableStrategies();
         assertEq(updatedStrategies.length, 2);
-        assertTrue(
-            updatedStrategies[0] == avsManager.BEACON_CHAIN_STRATEGY()
-                || updatedStrategies[1] == avsManager.BEACON_CHAIN_STRATEGY()
-        );
+        assertTrue(updatedStrategies[0] == BEACON_CHAIN_STRATEGY || updatedStrategies[1] == BEACON_CHAIN_STRATEGY);
         assertTrue(updatedStrategies[0] == newStrategy || updatedStrategies[1] == newStrategy);
 
         // Remove the new strategy
@@ -975,7 +973,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         // Check that the strategy is removed
         address[] memory finalStrategies = avsManager.getRestakeableStrategies();
         assertEq(finalStrategies.length, 1);
-        assertEq(finalStrategies[0], avsManager.BEACON_CHAIN_STRATEGY());
+        assertEq(finalStrategies[0], BEACON_CHAIN_STRATEGY);
 
         // Try to remove newStrategy (should fail)
         vm.prank(DAO);
@@ -1005,7 +1003,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.stopPrank();
 
         // Set shares for the operator
-        mockDelegationManager.setShares(operator, IStrategy(avsManager.BEACON_CHAIN_STRATEGY()), 100);
+        mockDelegationManager.setShares(operator, IStrategy(BEACON_CHAIN_STRATEGY), 100);
         mockDelegationManager.setShares(operator, IStrategy(newStrategy1), 200);
         // Note: We don't set shares for newStrategy2
 
@@ -1013,8 +1011,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
         assertEq(restakedStrategies.length, 2, "Should return two restaked strategies");
         assertTrue(
-            restakedStrategies[0] == avsManager.BEACON_CHAIN_STRATEGY()
-                || restakedStrategies[1] == avsManager.BEACON_CHAIN_STRATEGY(),
+            restakedStrategies[0] == BEACON_CHAIN_STRATEGY || restakedStrategies[1] == BEACON_CHAIN_STRATEGY,
             "Should include BEACON_CHAIN_STRATEGY"
         );
         assertTrue(
@@ -1051,7 +1048,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         avsManager.setAllowlistRestakingStrategy(newStrategy, true);
 
         // Set shares for the operator
-        mockDelegationManager.setShares(operator, IStrategy(avsManager.BEACON_CHAIN_STRATEGY()), 100);
+        mockDelegationManager.setShares(operator, IStrategy(BEACON_CHAIN_STRATEGY), 100);
         mockDelegationManager.setShares(operator, IStrategy(newStrategy), 200);
 
         address[] memory restakedStrategies = avsManager.getOperatorRestakedStrategies(operator);

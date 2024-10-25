@@ -12,6 +12,9 @@ import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
 import { console } from "forge-std/console.sol";
 import { ROLE_ID_OPERATIONS_MULTISIG, ROLE_ID_DAO } from "./Roles.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { UniFiAVSDisputeManager } from "../src/UniFiAVSDisputeManager.sol";
+import { IUniFiAVSDisputeManager } from "../src/interfaces/IUniFiAVSDisputeManager.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract UpgradeMainnetUniFiAVS is BaseScript {
     function run() public returns (AVSDeployment memory deployment) {
@@ -25,8 +28,22 @@ contract UpgradeMainnetUniFiAVS is BaseScript {
         uint64 initialDeregistrationDelay = 0;
 
         AccessManager accessManager = AccessManager(accessManagerAddress);
+        // Deploy DisputeManager
+        UniFiAVSDisputeManager disputeManagerImplementation = new UniFiAVSDisputeManager();
+        address disputeManager = address(
+            new ERC1967Proxy{ salt: bytes32("UniFiAVSDisputeManager") }(
+                address(disputeManagerImplementation),
+                abi.encodeCall(UniFiAVSDisputeManager.initialize, (address(accessManager)))
+            )
+        );
+        console.log("DisputeManager implementation:", address(disputeManagerImplementation));
+        console.log("DisputeManager proxy:", disputeManager);
+
         UniFiAVSManager uniFiAVSManagerImplementation = new UniFiAVSManager(
-            IEigenPodManager(eigenPodManager), IDelegationManager(eigenDelegationManager), IAVSDirectory(avsDirectory)
+            IEigenPodManager(eigenPodManager),
+            IDelegationManager(eigenDelegationManager),
+            IAVSDirectory(avsDirectory),
+            IUniFiAVSDisputeManager(disputeManager)
         );
 
         console.log("UniFiAVSManager Implementation:", address(uniFiAVSManagerImplementation));
