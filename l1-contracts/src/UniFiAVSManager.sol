@@ -294,7 +294,7 @@ contract UniFiAVSManager is
                 registrationHash: registrationHash,
                 salt: validators[i].salt,
                 registeredAt: uint64(block.number),
-                activeAfter: uint64(block.number) + $.registerationDelay
+                activeAfter: uint64(block.number) + $.registrationDelay
             });
 
             $.validatorIndexes[validators[i].index] = validators[i].blsPubKeyHash;
@@ -313,6 +313,7 @@ contract UniFiAVSManager is
         // Update the operator's validator count
         OperatorData storage operator = $.operators[msg.sender];
         operator.validatorCount += uint128(newValidatorCount);
+        operator.startDeregisterOperatorBlock = 0;
     }
 
     /**
@@ -326,7 +327,6 @@ contract UniFiAVSManager is
             bytes32 blsPubKeyHash = BLSSignatureCheckerLib.hashG1Point(validators[i].pubkeyG1);
 
             ValidatorData storage validator = $.validators[blsPubKeyHash];
-            ValidatorRegistrationData memory validatorRegistrationData = $.validatorRegistrations[blsPubKeyHash];
 
             bytes32 registrationHash = keccak256(
                 abi.encodePacked(
@@ -337,7 +337,7 @@ contract UniFiAVSManager is
                 )
             );
 
-            if (validatorRegistrationData.registrationHash != registrationHash) {
+            if ($.validatorRegistrations[blsPubKeyHash].registrationHash != registrationHash) {
                 revert InvalidRegistrationSignature();
             }
 
@@ -501,8 +501,8 @@ contract UniFiAVSManager is
      */
     function setRegistrationDelay(uint64 newDelay) external restricted {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
-        uint64 oldDelay = $.registerationDelay;
-        $.registerationDelay = newDelay;
+        uint64 oldDelay = $.registrationDelay;
+        $.registrationDelay = newDelay;
 
         emit RegistrationDelaySet(oldDelay, newDelay);
     }
@@ -563,7 +563,7 @@ contract UniFiAVSManager is
      */
     function getRegistrationDelay() external view returns (uint64) {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
-        return $.registerationDelay;
+        return $.registrationDelay;
     }
 
     /**

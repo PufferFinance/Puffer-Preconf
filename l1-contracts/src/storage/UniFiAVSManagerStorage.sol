@@ -32,9 +32,7 @@ abstract contract UniFiAVSManagerStorage {
         // Mapping to store validator registration data
         mapping(bytes32 => ValidatorRegistrationData) validatorRegistrations;
         // Delay (in blocks) after which a validator can be considered registered
-        uint64 registerationDelay;
-        // Slashed operators mapping
-        mapping(address operator => InvalidValidator[] invalidValidators) slashedOperators;
+        uint64 registrationDelay;
     }
 
     /**
