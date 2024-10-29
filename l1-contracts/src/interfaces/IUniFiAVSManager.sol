@@ -299,10 +299,10 @@ interface IUniFiAVSManager {
     function registerValidatorsOptimistically(ValidatorRegistrationParams[] calldata paramsArray) external;
 
     /**
-     * @notice Verifies the signatures of validators.
+     * @notice Slashes validators with invalid signatures.
      * @param validators The array of ValidatorRegistrationSlashingParams.
      */
-    function verifyValidatorSignatures(ValidatorRegistrationSlashingParams[] calldata validators) external;
+    function slashValidatorsWithInvalidSignature(ValidatorRegistrationSlashingParams[] calldata validators) external;
 
     /**
      * @notice Slashes validators with invalid pubkey.

@@ -105,7 +105,7 @@ contract SetupAccess is BaseScript {
         publicSelectors[6] = UniFiAVSManager.updateOperatorCommitment.selector;
         publicSelectors[7] = UniFiAVSManager.registerOperatorWithCommitment.selector;
         publicSelectors[8] = UniFiAVSManager.registerValidatorsOptimistically.selector;
-        publicSelectors[9] = UniFiAVSManager.verifyValidatorSignatures.selector;
+        publicSelectors[9] = UniFiAVSManager.slashValidatorsWithInvalidSignature.selector;
         publicSelectors[10] = UniFiAVSManager.slashValidatorsWithInvalidPubkey.selector;
         publicSelectors[11] = UniFiAVSManager.slashValidatorsWithInvalidIndex.selector;
 

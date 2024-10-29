@@ -320,7 +320,10 @@ contract UniFiAVSManager is
      * @inheritdoc IUniFiAVSManager
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function verifyValidatorSignatures(ValidatorRegistrationSlashingParams[] calldata validators) external restricted {
+    function slashValidatorsWithInvalidSignature(ValidatorRegistrationSlashingParams[] calldata validators)
+        external
+        restricted
+    {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
 
         for (uint256 i = 0; i < validators.length; i++) {

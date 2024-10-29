@@ -1105,7 +1105,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         assertEq(validator2.operator, operator, "Validator 2 should be assigned to the correct operator");
     }
 
-    function testVerifyValidatorSignatures() public {
+    function testslashValidatorsWithInvalidSignature() public {
         _setupOperator();
         _registerOperator();
 
@@ -1139,14 +1139,14 @@ contract UniFiAVSManagerTest is UnitTestHelper {
             salt: salt
         });
 
-        avsManager.verifyValidatorSignatures(slashingParams);
+        avsManager.slashValidatorsWithInvalidSignature(slashingParams);
         vm.roll(block.number + avsManager.getRegistrationDelay() + 1);
 
         ValidatorDataExtended memory validator = avsManager.getValidator(pubkeyHash);
         assertTrue(validator.registered, "Validator should still be registered after verification");
     }
 
-    function testVerifyValidatorSignatures_InvalidSignature() public {
+    function testslashValidatorsWithInvalidSignature_InvalidSignature() public {
         _setupOperator();
         _registerOperator();
 
@@ -1192,7 +1192,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.expectEmit(true, true, false, false);
         emit IUniFiAVSManager.ValidatorSlashed(operator, pubkeyHash);
 
-        avsManager.verifyValidatorSignatures(slashingParams);
+        avsManager.slashValidatorsWithInvalidSignature(slashingParams);
 
         vm.roll(block.number + avsManager.getDeregistrationDelay() + 1);
         ValidatorDataExtended memory validator = avsManager.getValidator(pubkeyHash);
