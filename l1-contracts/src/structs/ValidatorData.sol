@@ -18,8 +18,6 @@ struct ValidatorData {
     address operator;
     /// @notice The block number until which the validator is registered.
     uint64 registeredUntil;
-    /// @notice The block number after which the validator is registered.
-    uint64 registeredAfter;
 }
 
 /**
@@ -51,12 +49,10 @@ struct ValidatorDataExtended {
  * @notice Struct to store registration-related data for a validator.
  */
 struct ValidatorRegistrationData {
-    BN254.G1Point registrationSignature;
-    BN254.G1Point pubkeyG1;
-    BN254.G2Point pubkeyG2;
-    bytes32 salt;
+    bytes32 registrationHash;
+    uint64 salt;
     uint64 registeredAt;
-    uint64 expiry;
+    uint64 activeAfter;
 }
 
 /**
@@ -66,11 +62,22 @@ struct ValidatorRegistrationData {
 struct ValidatorRegistrationParams {
     bytes32 blsPubKeyHash;
     BN254.G1Point registrationSignature;
-    BN254.G1Point pubkeyG1;
-    BN254.G2Point pubkeyG2;
     uint64 index;
     uint256 expiry;
-    bytes32 salt;
+    uint64 salt;
+}
+
+/**
+ * @title ValidatorRegistrationSlashingParams
+ * @notice Struct to store parameters for validator registration slashing.
+ */
+struct ValidatorRegistrationSlashingParams {
+    BN254.G1Point pubkeyG1;
+    BN254.G2Point pubkeyG2;
+    BN254.G1Point registrationSignature;
+    uint64 index;
+    uint256 expiry;
+    uint64 salt;
 }
 
 /**

@@ -35,4 +35,26 @@ library BLSSignatureCheckerLib {
             pubkeyG2
         );
     }
+
+    function g1PointToBytes(BN254.G1Point memory point) internal pure returns (bytes memory) {
+        bytes memory result = new bytes(48);
+
+        assembly {
+            // Store X coordinate
+            mstore(add(result, 32), mload(point))
+
+            // Store Y coordinate
+            // Set the most significant bit to 1 if Y is odd, 0 if Y is even
+            let y := mload(add(point, 32))
+            let yMod2 := mod(y, 2)
+            y := or(and(y, not(shl(255, 1))), shl(255, yMod2))
+            mstore(add(result, 64), y)
+        }
+
+        return result;
+    }
+
+    function hashG1Point(BN254.G1Point memory pk) internal pure returns (bytes32 hashedG1) {
+        return sha256(abi.encodePacked(g1PointToBytes(pk), bytes16(0)));
+    }
 }

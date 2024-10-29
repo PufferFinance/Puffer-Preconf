@@ -90,6 +90,9 @@ interface IUniFiAVSManager {
     /// @notice Thrown when a validator is not backed by an EigenPod
     error InvalidValidatorType();
 
+    /// @notice Thrown when a validator registration signature is invalid
+    error InvalidRegistrationSignature();
+
     /**
      * @notice Emitted when a new operator is registered in the UniFi AVS.
      * @param operator The address of the registered operator.
@@ -297,9 +300,9 @@ interface IUniFiAVSManager {
 
     /**
      * @notice Verifies the signatures of validators.
-     * @param blsPubKeyHashes The BLS public key hashes of the validators.
+     * @param validators The array of ValidatorRegistrationSlashingParams.
      */
-    function verifyValidatorSignatures(bytes32[] calldata blsPubKeyHashes) external;
+    function verifyValidatorSignatures(ValidatorRegistrationSlashingParams[] calldata validators) external;
 
     /**
      * @notice Slashes validators with invalid pubkey.
@@ -409,8 +412,28 @@ interface IUniFiAVSManager {
      * @param index The index for the message.
      * @return BN254.G1Point The BLS message hash.
      */
-    function blsMessageHash(address operator, bytes32 salt, uint256 expiry, uint256 index)
+    function blsMessageHash(address operator, uint256 salt, uint256 expiry, uint256 index)
         external
         view
         returns (BN254.G1Point memory);
+
+    /**
+     * @notice Retrieves the validator registration data for a given BLS public key hash.
+     * @param blsPubKeyHash The BLS public key hash of the validator.
+     * @return ValidatorRegistrationData struct containing registration data for the validator.
+     */
+    function getValidatorRegistrationData(bytes32 blsPubKeyHash)
+        external
+        view
+        returns (ValidatorRegistrationData memory);
+
+    /**
+     * @notice Retrieves the validator registration data for a given validator index.
+     * @param validatorIndex The index of the validator.
+     * @return ValidatorRegistrationData struct containing registration data for the validator.
+     */
+    function getValidatorRegistrationData(uint256 validatorIndex)
+        external
+        view
+        returns (ValidatorRegistrationData memory);
 }

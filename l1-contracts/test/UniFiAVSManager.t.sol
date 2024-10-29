@@ -63,7 +63,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         uint256 validatorPrivateKey,
         uint64 validatorIndex,
         address operator,
-        bytes32 salt,
+        uint256 salt,
         uint256 expiry
     ) internal returns (BN254.G1Point memory registrationSignature, bytes32 pubkeyHash) {
         // Generate BLS key pair
@@ -72,9 +72,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         // Create ValidatorRegistrationParams
         ValidatorRegistrationParams memory params;
 
-        params.pubkeyG1 = blsKeyPair.pubkeyG1;
-        params.pubkeyG2 = blsKeyPair.pubkeyG2;
-        params.salt = salt;
+        params.salt = uint64(salt);
         params.expiry = expiry;
         params.index = validatorIndex;
 
@@ -83,7 +81,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
             avsManager.blsMessageHash(operator, params.salt, params.expiry, params.index);
 
         registrationSignature = messagePoint.scalar_mul(validatorPrivateKey);
-        pubkeyHash = BN254.hashG1Point(params.pubkeyG1);
+        pubkeyHash = BLSSignatureCheckerLib.hashG1Point(blsKeyPair.pubkeyG1);
 
         return (registrationSignature, pubkeyHash);
     }
@@ -1064,8 +1062,8 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         uint256 validatorPrivateKey2 = 456;
         uint64 validatorIndex1 = 1;
         uint64 validatorIndex2 = 2;
-        bytes32 salt1 = bytes32(uint256(1));
-        bytes32 salt2 = bytes32(uint256(2));
+        uint64 salt1 = 1;
+        uint64 salt2 = 2;
         uint256 expiry = block.timestamp + 1 days;
 
         (BN254.G1Point memory signature1, bytes32 pubkeyHash1) =
@@ -1075,29 +1073,20 @@ contract UniFiAVSManagerTest is UnitTestHelper {
             _getValidatorSignature(validatorPrivateKey2, validatorIndex2, operator, salt2, expiry);
 
         ValidatorRegistrationParams[] memory paramsArray = new ValidatorRegistrationParams[](2);
-
-        BN254.G1Point memory pubkeyG1_1 = _generateBlsPubkeyParams(validatorPrivateKey1).pubkeyG1;
-        BN254.G2Point memory pubkeyG2_1 = _generateBlsPubkeyParams(validatorPrivateKey1).pubkeyG2;
         paramsArray[0] = ValidatorRegistrationParams({
             blsPubKeyHash: pubkeyHash1,
-            pubkeyG1: pubkeyG1_1,
-            pubkeyG2: pubkeyG2_1,
-            salt: salt1,
-            expiry: expiry,
+            registrationSignature: signature1,
             index: validatorIndex1,
-            registrationSignature: signature1
+            expiry: expiry,
+            salt: salt1
         });
 
-        BN254.G1Point memory pubkeyG1_2 = _generateBlsPubkeyParams(validatorPrivateKey2).pubkeyG1;
-        BN254.G2Point memory pubkeyG2_2 = _generateBlsPubkeyParams(validatorPrivateKey2).pubkeyG2;
         paramsArray[1] = ValidatorRegistrationParams({
             blsPubKeyHash: pubkeyHash2,
-            pubkeyG1: pubkeyG1_2,
-            pubkeyG2: pubkeyG2_2,
-            salt: salt2,
-            expiry: expiry,
+            registrationSignature: signature2,
             index: validatorIndex2,
-            registrationSignature: signature2
+            expiry: expiry,
+            salt: salt2
         });
 
         vm.prank(operator);
@@ -1116,73 +1105,41 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         assertEq(validator2.operator, operator, "Validator 2 should be assigned to the correct operator");
     }
 
-    function testRegisterValidatorsOptimistically_AlreadyRegistered() public {
-        _setupOperator();
-        _registerOperator();
-
-        uint256 validatorPrivateKey = 123;
-        uint64 validatorIndex = 1;
-        bytes32 salt = bytes32(uint256(1));
-        uint256 expiry = block.timestamp + 1 days;
-
-        (BN254.G1Point memory signature, bytes32 pubkeyHash) =
-            _getValidatorSignature(validatorPrivateKey, validatorIndex, operator, salt, expiry);
-
-        BN254.G1Point memory pubkeyG1 = _generateBlsPubkeyParams(validatorPrivateKey).pubkeyG1;
-        BN254.G2Point memory pubkeyG2 = _generateBlsPubkeyParams(validatorPrivateKey).pubkeyG2;
-
-        ValidatorRegistrationParams[] memory paramsArray = new ValidatorRegistrationParams[](1);
-        paramsArray[0] = ValidatorRegistrationParams({
-            blsPubKeyHash: pubkeyHash,
-            pubkeyG1: pubkeyG1,
-            pubkeyG2: pubkeyG2,
-            salt: salt,
-            expiry: expiry,
-            index: validatorIndex,
-            registrationSignature: signature
-        });
-
-        vm.prank(operator);
-        avsManager.registerValidatorsOptimistically(paramsArray);
-
-        vm.prank(operator);
-        vm.expectRevert(IUniFiAVSManager.ValidatorAlreadyRegistered.selector);
-        avsManager.registerValidatorsOptimistically(paramsArray);
-    }
-
     function testVerifyValidatorSignatures() public {
         _setupOperator();
         _registerOperator();
 
         uint256 validatorPrivateKey = 123;
         uint64 validatorIndex = 1;
-        bytes32 salt = bytes32(uint256(1));
+        uint64 salt = 1;
         uint256 expiry = block.timestamp + 1 days;
 
         (BN254.G1Point memory signature, bytes32 pubkeyHash) =
             _getValidatorSignature(validatorPrivateKey, validatorIndex, operator, salt, expiry);
 
-        BN254.G1Point memory pubkeyG1 = _generateBlsPubkeyParams(validatorPrivateKey).pubkeyG1;
-        BN254.G2Point memory pubkeyG2 = _generateBlsPubkeyParams(validatorPrivateKey).pubkeyG2;
-
         ValidatorRegistrationParams[] memory paramsArray = new ValidatorRegistrationParams[](1);
         paramsArray[0] = ValidatorRegistrationParams({
             blsPubKeyHash: pubkeyHash,
-            pubkeyG1: pubkeyG1,
-            pubkeyG2: pubkeyG2,
-            salt: salt,
-            expiry: expiry,
+            registrationSignature: signature,
             index: validatorIndex,
-            registrationSignature: signature
+            expiry: expiry,
+            salt: salt
         });
 
         vm.prank(operator);
         avsManager.registerValidatorsOptimistically(paramsArray);
 
-        bytes32[] memory blsPubKeyHashes = new bytes32[](1);
-        blsPubKeyHashes[0] = pubkeyHash;
+        ValidatorRegistrationSlashingParams[] memory slashingParams = new ValidatorRegistrationSlashingParams[](1);
+        slashingParams[0] = ValidatorRegistrationSlashingParams({
+            pubkeyG1: _generateBlsPubkeyParams(validatorPrivateKey).pubkeyG1,
+            pubkeyG2: _generateBlsPubkeyParams(validatorPrivateKey).pubkeyG2,
+            registrationSignature: signature,
+            index: validatorIndex,
+            expiry: expiry,
+            salt: salt
+        });
 
-        avsManager.verifyValidatorSignatures(blsPubKeyHashes);
+        avsManager.verifyValidatorSignatures(slashingParams);
         vm.roll(block.number + avsManager.getRegistrationDelay() + 1);
 
         ValidatorDataExtended memory validator = avsManager.getValidator(pubkeyHash);
@@ -1195,7 +1152,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
         uint256 validatorPrivateKey = 123;
         uint64 validatorIndex = 1;
-        bytes32 salt = bytes32(uint256(1));
+        uint64 salt = 1;
         uint256 expiry = block.timestamp + 1 days;
 
         (BN254.G1Point memory validSignature, bytes32 pubkeyHash) =
@@ -1210,30 +1167,32 @@ contract UniFiAVSManagerTest is UnitTestHelper {
             expiry
         );
 
-        BN254.G1Point memory pubkeyG1 = _generateBlsPubkeyParams(validatorPrivateKey).pubkeyG1;
-        BN254.G2Point memory pubkeyG2 = _generateBlsPubkeyParams(validatorPrivateKey).pubkeyG2;
-
         ValidatorRegistrationParams[] memory paramsArray = new ValidatorRegistrationParams[](1);
         paramsArray[0] = ValidatorRegistrationParams({
             blsPubKeyHash: pubkeyHash,
-            pubkeyG1: pubkeyG1,
-            pubkeyG2: pubkeyG2,
-            salt: salt,
-            expiry: expiry,
+            registrationSignature: invalidSignature,
             index: validatorIndex,
-            registrationSignature: invalidSignature // Use the invalid signature
-         });
+            expiry: expiry,
+            salt: salt
+        });
 
         vm.prank(operator);
         avsManager.registerValidatorsOptimistically(paramsArray);
 
-        bytes32[] memory blsPubKeyHashes = new bytes32[](1);
-        blsPubKeyHashes[0] = pubkeyHash;
+        ValidatorRegistrationSlashingParams[] memory slashingParams = new ValidatorRegistrationSlashingParams[](1);
+        slashingParams[0] = ValidatorRegistrationSlashingParams({
+            pubkeyG1: _generateBlsPubkeyParams(validatorPrivateKey).pubkeyG1,
+            pubkeyG2: _generateBlsPubkeyParams(validatorPrivateKey).pubkeyG2,
+            registrationSignature: invalidSignature,
+            index: validatorIndex,
+            expiry: expiry,
+            salt: salt
+        });
 
         vm.expectEmit(true, true, false, false);
         emit IUniFiAVSManager.ValidatorSlashed(operator, pubkeyHash);
 
-        avsManager.verifyValidatorSignatures(blsPubKeyHashes);
+        avsManager.verifyValidatorSignatures(slashingParams);
 
         vm.roll(block.number + avsManager.getDeregistrationDelay() + 1);
         ValidatorDataExtended memory validator = avsManager.getValidator(pubkeyHash);
@@ -1253,9 +1212,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
         paramsArray[0] = ValidatorRegistrationParams({
             blsPubKeyHash: pubkeyHash,
-            pubkeyG1: _generateBlsPubkeyParams(123).pubkeyG1,
-            pubkeyG2: _generateBlsPubkeyParams(123).pubkeyG2, // Use a dummy value for pubkeyG2
-            salt: bytes32(uint256(1)),
+            salt: 1,
             expiry: block.timestamp + 1 days,
             index: uint64(BeaconProofs.validatorIndex()),
             registrationSignature: _generateBlsPubkeyParams(123).pubkeyG1 // Use a dummy value for the signature
@@ -1298,9 +1255,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
         paramsArray[0] = ValidatorRegistrationParams({
             blsPubKeyHash: pubkeyHash,
-            pubkeyG1: _generateBlsPubkeyParams(123).pubkeyG1,
-            pubkeyG2: _generateBlsPubkeyParams(123).pubkeyG2, // Use a dummy value for pubkeyG2
-            salt: bytes32(uint256(1)),
+            salt: 1,
             expiry: block.timestamp + 1 days,
             index: 1, // Use a different index
             registrationSignature: _generateBlsPubkeyParams(123).pubkeyG1 // Use a dummy value for the signature
@@ -1344,9 +1299,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
         paramsArray[0] = ValidatorRegistrationParams({
             blsPubKeyHash: bytes32(uint256(1234)),
-            pubkeyG1: _generateBlsPubkeyParams(123).pubkeyG1,
-            pubkeyG2: _generateBlsPubkeyParams(123).pubkeyG2, // Use a dummy value for pubkeyG2
-            salt: bytes32(uint256(1)),
+            salt: 1,
             expiry: block.timestamp + 1 days,
             index: uint64(BeaconProofs.validatorIndex()),
             registrationSignature: _generateBlsPubkeyParams(123).pubkeyG1 // Use a dummy value for the signature
@@ -1389,9 +1342,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         bytes32 pubkeyHash = sha256(abi.encodePacked(BeaconProofs.validator(), bytes16(0)));
         paramsArray[0] = ValidatorRegistrationParams({
             blsPubKeyHash: pubkeyHash,
-            pubkeyG1: _generateBlsPubkeyParams(123).pubkeyG1,
-            pubkeyG2: _generateBlsPubkeyParams(123).pubkeyG2, // Use a dummy value for pubkeyG2
-            salt: bytes32(uint256(1)),
+            salt: 1,
             expiry: block.timestamp + 1 days,
             index: uint64(BeaconProofs.validatorIndex()),
             registrationSignature: _generateBlsPubkeyParams(123).pubkeyG1 // Use a dummy value for the signature
