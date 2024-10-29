@@ -878,6 +878,7 @@ contract UniFiAVSManager is
         delete $.validators[blsPubKeyHash];
 
         // if the index and is pointing to the same validator, delete the index.
+        // this check is in place in case an EigenPod validator is registered and has used the index.
         bytes32 pubkeyFromIndex = $.validatorIndexes[validatorIndex];
         if (pubkeyFromIndex == blsPubKeyHash) {
             delete $.validatorIndexes[validatorIndex];
