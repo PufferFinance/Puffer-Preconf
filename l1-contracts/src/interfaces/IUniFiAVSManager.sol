@@ -190,6 +190,24 @@ interface IUniFiAVSManager {
     event RegistrationDelaySet(uint64 oldDelay, uint64 newDelay);
 
     /**
+     * @notice Emitted when a validator is registered optimistically.
+     * @param operator The address of the operator.
+     * @param blsPubKeyHash The BLS public key hash of the validator.
+     * @param validatorIndex The beacon chain validator index.
+     * @param salt The salt for the message.
+     * @param expiry The expiry for the message.
+     * @param signature The signature for the message.
+     */
+    event ValidatorRegisteredOptimistically(
+        address indexed operator,
+        bytes32 indexed blsPubKeyHash,
+        uint256 validatorIndex,
+        uint256 salt,
+        uint256 expiry,
+        BN254.G1Point signature
+    );
+
+    /**
      * @notice Returns the EigenPodManager contract.
      * @return IEigenPodManager The EigenPodManager contract.
      */

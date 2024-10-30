@@ -243,7 +243,6 @@ contract UniFiAVSManager is
     {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
         uint256 newValidatorCount = 0;
-        bytes memory delegateKey = $.operators[msg.sender].commitment.delegateKey;
 
         for (uint256 i = 0; i < validators.length; i++) {
             // Derive the BLS public key hash from pubkeyG1
@@ -299,12 +298,13 @@ contract UniFiAVSManager is
 
             $.validatorIndexes[validators[i].index] = validators[i].blsPubKeyHash;
 
-            emit ValidatorRegistered({
-                podOwner: address(0),
+            emit ValidatorRegisteredOptimistically({
                 operator: msg.sender,
-                delegateKey: delegateKey,
                 blsPubKeyHash: validators[i].blsPubKeyHash,
-                validatorIndex: validators[i].index
+                validatorIndex: validators[i].index,
+                salt: validators[i].salt,
+                expiry: validators[i].expiry,
+                signature: validators[i].registrationSignature
             });
 
             newValidatorCount++;
@@ -889,8 +889,6 @@ contract UniFiAVSManager is
 
         // Emit the ValidatorDeregistered event
         emit ValidatorDeregistered({ operator: operator, blsPubKeyHash: blsPubKeyHash });
-
-        emit ValidatorSlashed({ operator: operator, blsPubKeyHash: blsPubKeyHash });
 
         // Decrement the operator's validator count
         OperatorData storage operatorData = $.operators[operator];
