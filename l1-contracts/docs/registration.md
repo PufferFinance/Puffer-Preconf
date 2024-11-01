@@ -152,22 +152,58 @@ sequenceDiagram
 
 ### Validator Registration Process Explanation
 
-1. The `Operator` calls `registerValidators()` on the `UniFiAVSManager`, providing the `podOwner` address and an array of BLS public key hashes for the validators to be registered.
+There are two primary paths for validator registration and incorporates robust slashing mechanisms to maintain the integrity of the network. This document explores these paths and mechanisms in detail, highlighting key nuances such as registration delays and slashing conditions.
 
-2. The `UniFiAVSManager` checks if the operator is registered with the AVS using the `AVSDirectory`.
+## Validator Registration Path 1: Registering Validators with EigenPod
 
-3. The `UniFiAVSManager` verifies that the operator has set an OperatorCommitment.
+The `registerValidators` function is used for validators associated with an EigenPod. This method ensures that validators are actively managed and verified through the EigenLayers ecosystem.
 
-4. For each BLS public key hash in provided:
-    - The `UniFiAVSManager` retrieves the validator information from the `EigenPod`.
-    - It checks if the validator is active in the EigenPod.
-    - It verifies that the validator is not already registered in the UniFi AVS.
-    - If all checks pass, it registers the validator, associating it with the operator and storing relevant information.
+```solidity
+function registerValidators(address podOwner, bytes32[] calldata blsPubKeyHashes) external;
+```
+Parameters:
+- `podOwner`: The address of the pod owner.
+- `blsPubKeyHashes`: An array of BLS public key hashes for the validators to be registered.
 
-5. The `UniFiAVSManager` updates the operator's validator count and resets their deregistration state if they had previously queued to deregister their operator.
+Example:
 
-These checks will ensure that a validator can only be registered exactly once in the AVS, and that it can only be to the Operator whom the validator's podOwner is delegated to.
+```solidity
+  bytes32[] memory pubKeyHashes = [0x1234..., 0x5678...];
+  uniFiAVSManager.registerValidators(podOwner, pubKeyHashes);
+```
+Process: 
+The function requires the caller to be the operator delegated to the pod owner, ensuring proper authorization. It also verifies that the operator is registered in the AVS (Active Validator Set) and checks that the validators are active and not already registered. Once these conditions are met, validators indefinitely. 
 
+## Validator Registration Path 2: Optimistic Registration for Independent Validators
+
+This function is designed for independent validators, allowing for an optimistic registration process that prioritizes gas efficiency.
+
+```solidity
+function registerValidatorsOptimistically(ValidatorRegistrationParams[] calldata validators) external;
+```
+
+Parameters:
+- `validators`: An array of `ValidatorRegistrationParams` structs, each containing the necessary data for registration.
+
+Example:
+
+```solidity
+  ValidatorRegistrationParams[] memory validators = new ValidatorRegistrationParams[](1);
+  validators[0] = ValidatorRegistrationParams({
+      blsPubKeyHash: 0x1234...,
+      index: 1,
+      salt: 123456,
+      expiry: block.timestamp + 1 days,
+      registrationSignature: BN254.G1Point({X: 0x5678..., Y: 0x9abc...})
+  });
+
+  uniFiAVSManager.registerValidatorsOptimistically(validators);
+```
+
+Process:
+Validators are registered without immediate validation checks, assuming validity until proven otherwise. A key feature of this method is the registration delay, which introduces a window before validators become active. This delay allows time for potential slashing of invalid registrations, enhancing network security.
+
+A critical feature of the optimistic registration process is the registration delay. This delay serves as a safeguard, allowing time for the network to identify and slash invalid validators before they become active. During this period, slashers can verify the validity of the registration and take action if necessary. This mechanism significantly enhances network security by preventing invalid validators from participating in the network.
 
 # Deregistering from UniFi AVS
 
