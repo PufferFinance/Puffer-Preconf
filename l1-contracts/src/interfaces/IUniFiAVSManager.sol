@@ -3,9 +3,11 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
+import { BN254 } from "eigenlayer-middleware/libraries/BN254.sol";
 import { IAVSDirectoryExtended } from "../interfaces/EigenLayer/IAVSDirectoryExtended.sol";
 import "../structs/ValidatorData.sol";
 import "../structs/OperatorData.sol";
+import { BeaconChainHelperLib } from "../lib/BeaconChainHelperLib.sol";
 
 /**
  * @title IUniFiAVSManager
@@ -69,6 +71,27 @@ interface IUniFiAVSManager {
 
     /// @notice Thrown when a restaking strategy allowlist update fails
     error RestakingStrategyAllowlistUpdateFailed();
+
+    /// @notice Thrown when a salt is already used for a registration
+    error SaltAlreadyUsed();
+
+    /// @notice Thrown when a signature is expired
+    error SignatureExpired();
+
+    /// @notice Thrown when a validator proof is invalid
+    error InvalidValidatorProof(bytes32 blsPubKeyHash);
+
+    /// @notice Thrown when a validator index is already used
+    error ValidatorIndexAlreadyUsed();
+
+    /// @notice Thrown when an operator is slashed
+    error OperatorSlashed();
+
+    /// @notice Thrown when a validator is not backed by an EigenPod
+    error InvalidValidatorType();
+
+    /// @notice Thrown when a validator registration signature is invalid
+    error InvalidRegistrationSignature();
 
     /**
      * @notice Emitted when a new operator is registered in the UniFi AVS.
@@ -153,6 +176,38 @@ interface IUniFiAVSManager {
     event RestakingStrategyAllowlistUpdated(address indexed strategy, bool allowed);
 
     /**
+     * @notice Emitted when a validator is slashed.
+     * @param operator The address of the operator managing the validator.
+     * @param blsPubKeyHash The BLS public key hash of the slashed validator.
+     */
+    event ValidatorSlashed(address indexed operator, bytes32 indexed blsPubKeyHash);
+
+    /**
+     * @notice Emitted when the registration delay is set.
+     * @param oldDelay The previous registration delay value.
+     * @param newDelay The new registration delay value.
+     */
+    event RegistrationDelaySet(uint64 oldDelay, uint64 newDelay);
+
+    /**
+     * @notice Emitted when a validator is registered optimistically.
+     * @param operator The address of the operator.
+     * @param blsPubKeyHash The BLS public key hash of the validator.
+     * @param validatorIndex The beacon chain validator index.
+     * @param salt The salt for the message.
+     * @param expiry The expiry for the message.
+     * @param signature The signature for the message.
+     */
+    event ValidatorRegisteredOptimistically(
+        address indexed operator,
+        bytes32 indexed blsPubKeyHash,
+        uint256 validatorIndex,
+        uint256 salt,
+        uint256 expiry,
+        BN254.G1Point signature
+    );
+
+    /**
      * @notice Returns the EigenPodManager contract.
      * @return IEigenPodManager The EigenPodManager contract.
      */
@@ -227,10 +282,17 @@ interface IUniFiAVSManager {
 
     /**
      * @notice Sets a new deregistration delay for operators.
-     * @param newDelay The new deregistration delay in seconds.
+     * @param newDelay The new deregistration delay in blocks.
      * @dev Restricted to the DAO
      */
     function setDeregistrationDelay(uint64 newDelay) external;
+
+    /**
+     * @notice Sets a new registration delay for validators.
+     * @param newDelay The new registration delay in blocks.
+     * @dev Restricted to the DAO
+     */
+    function setRegistrationDelay(uint64 newDelay) external;
 
     /**
      * @notice Sets the chain ID for a specific index in the bitmap.
@@ -248,6 +310,29 @@ interface IUniFiAVSManager {
      */
     function setAllowlistRestakingStrategy(address strategy, bool allowed) external;
 
+    /**
+     * @notice Registers validators optimistically.
+     * @param paramsArray The array of ValidatorRegistrationParams.
+     */
+    function registerValidatorsOptimistically(ValidatorRegistrationParams[] calldata paramsArray) external;
+
+    /**
+     * @notice Slashes validators with invalid signatures.
+     * @param validators The array of ValidatorRegistrationSlashingParams.
+     */
+    function slashValidatorsWithInvalidSignature(ValidatorRegistrationSlashingParams[] calldata validators) external;
+
+    /**
+     * @notice Slashes validators with invalid pubkey.
+     * @param proofs The inclusion proofs for each validator.
+     */
+    function slashValidatorsWithInvalidPubkey(BeaconChainHelperLib.InclusionProof[] calldata proofs) external;
+
+    /**
+     * @notice Slashes validators with invalid index.
+     * @param proofs The inclusion proofs for each validator.
+     */
+    function slashValidatorsWithInvalidIndex(BeaconChainHelperLib.InclusionProof[] calldata proofs) external;
     /**
      * @notice Retrieves information about a specific operator.
      * @param operator The address of the operator.
@@ -291,6 +376,12 @@ interface IUniFiAVSManager {
     function getDeregistrationDelay() external view returns (uint64);
 
     /**
+     * @notice Retrieves the current registration delay for validators.
+     * @return The current registration delay in seconds.
+     */
+    function getRegistrationDelay() external view returns (uint64);
+
+    /**
      * @notice Converts a bitmap to an array of chain IDs.
      * @param bitmap The bitmap to convert.
      * @return An array of chain IDs represented by the bitmap.
@@ -330,4 +421,37 @@ interface IUniFiAVSManager {
 
     /// @notice Returns the EigenLayer AVSDirectory contract.
     function avsDirectory() external view returns (address);
+
+    /**
+     * @notice Returns the BLS message hash for a validator registration.
+     * @param operator The address of the operator.
+     * @param salt The salt for the message.
+     * @param expiry The expiry for the message.
+     * @param index The index for the message.
+     * @return BN254.G1Point The BLS message hash.
+     */
+    function blsMessageHash(address operator, uint256 salt, uint256 expiry, uint256 index)
+        external
+        view
+        returns (BN254.G1Point memory);
+
+    /**
+     * @notice Retrieves the validator registration data for a given BLS public key hash.
+     * @param blsPubKeyHash The BLS public key hash of the validator.
+     * @return ValidatorRegistrationData struct containing registration data for the validator.
+     */
+    function getValidatorRegistrationData(bytes32 blsPubKeyHash)
+        external
+        view
+        returns (ValidatorRegistrationData memory);
+
+    /**
+     * @notice Retrieves the validator registration data for a given validator index.
+     * @param validatorIndex The index of the validator.
+     * @return ValidatorRegistrationData struct containing registration data for the validator.
+     */
+    function getValidatorRegistrationData(uint256 validatorIndex)
+        external
+        view
+        returns (ValidatorRegistrationData memory);
 }

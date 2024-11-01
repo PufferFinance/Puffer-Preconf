@@ -10,8 +10,12 @@ import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
 import { console } from "forge-std/console.sol";
-import { ROLE_ID_OPERATIONS_MULTISIG, ROLE_ID_DAO } from "./Roles.sol";
+import { ROLE_ID_OPERATIONS_MULTISIG, ROLE_ID_DAO, ROLE_ID_UNIFI_AVS_MANAGER } from "./Roles.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { UniFiAVSDisputeManager } from "../src/UniFiAVSDisputeManager.sol";
+import { IUniFiAVSDisputeManager } from "../src/interfaces/IUniFiAVSDisputeManager.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
 
 contract UpgradeMainnetUniFiAVS is BaseScript {
     function run() public returns (AVSDeployment memory deployment) {
@@ -25,8 +29,22 @@ contract UpgradeMainnetUniFiAVS is BaseScript {
         uint64 initialDeregistrationDelay = 0;
 
         AccessManager accessManager = AccessManager(accessManagerAddress);
+        // Deploy DisputeManager
+        UniFiAVSDisputeManager disputeManagerImplementation = new UniFiAVSDisputeManager();
+        address disputeManager = address(
+            new ERC1967Proxy{ salt: bytes32("UniFiAVSDisputeManager") }(
+                address(disputeManagerImplementation),
+                abi.encodeCall(UniFiAVSDisputeManager.initialize, (address(accessManager)))
+            )
+        );
+        console.log("DisputeManager implementation:", address(disputeManagerImplementation));
+        console.log("DisputeManager proxy:", disputeManager);
+
         UniFiAVSManager uniFiAVSManagerImplementation = new UniFiAVSManager(
-            IEigenPodManager(eigenPodManager), IDelegationManager(eigenDelegationManager), IAVSDirectory(avsDirectory)
+            IEigenPodManager(eigenPodManager),
+            IDelegationManager(eigenDelegationManager),
+            IAVSDirectory(avsDirectory),
+            IUniFiAVSDisputeManager(disputeManager)
         );
 
         console.log("UniFiAVSManager Implementation:", address(uniFiAVSManagerImplementation));
@@ -43,14 +61,36 @@ contract UpgradeMainnetUniFiAVS is BaseScript {
 
         console.log("Access control calldata:");
 
-        bytes memory calldatas;
-        bytes4[] memory daoSelectors = new bytes4[](1);
-        daoSelectors[0] = UniFiAVSManager.setAllowlistRestakingStrategy.selector;
+        bytes[] memory calldatas = new bytes[](3);
+        bytes4[] memory uniFiAVSManagerSelectors = new bytes4[](4);
+        uniFiAVSManagerSelectors[0] = UniFiAVSManager.registerValidatorsOptimistically.selector;
+        uniFiAVSManagerSelectors[1] = UniFiAVSManager.slashValidatorsWithInvalidSignature.selector;
+        uniFiAVSManagerSelectors[2] = UniFiAVSManager.slashValidatorsWithInvalidPubkey.selector;
+        uniFiAVSManagerSelectors[3] = UniFiAVSManager.slashValidatorsWithInvalidIndex.selector;
 
-        calldatas = abi.encodeWithSelector(
-            AccessManager.setTargetFunctionRole.selector, address(uniFiAVSManagerProxy), daoSelectors, ROLE_ID_DAO
+        calldatas[0] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            address(uniFiAVSManagerProxy),
+            uniFiAVSManagerSelectors,
+            accessManager.PUBLIC_ROLE()
         );
 
-        console.logBytes(calldatas);
+        calldatas[1] = abi.encodeWithSelector(
+            AccessManager.grantRole.selector, ROLE_ID_UNIFI_AVS_MANAGER, address(uniFiAVSManagerProxy), 0
+        );
+
+        bytes4[] memory disputeManagerSelectors = new bytes4[](1);
+        disputeManagerSelectors[0] = IUniFiAVSDisputeManager.slashOperator.selector;
+
+        calldatas[2] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            address(disputeManager),
+            disputeManagerSelectors,
+            ROLE_ID_UNIFI_AVS_MANAGER
+        );
+
+        bytes memory multicallData = abi.encodeCall(Multicall.multicall, (calldatas));
+
+        console.logBytes(multicallData);
     }
 }

@@ -8,14 +8,15 @@ import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessMana
 import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
 import { UniFiAVSManager } from "../src/UniFiAVSManager.sol";
 import { AVSDeployment } from "script/DeploymentStructs.sol";
-
+import { UniFiAVSDisputeManager } from "../src/UniFiAVSDisputeManager.sol";
 import {
     ROLE_ID_OPERATIONS_MULTISIG,
     ROLE_ID_OPERATIONS_PAYMASTER,
     ROLE_ID_PUFFER_PROTOCOL,
     ROLE_ID_DAO,
     ROLE_ID_OPERATIONS_COORDINATOR,
-    ROLE_ID_VT_PRICER
+    ROLE_ID_VT_PRICER,
+    ROLE_ID_UNIFI_AVS_MANAGER
 } from "../script/Roles.sol";
 
 contract SetupAccess is BaseScript {
@@ -31,6 +32,7 @@ contract SetupAccess is BaseScript {
         bytes[] memory calldatas = _generateAccessCalldata({
             rolesCalldatas: _grantRoles(dao),
             uniFiAVSManagerRoles: _setupUniFiAVSManagerRoles(),
+            uniFiAVSDisputeManagerRoles: _setupUniFiAVSDisputeManagerRoles(),
             roleLabels: _labelRoles()
         });
 
@@ -43,21 +45,26 @@ contract SetupAccess is BaseScript {
     function _generateAccessCalldata(
         bytes[] memory rolesCalldatas,
         bytes[] memory uniFiAVSManagerRoles,
+        bytes[] memory uniFiAVSDisputeManagerRoles,
         bytes[] memory roleLabels
     ) internal view returns (bytes[] memory calldatas) {
-        calldatas = new bytes[](4);
+        calldatas = new bytes[](6);
         calldatas[0] = rolesCalldatas[0];
+        calldatas[1] = rolesCalldatas[1];
 
-        calldatas[1] = uniFiAVSManagerRoles[0];
-        calldatas[2] = uniFiAVSManagerRoles[1];
-
-        calldatas[3] = roleLabels[0];
+        calldatas[2] = uniFiAVSManagerRoles[0];
+        calldatas[3] = uniFiAVSManagerRoles[1];
+        calldatas[4] = uniFiAVSDisputeManagerRoles[0];
+        calldatas[5] = roleLabels[0];
     }
 
     function _grantRoles(address dao) internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](1);
+        bytes[] memory calldatas = new bytes[](2);
 
         calldatas[0] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_DAO, dao, 0);
+        calldatas[1] = abi.encodeWithSelector(
+            AccessManager.grantRole.selector, ROLE_ID_UNIFI_AVS_MANAGER, avsDeployment.avsManagerProxy, 0
+        );
 
         return calldatas;
     }
@@ -88,7 +95,7 @@ contract SetupAccess is BaseScript {
         );
 
         bytes4[] memory publicSelectors = new bytes4[](0);
-        publicSelectors = new bytes4[](8);
+        publicSelectors = new bytes4[](12);
         publicSelectors[0] = UniFiAVSManager.registerOperator.selector;
         publicSelectors[1] = UniFiAVSManager.registerValidators.selector;
         publicSelectors[2] = UniFiAVSManager.startDeregisterOperator.selector;
@@ -97,12 +104,32 @@ contract SetupAccess is BaseScript {
         publicSelectors[5] = UniFiAVSManager.setOperatorCommitment.selector;
         publicSelectors[6] = UniFiAVSManager.updateOperatorCommitment.selector;
         publicSelectors[7] = UniFiAVSManager.registerOperatorWithCommitment.selector;
+        publicSelectors[8] = UniFiAVSManager.registerValidatorsOptimistically.selector;
+        publicSelectors[9] = UniFiAVSManager.slashValidatorsWithInvalidSignature.selector;
+        publicSelectors[10] = UniFiAVSManager.slashValidatorsWithInvalidPubkey.selector;
+        publicSelectors[11] = UniFiAVSManager.slashValidatorsWithInvalidIndex.selector;
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
             address(avsDeployment.avsManagerProxy),
             publicSelectors,
             accessManager.PUBLIC_ROLE()
+        );
+
+        return calldatas;
+    }
+
+    function _setupUniFiAVSDisputeManagerRoles() internal view returns (bytes[] memory) {
+        bytes[] memory calldatas = new bytes[](1);
+
+        bytes4[] memory selectors = new bytes4[](1);
+        selectors[0] = UniFiAVSDisputeManager.slashOperator.selector;
+
+        calldatas[0] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            address(avsDeployment.disputeManagerProxy),
+            selectors,
+            ROLE_ID_UNIFI_AVS_MANAGER
         );
 
         return calldatas;

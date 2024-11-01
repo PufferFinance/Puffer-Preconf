@@ -8,11 +8,12 @@ import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
-import "forge-std/console.sol";
-
 import "../test/mocks/MockEigenPodManager.sol";
 import "../test/mocks/MockDelegationManager.sol";
 import "../test/mocks/MockAVSDirectory.sol";
+import "../src/UniFiAVSDisputeManager.sol";
+import { IUniFiAVSDisputeManager } from "../src/interfaces/IUniFiAVSDisputeManager.sol";
+import { console } from "forge-std/console.sol";
 
 contract DeployUniFiAVSManagerWithMocks is BaseScript {
     UniFiAVSManager public uniFiAVSManagerProxy;
@@ -21,6 +22,7 @@ contract DeployUniFiAVSManagerWithMocks is BaseScript {
     address eigenDelegationManager;
     address avsDirectory;
     uint64 initialDeregistrationDelay = 0;
+    address disputeManager;
 
     function run() public broadcast returns (address, address) {
         eigenPodManager = address(new MockEigenPodManager());
@@ -28,9 +30,19 @@ contract DeployUniFiAVSManagerWithMocks is BaseScript {
         avsDirectory = address(new MockAVSDirectory());
 
         accessManager = new AccessManager(_broadcaster);
+        UniFiAVSDisputeManager disputeManagerImplementation = new UniFiAVSDisputeManager();
+        disputeManager = address(
+            new ERC1967Proxy{ salt: bytes32("UniFiAVSDisputeManager") }(
+                address(disputeManagerImplementation),
+                abi.encodeCall(UniFiAVSDisputeManager.initialize, (address(accessManager)))
+            )
+        );
 
         UniFiAVSManager uniFiAVSManagerImplementation = new UniFiAVSManager(
-            IEigenPodManager(eigenPodManager), IDelegationManager(eigenDelegationManager), IAVSDirectory(avsDirectory)
+            IEigenPodManager(eigenPodManager),
+            IDelegationManager(eigenDelegationManager),
+            IAVSDirectory(avsDirectory),
+            IUniFiAVSDisputeManager(disputeManager)
         );
 
         uniFiAVSManagerProxy = UniFiAVSManager(
@@ -49,6 +61,7 @@ contract DeployUniFiAVSManagerWithMocks is BaseScript {
         console.log("eigenPodManager mock:", address(eigenPodManager));
         console.log("eigenDelegationManager mock:", address(eigenDelegationManager));
         console.log("avsDirectory mock:", address(avsDirectory));
+        console.log("disputeManager mock:", address(disputeManager));
 
         return (address(uniFiAVSManagerImplementation), address(uniFiAVSManagerProxy));
     }

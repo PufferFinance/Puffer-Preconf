@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "eigenlayer/interfaces/IEigenPod.sol";
+import { BN254 } from "eigenlayer-middleware/libraries/BN254.sol";
 
 /**
  * @title ValidatorData
@@ -32,13 +33,58 @@ struct ValidatorDataExtended {
     /// @notice The index of the validator in the beacon chain.
     uint64 validatorIndex;
     /// @notice The current status of the validator in the EigenPod.
-    IEigenPod.VALIDATOR_STATUS status;
+    IEigenPod.VALIDATOR_STATUS eigenPodStatus;
     /// @notice The delegate key currently associated with the validator's operator.
     bytes delegateKey;
     /// @notice Bitmap of chain IDs the validator's operator is committed to.
     uint256 chainIDBitMap;
     /// @notice Indicates whether the validator's EigenPod is currently delegated to the operator.
-    bool backedByStake;
+    bool backedByEigenPodStake;
     /// @notice Indicates whether the validator is currently registered (current block < registeredUntil).
     bool registered;
+}
+
+/**
+ * @title ValidatorRegistrationData
+ * @notice Struct to store registration-related data for a validator.
+ */
+struct ValidatorRegistrationData {
+    bytes32 registrationHash;
+    uint64 salt;
+    uint64 registeredAt;
+    uint64 activeAfter;
+}
+
+/**
+ * @title ValidatorRegistrationParams
+ * @notice Struct to store parameters for validator registration.
+ */
+struct ValidatorRegistrationParams {
+    bytes32 blsPubKeyHash;
+    BN254.G1Point registrationSignature;
+    uint64 index;
+    uint256 expiry;
+    uint64 salt;
+}
+
+/**
+ * @title ValidatorRegistrationSlashingParams
+ * @notice Struct to store parameters for validator registration slashing.
+ */
+struct ValidatorRegistrationSlashingParams {
+    BN254.G1Point pubkeyG1;
+    BN254.G2Point pubkeyG2;
+    BN254.G1Point registrationSignature;
+    uint64 index;
+    uint256 expiry;
+    uint64 salt;
+}
+
+/**
+ * @title InvalidValidator
+ * @notice Struct to store information about a slashed validator.
+ */
+struct InvalidValidator {
+    address slashingBeneficiary;
+    bytes32 blsPubKeyHash;
 }

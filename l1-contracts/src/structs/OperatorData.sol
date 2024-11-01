@@ -44,5 +44,6 @@ struct OperatorDataExtended {
     uint128 commitmentValidAfter;
     /// @notice Whether the operator is registered or not.
     bool isRegistered;
+    /// @notice Whether the operator is slashed or not.
+    bool isSlashed;
 }
-// 7 bytes padding here (automatically added by the compiler)

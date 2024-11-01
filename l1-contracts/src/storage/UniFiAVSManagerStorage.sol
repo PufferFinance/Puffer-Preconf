@@ -2,8 +2,8 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "./structs/ValidatorData.sol";
-import "./structs/OperatorData.sol";
+import "../structs/ValidatorData.sol";
+import "../structs/OperatorData.sol";
 
 /**
  * @title UniFiAVSManagerStorage
@@ -11,6 +11,13 @@ import "./structs/OperatorData.sol";
  * @custom:security-contact security@puffer.fi
  */
 abstract contract UniFiAVSManagerStorage {
+    /**
+     * @dev +-----------------------------------------------------------+
+     *      |                                                           |
+     *      | DO NOT CHANGE, REORDER, REMOVE EXISTING STORAGE VARIABLES |
+     *      |                                                           |
+     *      +-----------------------------------------------------------+
+     */
     struct UniFiAVSStorage {
         mapping(bytes32 => ValidatorData) validators;
         mapping(uint256 => bytes32) validatorIndexes;
@@ -22,6 +29,10 @@ abstract contract UniFiAVSManagerStorage {
         mapping(uint256 => uint8) chainIdToBitmapIndex;
         // Set of allowlisted restaking strategies
         EnumerableSet.AddressSet allowlistedRestakingStrategies;
+        // Mapping to store validator registration data
+        mapping(bytes32 => ValidatorRegistrationData) validatorRegistrations;
+        // Delay (in blocks) after which a validator can be considered registered
+        uint64 registrationDelay;
     }
 
     /**

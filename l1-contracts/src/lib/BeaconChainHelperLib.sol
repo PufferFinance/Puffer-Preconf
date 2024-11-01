@@ -1,8 +1,82 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
+import { MerkleUtils } from "./MerkleUtils.sol";
+
 library BeaconChainHelperLib {
     address internal constant _BEACON_ROOT_CONTRACT = 0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02;
+
+    struct InclusionProof {
+        // `Chunks` of the SSZ encoded validator
+        bytes32[8] validator;
+        // Index of the validator in the beacon state validator list
+        uint256 validatorIndex;
+        // Proof of inclusion of validator in beacon state validator list
+        bytes32[] validatorProof;
+        // Root of the validator list in the beacon state
+        bytes32 validatorsRoot;
+        // Proof of inclusion of validator list in the beacon state
+        bytes32[] beaconStateProof;
+        // Root of the beacon state
+        bytes32 beaconStateRoot;
+        // Proof of inclusion of beacon state in the beacon block
+        bytes32[] beaconBlockProofForState;
+        // Proof of inclusion of the validator index in the beacon block. leave this empty if not needed.
+        bytes32[] beaconBlockProofForProposerIndex;
+        // Timestamp of the beacon block
+        uint256 timestamp;
+    }
+
+    /// @dev The validator pub key failed verification against the pub key hash tree root in the validator chunks
+    error InvalidValidatorBLSPubKey();
+    /// @dev The proof that the validator is a part of the validator list is invalid.
+    error ValidatorProofFailed();
+    /// @dev The proof that the validator list is a part of the beacon state is invalid.
+    error BeaconStateProofFailed();
+    /// @dev The proof that the beacon state is a part of the beacon block is invalid.
+    error BeaconBlockProofForStateFailed();
+    /// @dev The proof that the actual validator index is a part of the beacon is invalid.
+    error BeaconBlockProofForProposerIndex();
+
+    function verifyValidatorExistence(InclusionProof memory inclusionProof) internal returns (bool) {
+        // Validator is verified against the validator list in the beacon state
+        bytes32 validatorHashTreeRoot = MerkleUtils.merkleize(inclusionProof.validator);
+        if (
+            !MerkleUtils.verifyProof(
+                inclusionProof.validatorProof,
+                inclusionProof.validatorsRoot,
+                validatorHashTreeRoot,
+                inclusionProof.validatorIndex
+            )
+        ) {
+            // Revert if the proof that the expected validator is a part of the validator
+            // list in beacon state fails
+            return false;
+        }
+
+        if (
+            !MerkleUtils.verifyProof(
+                inclusionProof.beaconStateProof, inclusionProof.beaconStateRoot, inclusionProof.validatorsRoot, 11
+            )
+        ) {
+            // Revert if the proof that the validator list is a part of the beacon state fails
+            return false;
+        }
+
+        (, bytes32 beaconBlockRoot) = getRootFromTimestamp(inclusionProof.timestamp);
+
+        // Beacon state is verified against the beacon block
+        if (
+            !MerkleUtils.verifyProof(
+                inclusionProof.beaconBlockProofForState, beaconBlockRoot, inclusionProof.beaconStateRoot, 3
+            )
+        ) {
+            // Revert if the proof for the beacon state being a part of the beacon block fails
+            return false;
+        }
+
+        return true;
+    }
 
     function verifyProposerAt(uint256 timestamp, uint256 proposerIndex, bytes32[2] memory proof)
         internal
@@ -16,8 +90,8 @@ library BeaconChainHelperLib {
 
         bytes32 slotAndProposerIndexNode = sha256(
             abi.encodePacked(
-                abi.encodePacked(to_little_endian_64(uint64(slot)), bytes24(0)),
-                abi.encodePacked(to_little_endian_64(uint64(proposerIndex)), bytes24(0))
+                abi.encodePacked(MerkleUtils.to_little_endian_64(uint64(slot)), bytes24(0)),
+                abi.encodePacked(MerkleUtils.to_little_endian_64(uint64(proposerIndex)), bytes24(0))
             )
         );
 
@@ -26,20 +100,6 @@ library BeaconChainHelperLib {
 
         // Verify computed and expected beacon block roots match
         return root == beaconRootFromChain;
-    }
-
-    function to_little_endian_64(uint64 value) internal pure returns (bytes memory ret) {
-        ret = new bytes(8);
-        bytes8 bytesValue = bytes8(value);
-        // Byteswapping during copying to bytes.
-        ret[0] = bytesValue[7];
-        ret[1] = bytesValue[6];
-        ret[2] = bytesValue[5];
-        ret[3] = bytesValue[4];
-        ret[4] = bytesValue[3];
-        ret[5] = bytesValue[2];
-        ret[6] = bytesValue[1];
-        ret[7] = bytesValue[0];
     }
 
     function getRootFromTimestamp(uint256 timestamp) internal returns (bool, bytes32) {
