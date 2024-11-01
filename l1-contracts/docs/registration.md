@@ -205,6 +205,21 @@ Validators are registered without immediate validation checks, assuming validity
 
 A critical feature of the optimistic registration process is the registration delay. This delay serves as a safeguard, allowing time for the network to identify and slash invalid validators before they become active. During this period, slashers can verify the validity of the registration and take action if necessary. This mechanism significantly enhances network security by preventing invalid validators from participating in the network.
 
+To generate the `registrationSignature`, the validator needs to sign the BLS message hash using their BLS key containing the `operator`, `index`, `salt`, and `expiry`.
+
+The mssage hash that needs to be signed can be fetched using the following view function:
+
+```solidity 
+function blsMessageHash(address operator, uint256 salt, uint256 expiry, uint256 index)
+        public
+        view
+        returns (BN254.G1Point memory)
+```
+If you want to generate the hash yourself, you can use the following typehash:
+
+`VALIDATOR_REGISTRATION_TYPEHASH =
+        keccak256("BN254ValidatorRegistration(address operator,bytes32 salt,uint256 expiry,uint64 index)");`
+
 # Deregistering from UniFi AVS
 
 ## Deregistering Validators

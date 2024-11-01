@@ -1,11 +1,87 @@
 # Slashing Mechanism
 
-The slashing mechanism in UniFi AVS is designed to ensure the integrity of the pre-confirmation process. It consists of two main cases:
+The slashing mechanism in UniFi AVS is designed to ensure the integrity of the pre-confirmation process. It consists of three main cases:
 
-1. Safety Faults (Breaking Pre-confirmation Promises)
-2. Liveness Faults (Missed Block Slashing)
+1. Invalid Validator Registration
+2. Safety Faults (Breaking Pre-confirmation Promises)
+3. Liveness Faults (Missed Block Slashing)
 
-## Safety Faults
+## Invalid Validator Registration
+To maintain the integrity of the network, the UniFiAVSManager contract includes several mechanisms to slash operators who register invalid validators. Slashing acts as a deterrent against fraudulent or incorrect registrations.
+
+### Slashing Validators with Invalid Registration Signatures
+
+```solidity
+function slashValidatorsWithInvalidSignature(ValidatorRegistrationSlashingParams[] calldata validators) external;
+```
+Parameters:
+- `validators`: An array of `ValidatorRegistrationSlashingParams` structs, each containing the necessary data for slashing.
+
+Example:
+```solidity
+  ValidatorRegistrationSlashingParams[] memory validators = new ValidatorRegistrationSlashingParams[](1);
+  validators[0] = ValidatorRegistrationSlashingParams({
+      pubkeyG1: BN254.G1Point({X: 0x1234..., Y: 0x5678...}),
+      pubkeyG2: BN254.G2Point({X: [0x9abc..., 0xdef0...], Y: [0x1234..., 0x5678...]}),
+      registrationSignature: BN254.G1Point({X: 0x9abc..., Y: 0xdef0...}),
+      expiry: block.timestamp + 1 days,
+      salt: 123456,
+      index: 1 // index of the validator
+  });
+
+  uniFiAVSManager.slashValidatorsWithInvalidSignature(validators);
+```
+
+Mechanism:
+It checks the validity of the registration signature using BLS signature verification. If the signature is found to be invalid, the validator is slashed, and the operator is penalized. This mechanism maintains the authenticity of registrations, ensuring that only legitimate validators are part of the network.
+
+### Slashing Validators with Invalid Index
+
+```solidity
+function slashValidatorsWithInvalidIndex(BeaconChainHelperLib.InclusionProof[] calldata proofs) external;
+```  
+Parameters:
+- `proofs`: An array of `BeaconChainHelperLib.InclusionProof` structs, each containing the necessary data for slashing.
+
+Example:
+
+```solidity
+  BeaconChainHelperLib.InclusionProof[] memory proofs = new BeaconChainHelperLib.InclusionProof[](1);
+  proofs[0] = BeaconChainHelperLib.InclusionProof({
+      validator: [0x1234...],
+      validatorIndex: 1,
+      // Additional proof data...
+  });
+
+  uniFiAVSManager.slashValidatorsWithInvalidIndex(proofs);
+```
+
+Mechanism:
+This function verifies the validator's index against the provided proof. If the index does not match, the validator is slashed. This mechanism prevents the misuse of validator indices, ensuring that each index is unique and correctly assigned.
+
+### Slashing Validators with Invalid Public Key
+
+```solidity
+function slashValidatorsWithInvalidPubkey(BeaconChainHelperLib.InclusionProof[] calldata proofs) external;
+```
+Parameters:
+- `proofs`: An array of `BeaconChainHelperLib.InclusionProof` structs, each containing the necessary data for slashing.
+
+Example:
+```solidity
+  BeaconChainHelperLib.InclusionProof[] memory proofs = new BeaconChainHelperLib.InclusionProof[](1);
+  proofs[0] = BeaconChainHelperLib.InclusionProof({
+      validator: [0x1234...],
+      // Additional proof data...
+  });
+
+  uniFiAVSManager.slashValidatorsWithInvalidPubkey(proofs);
+```
+
+Mechanism:
+Similar to the previous mechanisms, this function verifies the validator's public key against the provided proof. If the public key is found to be invalid, the validator is slashed. This mechanism ensures the integrity of the validator's public key, preventing unauthorized or incorrect registrations.
+
+## Safety Faults (Not Implemented)
 
 Safety faults occur when a validator breaks their pre-conf promise. This category encompasses a larger design space compared to Liveness faults, including:
 
@@ -21,7 +97,7 @@ b) Execution Pre-conf Violations:
 
 The larger design space for Safety faults allows for more complex and nuanced slashing conditions, which can be expanded and refined as the pre-confirmation ecosystem evolves.
 
-## Liveness Faults
+## Liveness Faults (Not Implemented)
 
 Liveness faults occur when:
 
@@ -31,7 +107,7 @@ Liveness faults occur when:
 
 This mechanism ensures that validators cannot abuse the pre-confirmation system by making promises they don't intend to keep due to inactivity.
 
-## Slashing Process
+## Slashing Process for Liveness Faults and Safety Faults
 
 The slashing process involves two key components:
 
