@@ -386,8 +386,9 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, IUniFiAVSManager, UUPSUpgrad
      * @inheritdoc IUniFiAVSManager
      */
     function getValidators(bytes32[] calldata blsPubKeyHashes) external view returns (ValidatorDataExtended[] memory) {
-        ValidatorDataExtended[] memory validators = new ValidatorDataExtended[](blsPubKeyHashes.length);
-        for (uint256 i = 0; i < blsPubKeyHashes.length; i++) {
+        uint256 length = blsPubKeyHashes.length;
+        ValidatorDataExtended[] memory validators = new ValidatorDataExtended[](length);
+        for (uint256 i = 0; i < length; i++) {
             validators[i] = _getValidator(blsPubKeyHashes[i]);
         }
 
