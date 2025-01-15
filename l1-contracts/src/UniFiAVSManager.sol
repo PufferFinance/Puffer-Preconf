@@ -14,6 +14,8 @@ import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 import { IUniFiAVSManager } from "./interfaces/IUniFiAVSManager.sol";
 import { UniFiAVSManagerStorage } from "./UniFiAVSManagerStorage.sol";
+import { IRewardsCoordinator } from "./interfaces/EigenLayer/IRewardsCoordinator.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./structs/ValidatorData.sol";
 import "./structs/OperatorData.sol";
 
@@ -32,6 +34,11 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, IUniFiAVSManager, UUPSUpgrad
      * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IDelegationManager public immutable override EIGEN_DELEGATION_MANAGER;
+    /**
+     * @notice The RewardsCoordinator contract
+     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
+     */
+    IRewardsCoordinator public immutable EIGEN_REWARDS_COORDINATOR;
     /**
      * @notice The AVSDirectory contract
      * @custom:oz-upgrades-unsafe-allow state-variable-immutable
@@ -75,11 +82,13 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, IUniFiAVSManager, UUPSUpgrad
     constructor(
         IEigenPodManager eigenPodManagerAddress,
         IDelegationManager eigenDelegationManagerAddress,
-        IAVSDirectory avsDirectoryAddress
+        IAVSDirectory avsDirectoryAddress,
+        IRewardsCoordinator rewardsCoordinatorAddress
     ) {
         EIGEN_POD_MANAGER = eigenPodManagerAddress;
         EIGEN_DELEGATION_MANAGER = eigenDelegationManagerAddress;
         AVS_DIRECTORY = IAVSDirectoryExtended(address(avsDirectoryAddress));
+        EIGEN_REWARDS_COORDINATOR = IRewardsCoordinator(address(rewardsCoordinatorAddress));
         _disableInitializers();
     }
 
@@ -349,6 +358,23 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, IUniFiAVSManager, UUPSUpgrad
         }
     }
 
+    function submitOperatorRewards(IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata operatorDirectedRewardsSubmissions) external restricted {
+        uint256 submissionsLength = operatorDirectedRewardsSubmissions.length;
+        for (uint256 i = 0; i < submissionsLength; i++) {
+            IRewardsCoordinator.OperatorDirectedRewardsSubmission memory submission = operatorDirectedRewardsSubmissions[i];
+            uint256 totalRewards = 0;
+            uint256 rewardsLength = submission.operatorRewards.length;
+            for (uint256 j = 0; j < rewardsLength; j++) {
+                totalRewards += submission.operatorRewards[j].amount;
+            }
+            IERC20 token = IERC20(address(submission.token));
+            if (!token.approve(address(EIGEN_REWARDS_COORDINATOR), totalRewards)) {
+                revert FailedToApproveRewardsToken();
+            }
+        }
+        EIGEN_REWARDS_COORDINATOR.createOperatorDirectedAVSRewardsSubmission(address(this), operatorDirectedRewardsSubmissions);
+    }
+
     // GETTERS
 
     /**
@@ -386,9 +412,9 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, IUniFiAVSManager, UUPSUpgrad
      * @inheritdoc IUniFiAVSManager
      */
     function getValidators(bytes32[] calldata blsPubKeyHashes) external view returns (ValidatorDataExtended[] memory) {
-        uint256 length = blsPubKeyHashes.length;
-        ValidatorDataExtended[] memory validators = new ValidatorDataExtended[](length);
-        for (uint256 i = 0; i < length; i++) {
+        uint256 blsPubKeyHashesLength = blsPubKeyHashes.length;
+        ValidatorDataExtended[] memory validators = new ValidatorDataExtended[](blsPubKeyHashesLength);
+        for (uint256 i = 0; i < blsPubKeyHashesLength; i++) {
             validators[i] = _getValidator(blsPubKeyHashes[i]);
         }
 

@@ -70,6 +70,9 @@ interface IUniFiAVSManager {
     /// @notice Thrown when a restaking strategy allowlist update fails
     error RestakingStrategyAllowlistUpdateFailed();
 
+    /// @notice Thrown when a rewards token fails to be approved
+    error FailedToApproveRewardsToken();
+
     /**
      * @notice Emitted when a new operator is registered in the UniFi AVS.
      * @param operator The address of the registered operator.
