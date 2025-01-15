@@ -71,7 +71,7 @@ interface IUniFiAVSManager {
     error RestakingStrategyAllowlistUpdateFailed();
 
     /// @notice Thrown when a rewards token fails to be approved
-    error FailedToApproveRewardsToken();
+    error FailedToApproveRewardsToken(address token, uint256 amount, uint256 balance);
 
     /**
      * @notice Emitted when a new operator is registered in the UniFi AVS.
