@@ -9,6 +9,7 @@ import { UniFiAVSManager } from "../src/UniFiAVSManager.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
+import { IRewardsCoordinator } from "../src/interfaces/EigenLayer/IRewardsCoordinator.sol";
 import { console } from "forge-std/console.sol";
 import { ROLE_ID_OPERATIONS_MULTISIG, ROLE_ID_DAO } from "./Roles.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -22,11 +23,12 @@ contract UpgradeMainnetUniFiAVS is BaseScript {
         address opsWallet = 0xC0896ab1A8cae8c2C1d27d011eb955Cca955580d;
         address accessManagerAddress = 0x75351d49229aa42Df7fEBfbEa0c7cECC881ad7E7;
         address uniFiAVSManagerProxy = 0x2d86E90ED40a034C753931eE31b1bD5E1970113d;
+        address rewardsCoordinator = 0x7750d328b314EfFa365A0402CcfD489B80B0adda;
         uint64 initialDeregistrationDelay = 0;
 
         AccessManager accessManager = AccessManager(accessManagerAddress);
         UniFiAVSManager uniFiAVSManagerImplementation = new UniFiAVSManager(
-            IEigenPodManager(eigenPodManager), IDelegationManager(eigenDelegationManager), IAVSDirectory(avsDirectory)
+            IEigenPodManager(eigenPodManager), IDelegationManager(eigenDelegationManager), IAVSDirectory(avsDirectory), IRewardsCoordinator(rewardsCoordinator)
         );
 
         console.log("UniFiAVSManager Implementation:", address(uniFiAVSManagerImplementation));

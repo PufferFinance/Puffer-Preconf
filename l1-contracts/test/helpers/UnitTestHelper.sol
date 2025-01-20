@@ -9,8 +9,11 @@ import "../../src/UniFiAVSManager.sol";
 import "../mocks/MockEigenPodManager.sol";
 import "../mocks/MockDelegationManager.sol";
 import "../mocks/MockAVSDirectory.sol";
+import "../mocks/MockStrategyManager.sol";
+import "../mocks/MockRewardsCoordinator.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
+import { IPauserRegistry } from "eigenlayer/interfaces/IPauserRegistry.sol";
 import "forge-std/console.sol";
 
 contract UnitTestHelper is Test, BaseScript {
@@ -28,6 +31,8 @@ contract UnitTestHelper is Test, BaseScript {
     MockEigenPodManager public mockEigenPodManager;
     MockDelegationManager public mockDelegationManager;
     MockAVSDirectory public mockAVSDirectory;
+    MockStrategyManager public mockStrategyManager;
+    MockRewardsCoordinator public mockRewardsCoordinator;
 
     address public DAO = makeAddr("DAO");
     address public COMMUNITY_MULTISIG = makeAddr("communityMultisig");
@@ -72,11 +77,13 @@ contract UnitTestHelper is Test, BaseScript {
         mockEigenPodManager = new MockEigenPodManager();
         mockDelegationManager = new MockDelegationManager();
         mockAVSDirectory = new MockAVSDirectory();
-
+        mockStrategyManager = new MockStrategyManager();
+        mockRewardsCoordinator = new MockRewardsCoordinator(IStrategyManager(address(mockStrategyManager)));
         AVSDeployment memory avsDeployment = new DeployEverything().run(
             address(mockEigenPodManager),
             address(mockDelegationManager),
             address(mockAVSDirectory),
+            address(mockRewardsCoordinator),
             DEREGISTRATION_DELAY
         );
 

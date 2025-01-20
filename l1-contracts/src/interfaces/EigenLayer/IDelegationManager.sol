@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IStrategy } from "./IStrategy.sol";
+import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 
 interface IDelegationManager {
     // @notice Struct used for storing information about a single operator who has registered with EigenLayer

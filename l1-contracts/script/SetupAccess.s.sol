@@ -2,21 +2,13 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Script.sol";
-import { console } from "forge-std/console.sol";
-import { BaseScript } from "script/BaseScript.s.sol";
+import { BaseScript } from "./BaseScript.s.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
 import { UniFiAVSManager } from "../src/UniFiAVSManager.sol";
-import { AVSDeployment } from "script/DeploymentStructs.sol";
+import { AVSDeployment } from "./DeploymentStructs.sol";
 
-import {
-    ROLE_ID_OPERATIONS_MULTISIG,
-    ROLE_ID_OPERATIONS_PAYMASTER,
-    ROLE_ID_PUFFER_PROTOCOL,
-    ROLE_ID_DAO,
-    ROLE_ID_OPERATIONS_COORDINATOR,
-    ROLE_ID_VT_PRICER
-} from "../script/Roles.sol";
+import { ROLE_ID_DAO } from "./Roles.sol";
 
 contract SetupAccess is BaseScript {
     AccessManager internal accessManager;

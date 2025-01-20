@@ -15,12 +15,18 @@ contract DeployUniFiToMainnet is BaseScript {
         address eigenDelegationManager = 0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A;
         address avsDirectory = 0x135DDa560e946695d6f155dACaFC6f1F25C1F5AF;
         address opsWallet = 0xC0896ab1A8cae8c2C1d27d011eb955Cca955580d;
+        address rewardsCoordinator = 0x7750d328b314EfFa365A0402CcfD489B80B0adda;
         uint64 initialDeregistrationDelay = 0;
 
         // Deploy everything else
         DeployEverything deployEverything = new DeployEverything();
-        deployment =
-            deployEverything.run(eigenPodManager, eigenDelegationManager, avsDirectory, initialDeregistrationDelay);
+        deployment = deployEverything.run({
+            eigenPodManager: eigenPodManager,
+            eigenDelegationManager: eigenDelegationManager,
+            avsDirectory: avsDirectory,
+            rewardsCoordinator: rewardsCoordinator,
+            initialDeregistrationDelay: initialDeregistrationDelay
+        });
 
         vm.startBroadcast(_deployerPrivateKey);
         AccessManager accessManager = AccessManager(deployment.accessManager);

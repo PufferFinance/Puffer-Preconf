@@ -358,20 +358,21 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, IUniFiAVSManager, UUPSUpgrad
         }
     }
 
-    function submitOperatorRewards(IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata operatorDirectedRewardsSubmissions) external restricted {
-        uint256 submissionsLength = operatorDirectedRewardsSubmissions.length;
+    function submitOperatorRewards(IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata submissions) external restricted {
+        uint256 submissionsLength = submissions.length;
         for (uint256 i = 0; i < submissionsLength; i++) {
-            IRewardsCoordinator.OperatorDirectedRewardsSubmission memory submission = operatorDirectedRewardsSubmissions[i];
+            IRewardsCoordinator.OperatorDirectedRewardsSubmission memory submission = submissions[i];
             uint256 totalRewards = 0;
             uint256 rewardsLength = submission.operatorRewards.length;
             for (uint256 j = 0; j < rewardsLength; j++) {
                 totalRewards += submission.operatorRewards[j].amount;
             }
-            if (!IERC20(address(submission.token)).approve(address(EIGEN_REWARDS_COORDINATOR), totalRewards)) {
-                revert FailedToApproveRewardsToken(address(submission.token), totalRewards, IERC20(address(submission.token)).balanceOf(address(this)));
+            IERC20 token = IERC20(address(submission.token));
+            if (!token.approve(address(EIGEN_REWARDS_COORDINATOR), totalRewards)) {
+                revert FailedToApproveRewardsToken(address(token), totalRewards, token.balanceOf(address(this)));
             }
         }
-        EIGEN_REWARDS_COORDINATOR.createOperatorDirectedAVSRewardsSubmission(address(this), operatorDirectedRewardsSubmissions);
+        EIGEN_REWARDS_COORDINATOR.createOperatorDirectedAVSRewardsSubmission(address(this), submissions);
     }
 
     // GETTERS

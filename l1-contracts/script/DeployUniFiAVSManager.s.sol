@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { BaseScript } from "script/BaseScript.s.sol";
+import { BaseScript } from "./BaseScript.s.sol";
 import { UniFiAVSManager } from "../src/UniFiAVSManager.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import { console } from "forge-std/console.sol";
+import { IRewardsCoordinator } from "../src/interfaces/EigenLayer/IRewardsCoordinator.sol";
 
 contract DeployUniFiAVSManager is BaseScript {
     UniFiAVSManager public uniFiAVSManagerProxy;
@@ -17,11 +17,12 @@ contract DeployUniFiAVSManager is BaseScript {
         address eigenPodManager,
         address eigenDelegationManager,
         address avsDirectory,
+        address rewardsCoordinator,
         uint64 initialDeregistrationDelay
     ) public returns (address, address) {
         vm.startBroadcast(_deployerPrivateKey);
         UniFiAVSManager uniFiAVSManagerImplementation = new UniFiAVSManager(
-            IEigenPodManager(eigenPodManager), IDelegationManager(eigenDelegationManager), IAVSDirectory(avsDirectory)
+            IEigenPodManager(eigenPodManager), IDelegationManager(eigenDelegationManager), IAVSDirectory(avsDirectory), IRewardsCoordinator(rewardsCoordinator)
         );
 
         uniFiAVSManagerProxy = UniFiAVSManager(

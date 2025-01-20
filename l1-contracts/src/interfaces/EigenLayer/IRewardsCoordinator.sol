@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity >=0.8.0 <0.9.0;
 
-import { IStrategy } from "./IStrategy.sol";
+import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
@@ -14,6 +14,23 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * - allowing the protocol to provide ERC20 tokens to stakers over a specified time range
  */
 interface IRewardsCoordinator {
+
+    /**
+     * @notice Emitted when an AVS creates a valid `OperatorDirectedRewardsSubmission`
+     * @param caller The address calling `createOperatorDirectedAVSRewardsSubmission`.
+     * @param avs The avs on behalf of which the operator-directed rewards are being submitted.
+     * @param operatorDirectedRewardsSubmissionHash Keccak256 hash of (`avs`, `submissionNonce` and `operatorDirectedRewardsSubmission`).
+     * @param submissionNonce Current nonce of the avs. Used to generate a unique submission hash.
+     * @param operatorDirectedRewardsSubmission The Operator-Directed Rewards Submission. Contains the token, start timestamp, duration, operator rewards, description and, strategy and multipliers.
+     */
+    event OperatorDirectedAVSRewardsSubmissionCreated(
+        address indexed caller,
+        address indexed avs,
+        bytes32 indexed operatorDirectedRewardsSubmissionHash,
+        uint256 submissionNonce,
+        OperatorDirectedRewardsSubmission operatorDirectedRewardsSubmission
+    );
+
     /**
      * @notice A linear combination of strategies and multipliers for AVSs to weigh
      * EigenLayer strategies.
@@ -52,13 +69,6 @@ interface IRewardsCoordinator {
         uint32 duration;
         string description;
     }
-
-    /**
-     * @notice Sets the address of the entity that can call `processClaim` on behalf of the earner (msg.sender)
-     * @param claimer The address of the entity that can call `processClaim` on behalf of the earner
-     * @dev Only callable by the `earner`
-     */
-    function setClaimerFor(address claimer) external;
 
     /**
      * @notice Creates a new operator-directed rewards submission on behalf of an AVS, to be split amongst the operators and

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { BaseScript } from "script/BaseScript.s.sol";
-import { DeployUniFiAVSManager } from "script/DeployUniFiAVSManager.s.sol";
-import { SetupAccess } from "script/SetupAccess.s.sol";
+import { BaseScript } from "./BaseScript.s.sol";
+import { DeployUniFiAVSManager } from "./DeployUniFiAVSManager.s.sol";
+import { SetupAccess } from "./SetupAccess.s.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
-import { AVSDeployment } from "script/DeploymentStructs.sol";
-import { console } from "forge-std/console.sol";
+import { AVSDeployment } from "./DeploymentStructs.sol";
 
 /**
  * @title Deploy all protocol contracts
@@ -22,6 +21,7 @@ contract DeployEverything is BaseScript {
         address eigenPodManager,
         address eigenDelegationManager,
         address avsDirectory,
+        address rewardsCoordinator,
         uint64 initialDeregistrationDelay
     ) public returns (AVSDeployment memory) {
         AVSDeployment memory deployment;
@@ -31,9 +31,14 @@ contract DeployEverything is BaseScript {
         vm.stopBroadcast();
 
         // 1. Deploy AVSManager
-        (address avsManagerImplementation, address avsManagerProxy) = new DeployUniFiAVSManager().run(
-            address(accessManager), eigenPodManager, eigenDelegationManager, avsDirectory, initialDeregistrationDelay
-        );
+        (address avsManagerImplementation, address avsManagerProxy) = new DeployUniFiAVSManager().run({
+            accessManager: address(accessManager),
+            eigenPodManager: eigenPodManager,
+            eigenDelegationManager: eigenDelegationManager,
+            avsDirectory: avsDirectory,
+            rewardsCoordinator: rewardsCoordinator,
+            initialDeregistrationDelay: initialDeregistrationDelay
+        });
 
         deployment.avsManagerImplementation = avsManagerImplementation;
         deployment.avsManagerProxy = avsManagerProxy;

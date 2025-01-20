@@ -12,9 +12,7 @@ import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import { stdJson } from "forge-std/StdJson.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
-import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 
@@ -162,7 +160,7 @@ contract UniFiAVSScripts is Script {
             validators[i] = IEigenPod.ValidatorInfo({
                 validatorIndex: uint64(index),
                 restakedBalanceGwei: 0,
-                mostRecentBalanceUpdateTimestamp: 0,
+                lastCheckpointedAt: 0,
                 status: IEigenPod.VALIDATOR_STATUS.ACTIVE
             });
 
@@ -196,7 +194,7 @@ contract UniFiAVSScripts is Script {
             validators[i] = IEigenPod.ValidatorInfo({
                 validatorIndex: validatorIndices[i],
                 restakedBalanceGwei: 0,
-                mostRecentBalanceUpdateTimestamp: 0,
+                lastCheckpointedAt: 0,
                 status: IEigenPod.VALIDATOR_STATUS.ACTIVE
             });
 
@@ -313,9 +311,13 @@ contract UniFiAVSScripts is Script {
             MockDelegationManager(address(delegationManager)).setOperator(operator, true);
             MockDelegationManager(address(delegationManager)).setDelegation(staker, operator);
         } else {
-            delegationManager.delegateToBySignature(
-                staker, operator, stakerSignatureAndExpiry, approverSignatureAndExpiry, approverSalt
-            );
+            delegationManager.delegateToBySignature({
+                staker: staker,
+                operator: operator,
+                stakerSignatureAndExpiry: stakerSignatureAndExpiry,
+                approverSignatureAndExpiry: approverSignatureAndExpiry,
+                approverSalt: approverSalt
+            });
         }
         vm.stopBroadcast();
     }
@@ -351,13 +353,13 @@ contract UniFiAVSScripts is Script {
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
 
         vm.startBroadcast();
-        (, operatorSignature) = _getOperatorSignature(
-            signerPk,
-            msg.sender,
-            uniFiAVSManagerAddress,
-            bytes32(keccak256(abi.encodePacked(block.timestamp, msg.sender))),
-            type(uint256).max
-        );
+        (, operatorSignature) = _getOperatorSignature({
+            _operatorPrivateKey: signerPk,
+            operator: msg.sender,
+            avs: uniFiAVSManagerAddress,
+            salt: bytes32(keccak256(abi.encodePacked(block.timestamp, msg.sender))),
+            expiry: type(uint256).max
+        });
         uniFiAVSManager.registerOperator(operatorSignature);
         uniFiAVSManager.setOperatorCommitment(initialCommitment);
         vm.stopBroadcast();
@@ -375,13 +377,13 @@ contract UniFiAVSScripts is Script {
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
 
         vm.startBroadcast();
-        (, operatorSignature) = _getOperatorSignature(
-            signerPk,
-            msg.sender,
-            uniFiAVSManagerAddress,
-            bytes32(keccak256(abi.encodePacked(block.timestamp, msg.sender))),
-            type(uint256).max
-        );
+        (, operatorSignature) = _getOperatorSignature({
+            _operatorPrivateKey: signerPk,
+            operator: msg.sender,
+            avs: uniFiAVSManagerAddress,
+            salt: bytes32(keccak256(abi.encodePacked(block.timestamp, msg.sender))),
+            expiry: type(uint256).max
+        });
         uniFiAVSManager.registerOperator(operatorSignature);
 
         vm.stopBroadcast();
@@ -394,13 +396,13 @@ contract UniFiAVSScripts is Script {
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
 
         vm.startBroadcast();
-        (, operatorSignature) = _getOperatorSignature(
-            signerPk,
-            msg.sender,
-            uniFiAVSManagerAddress,
-            bytes32(keccak256(abi.encodePacked(block.timestamp, msg.sender))),
-            type(uint256).max
-        );
+        (, operatorSignature) = _getOperatorSignature({
+            _operatorPrivateKey: signerPk,
+            operator: msg.sender,
+            avs: uniFiAVSManagerAddress,
+            salt: bytes32(keccak256(abi.encodePacked(block.timestamp, msg.sender))),
+            expiry: type(uint256).max
+        });
         uniFiAVSManager.registerOperator(operatorSignature);
 
         uint256 chainIDBitMap = DEFAULT_CHAIN_BITMAP;
