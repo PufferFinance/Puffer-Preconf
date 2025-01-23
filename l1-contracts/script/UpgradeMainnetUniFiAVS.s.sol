@@ -53,6 +53,13 @@ contract UpgradeMainnetUniFiAVS is BaseScript {
             AccessManager.setTargetFunctionRole.selector, address(uniFiAVSManagerProxy), daoSelectors, ROLE_ID_DAO
         );
 
+        bytes4[] memory operationsMultisigSelectors = new bytes4[](1);
+        operationsMultisigSelectors[0] = UniFiAVSManager.submitOperatorRewards.selector;
+
+        calldatas = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector, address(uniFiAVSManagerProxy), operationsMultisigSelectors, ROLE_ID_OPERATIONS_MULTISIG
+        );
+
         console.logBytes(calldatas);
     }
 }

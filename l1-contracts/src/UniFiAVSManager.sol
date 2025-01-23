@@ -367,10 +367,7 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, IUniFiAVSManager, UUPSUpgrad
             for (uint256 j = 0; j < rewardsLength; j++) {
                 totalRewards += submission.operatorRewards[j].amount;
             }
-            IERC20 token = IERC20(address(submission.token));
-            if (!token.approve(address(EIGEN_REWARDS_COORDINATOR), totalRewards)) {
-                revert FailedToApproveRewardsToken(address(token), totalRewards, token.balanceOf(address(this)));
-            }
+            IERC20(address(submission.token)).approve(address(EIGEN_REWARDS_COORDINATOR), totalRewards);
         }
         EIGEN_REWARDS_COORDINATOR.createOperatorDirectedAVSRewardsSubmission(address(this), submissions);
     }

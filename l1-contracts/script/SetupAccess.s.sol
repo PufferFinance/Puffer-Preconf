@@ -8,20 +8,20 @@ import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
 import { UniFiAVSManager } from "../src/UniFiAVSManager.sol";
 import { AVSDeployment } from "./DeploymentStructs.sol";
 
-import { ROLE_ID_DAO } from "./Roles.sol";
+import { ROLE_ID_DAO, ROLE_ID_OPERATIONS_MULTISIG } from "./Roles.sol";
 
 contract SetupAccess is BaseScript {
     AccessManager internal accessManager;
 
     AVSDeployment internal avsDeployment;
 
-    function run(AVSDeployment memory deployment, address dao) external broadcast {
+    function run(AVSDeployment memory deployment, address dao, address operationsMultisig) external broadcast {
         avsDeployment = deployment;
         accessManager = AccessManager(payable(deployment.accessManager));
 
         // We do one multicall to setup everything
         bytes[] memory calldatas = _generateAccessCalldata({
-            rolesCalldatas: _grantRoles(dao),
+            rolesCalldatas: _grantRoles(dao, operationsMultisig),
             uniFiAVSManagerRoles: _setupUniFiAVSManagerRoles(),
             roleLabels: _labelRoles()
         });
@@ -36,21 +36,23 @@ contract SetupAccess is BaseScript {
         bytes[] memory rolesCalldatas,
         bytes[] memory uniFiAVSManagerRoles,
         bytes[] memory roleLabels
-    ) internal view returns (bytes[] memory calldatas) {
-        calldatas = new bytes[](4);
+    ) internal pure returns (bytes[] memory calldatas) {
+        calldatas = new bytes[](6);
         calldatas[0] = rolesCalldatas[0];
+        calldatas[1] = rolesCalldatas[1];
 
-        calldatas[1] = uniFiAVSManagerRoles[0];
-        calldatas[2] = uniFiAVSManagerRoles[1];
+        calldatas[2] = uniFiAVSManagerRoles[0];
+        calldatas[3] = uniFiAVSManagerRoles[1];
+        calldatas[4] = uniFiAVSManagerRoles[2];
 
-        calldatas[3] = roleLabels[0];
+        calldatas[5] = roleLabels[0];
     }
 
-    function _grantRoles(address dao) internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](1);
+    function _grantRoles(address dao, address operationsMultisig) internal pure returns (bytes[] memory) {
+        bytes[] memory calldatas = new bytes[](2);
 
         calldatas[0] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_DAO, dao, 0);
-
+        calldatas[1] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_OPERATIONS_MULTISIG, operationsMultisig, 0);
         return calldatas;
     }
 
@@ -63,7 +65,7 @@ contract SetupAccess is BaseScript {
     }
 
     function _setupUniFiAVSManagerRoles() internal view returns (bytes[] memory) {
-        bytes[] memory calldatas = new bytes[](2);
+        bytes[] memory calldatas = new bytes[](3);
 
         bytes4[] memory daoSelectors = new bytes4[](0);
         daoSelectors = new bytes4[](4);
@@ -95,6 +97,17 @@ contract SetupAccess is BaseScript {
             address(avsDeployment.avsManagerProxy),
             publicSelectors,
             accessManager.PUBLIC_ROLE()
+        );
+
+        bytes4[] memory operationsMultisigSelectors = new bytes4[](0);
+        operationsMultisigSelectors = new bytes4[](1);
+        operationsMultisigSelectors[0] = UniFiAVSManager.submitOperatorRewards.selector;
+
+        calldatas[2] = abi.encodeWithSelector(
+            AccessManager.setTargetFunctionRole.selector,
+            address(avsDeployment.avsManagerProxy),
+            operationsMultisigSelectors,
+            ROLE_ID_OPERATIONS_MULTISIG
         );
 
         return calldatas;

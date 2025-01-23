@@ -16,6 +16,7 @@ import { AVSDeployment } from "./DeploymentStructs.sol";
  */
 contract DeployEverything is BaseScript {
     address DAO;
+    address OPERATIONS_MULTISIG;
 
     function run(
         address eigenPodManager,
@@ -47,17 +48,20 @@ contract DeployEverything is BaseScript {
         // `anvil` in the terminal
         if (_localAnvil) {
             DAO = _broadcaster;
+            OPERATIONS_MULTISIG = _broadcaster;
         } else if (isAnvil()) {
             // Tests environment `forge test ...`
             DAO = makeAddr("DAO");
+            OPERATIONS_MULTISIG = address(0x031337);
         } else {
             // Testnet deployments
             DAO = _broadcaster;
+            OPERATIONS_MULTISIG = _broadcaster;
         }
 
         deployment.dao = DAO;
-
-        new SetupAccess().run(deployment, DAO);
+        deployment.operationsMultisig = OPERATIONS_MULTISIG;
+        new SetupAccess().run(deployment, DAO, OPERATIONS_MULTISIG);
 
         _writeJson(deployment);
 
@@ -71,6 +75,7 @@ contract DeployEverything is BaseScript {
         vm.serializeAddress(obj, "avsManagerProxy", deployment.avsManagerProxy);
         vm.serializeAddress(obj, "accessManager", deployment.accessManager);
         vm.serializeAddress(obj, "dao", DAO);
+        vm.serializeAddress(obj, "operationsMultisig", OPERATIONS_MULTISIG);
 
         string memory finalJson = vm.serializeString(obj, "", "");
         vm.writeJson(finalJson, "./output/avsDeployment.json");

@@ -10,10 +10,14 @@ import "../src/structs/OperatorData.sol";
 import "./mocks/MockEigenPodManager.sol";
 import "./mocks/MockDelegationManager.sol";
 import "./mocks/MockAVSDirectory.sol";
+import "./mocks/MockERC20.sol";
 import "eigenlayer-middleware/libraries/BN254.sol";
 import "eigenlayer-middleware/interfaces/IBLSApkRegistry.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { UnitTestHelper } from "../test/helpers/UnitTestHelper.sol";
+import "../src/interfaces/EigenLayer/IRewardsCoordinator.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 contract UniFiAVSManagerTest is UnitTestHelper {
     using BN254 for BN254.G1Point;
@@ -1021,5 +1025,103 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         address[] memory restakedStrategies = avsManager.getOperatorRestakedStrategies(operator);
 
         assertEq(restakedStrategies.length, 0, "Should return no restaked strategies for unregistered operator");
+    }
+
+    function testSubmitOperatorRewards() public {
+        // Create mock rewards submission data
+        IRewardsCoordinator.OperatorReward[] memory operatorRewards = new IRewardsCoordinator.OperatorReward[](2);
+        operatorRewards[0] = IRewardsCoordinator.OperatorReward({
+            operator: address(0x1),
+            amount: 100
+        });
+        operatorRewards[1] = IRewardsCoordinator.OperatorReward({
+            operator: address(0x2),
+            amount: 200
+        });
+
+        IRewardsCoordinator.StrategyAndMultiplier[] memory strategiesAndMultipliers = new IRewardsCoordinator.StrategyAndMultiplier[](1);
+        strategiesAndMultipliers[0] = IRewardsCoordinator.StrategyAndMultiplier({
+            strategy: IStrategy(avsManager.BEACON_CHAIN_STRATEGY()),
+            multiplier: 1
+        });
+
+        console.log("block.timestamp", block.timestamp);
+        vm.warp(1737590400 + 50);
+        IRewardsCoordinator.OperatorDirectedRewardsSubmission[] memory submissions = 
+            new IRewardsCoordinator.OperatorDirectedRewardsSubmission[](1);
+        submissions[0] = IRewardsCoordinator.OperatorDirectedRewardsSubmission({
+            strategiesAndMultipliers: strategiesAndMultipliers,
+            token: mockERC20,
+            operatorRewards: operatorRewards,
+            startTimestamp: uint32(block.timestamp - 2 weeks - 50),
+            duration: 2 weeks,
+            description: "test"
+        });
+
+        // Give tokens to AVS manager
+        mockERC20.mint(address(avsManager), 1000);
+
+        // Expect approval to be called with correct parameters
+        vm.expectCall(
+            address(mockERC20),
+            abi.encodeCall(IERC20.approve, (address(mockRewardsCoordinator), 300))
+        );
+
+        // Expect rewards submission to be called
+        vm.expectCall(
+            address(mockRewardsCoordinator),
+            abi.encodeCall(IRewardsCoordinator.createOperatorDirectedAVSRewardsSubmission, (address(avsManager), submissions))
+        );
+
+        vm.prank(OPERATIONS_MULTISIG);
+        avsManager.submitOperatorRewards(submissions);
+    }
+
+    function testSubmitOperatorRewards_InsufficientBalance() public {
+        // Create mock rewards submission data
+        IRewardsCoordinator.OperatorReward[] memory operatorRewards = new IRewardsCoordinator.OperatorReward[](1);
+        operatorRewards[0] = IRewardsCoordinator.OperatorReward({
+            operator: address(0x1),
+            amount: 1000
+        });
+
+        IRewardsCoordinator.StrategyAndMultiplier[] memory strategiesAndMultipliers = new IRewardsCoordinator.StrategyAndMultiplier[](1);
+        strategiesAndMultipliers[0] = IRewardsCoordinator.StrategyAndMultiplier({
+            strategy: IStrategy(avsManager.BEACON_CHAIN_STRATEGY()),
+            multiplier: 1
+        });
+        vm.warp(1737590400 + 50);
+        IRewardsCoordinator.OperatorDirectedRewardsSubmission[] memory submissions = 
+            new IRewardsCoordinator.OperatorDirectedRewardsSubmission[](1);
+        submissions[0] = IRewardsCoordinator.OperatorDirectedRewardsSubmission({
+            strategiesAndMultipliers: strategiesAndMultipliers,
+            token: mockERC20,
+            operatorRewards: operatorRewards,
+            startTimestamp: uint32(block.timestamp - 2 weeks - 50),
+            duration: 2 weeks,
+            description: "test"
+        });
+
+        // Give insufficient tokens to AVS manager
+        mockERC20.mint(address(avsManager), 500);
+
+        vm.expectRevert(abi.encodeWithSelector(
+            IERC20Errors.ERC20InsufficientBalance.selector,
+            address(avsManager),
+            500,
+            1000
+        ));
+
+        vm.prank(OPERATIONS_MULTISIG);
+        avsManager.submitOperatorRewards(submissions);
+    }
+
+    function testSubmitOperatorRewards_Unauthorized() public {
+        IRewardsCoordinator.OperatorDirectedRewardsSubmission[] memory submissions = 
+            new IRewardsCoordinator.OperatorDirectedRewardsSubmission[](0);
+
+        vm.prank(operator);
+        vm.expectRevert(); // Unauthorized access
+        avsManager.submitOperatorRewards(submissions);
     }
 }

@@ -11,6 +11,7 @@ import "../mocks/MockDelegationManager.sol";
 import "../mocks/MockAVSDirectory.sol";
 import "../mocks/MockStrategyManager.sol";
 import "../mocks/MockRewardsCoordinator.sol";
+import "../mocks/MockERC20.sol";
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { IPauserRegistry } from "eigenlayer/interfaces/IPauserRegistry.sol";
@@ -33,10 +34,10 @@ contract UnitTestHelper is Test, BaseScript {
     MockAVSDirectory public mockAVSDirectory;
     MockStrategyManager public mockStrategyManager;
     MockRewardsCoordinator public mockRewardsCoordinator;
-
+    MockERC20 public mockERC20;
     address public DAO = makeAddr("DAO");
     address public COMMUNITY_MULTISIG = makeAddr("communityMultisig");
-    address public OPERATIONS_MULTISIG = makeAddr("operationsMultisig");
+    address public OPERATIONS_MULTISIG = address(0x031337);
 
     uint256 public operatorPrivateKey = 0xA11CE;
     address public operator = vm.addr(operatorPrivateKey);
@@ -86,6 +87,8 @@ contract UnitTestHelper is Test, BaseScript {
             address(mockRewardsCoordinator),
             DEREGISTRATION_DELAY
         );
+
+        mockERC20 = new MockERC20("MockERC20", "MKR", 1000);
 
         // accessManager = AccessManager(avsDeployment.accessManager);
         timelock = avsDeployment.timelock;
