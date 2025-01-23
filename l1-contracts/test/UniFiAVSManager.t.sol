@@ -3,7 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Test.sol";
 import "../src/UniFiAVSManager.sol";
-import "../src/interfaces/IUniFiAVSManager.sol";
+// import "../src/interfaces/IUniFiAVSManager.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
 import "../src/structs/ValidatorData.sol";
 import "../src/structs/OperatorData.sol";
@@ -1035,7 +1035,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
             amount: 100
         });
         operatorRewards[1] = IRewardsCoordinator.OperatorReward({
-            operator: address(0x2),
+            operator: address(operator),
             amount: 200
         });
 
@@ -1045,7 +1045,6 @@ contract UniFiAVSManagerTest is UnitTestHelper {
             multiplier: 1
         });
 
-        console.log("block.timestamp", block.timestamp);
         vm.warp(1737590400 + 50);
         IRewardsCoordinator.OperatorDirectedRewardsSubmission[] memory submissions = 
             new IRewardsCoordinator.OperatorDirectedRewardsSubmission[](1);
@@ -1074,7 +1073,10 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         );
 
         vm.prank(OPERATIONS_MULTISIG);
+        vm.expectEmit();
+        emit IUniFiAVSManager.OperatorRewardsSubmitted();
         avsManager.submitOperatorRewards(submissions);
+
     }
 
     function testSubmitOperatorRewards_InsufficientBalance() public {

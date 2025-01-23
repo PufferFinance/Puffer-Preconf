@@ -371,7 +371,7 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, IUniFiAVSManager, UUPSUpgrad
         }
         EIGEN_REWARDS_COORDINATOR.createOperatorDirectedAVSRewardsSubmission(address(this), submissions);
 
-        emit OperatorRewardsSubmitted(submissions);
+        emit OperatorRewardsSubmitted();
     }
 
     // GETTERS

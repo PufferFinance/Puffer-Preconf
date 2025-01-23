@@ -155,9 +155,8 @@ interface IUniFiAVSManager {
 
     /**
      * @notice Emitted when operator rewards are submitted.
-     * @param submissions The array of rewards submissions.
      */
-    event OperatorRewardsSubmitted(IRewardsCoordinator.OperatorDirectedRewardsSubmission[] submissions);
+    event OperatorRewardsSubmitted();
 
     /**
      * @notice Returns the EigenPodManager contract.
