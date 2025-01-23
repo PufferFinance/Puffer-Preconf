@@ -366,7 +366,7 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, IUniFiAVSManager, UUPSUpgrad
     function submitOperatorRewards(IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata submissions) external restricted {
         uint256 submissionsLength = submissions.length;
         for (uint256 i = 0; i < submissionsLength; i++) {
-            IRewardsCoordinator.OperatorDirectedRewardsSubmission memory submission = submissions[i];
+            IRewardsCoordinator.OperatorDirectedRewardsSubmission calldata submission = submissions[i];
             uint256 totalRewards = 0;
             uint256 rewardsLength = submission.operatorRewards.length;
             for (uint256 j = 0; j < rewardsLength; j++) {
