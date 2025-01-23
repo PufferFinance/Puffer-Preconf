@@ -17,7 +17,7 @@ contract MockRewardsCoordinator is IRewardsCoordinator {
     uint256 internal constant MAX_REWARDS_DURATION = 6048000;
 
     /// @notice The interval at which rewards are calculated, constrained by off-chain calculation
-    uint256 internal constant CALCULATION_INTERVAL_SECONDS = 604800;
+    uint256 internal constant CALCULATION_INTERVAL_SECONDS = 604800; // 2 weeks
 
     /// @notice The maximum length of time in the past that rewards can be retroactively submitted, constrained by off-chain calculation
     uint256 internal constant MAX_RETROACTIVE_LENGTH = 7776000;

@@ -358,6 +358,11 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, IUniFiAVSManager, UUPSUpgrad
         }
     }
 
+
+    /**
+     * @dev Restricted to the OPERATIONS_MULTISIG
+     * @param submissions The array of rewards submissions.
+     */
     function submitOperatorRewards(IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata submissions) external restricted {
         uint256 submissionsLength = submissions.length;
         for (uint256 i = 0; i < submissionsLength; i++) {
