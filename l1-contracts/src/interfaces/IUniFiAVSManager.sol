@@ -4,6 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 import { IAVSDirectoryExtended } from "../interfaces/EigenLayer/IAVSDirectoryExtended.sol";
+import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.sol";
 import "../structs/ValidatorData.sol";
 import "../structs/OperatorData.sol";
 
@@ -151,6 +152,12 @@ interface IUniFiAVSManager {
      * @param allowed Whether the strategy is allowed (true) or disallowed (false).
      */
     event RestakingStrategyAllowlistUpdated(address indexed strategy, bool allowed);
+
+    /**
+     * @notice Emitted when operator rewards are submitted.
+     * @param submissions The array of rewards submissions.
+     */
+    event OperatorRewardsSubmitted(IRewardsCoordinator.OperatorDirectedRewardsSubmission[] submissions);
 
     /**
      * @notice Returns the EigenPodManager contract.
