@@ -3,7 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
-import { IAVSDirectoryExtended } from "../interfaces/EigenLayer/IAVSDirectoryExtended.sol";
+import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
 import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.sol";
 import "../structs/ValidatorData.sol";
 import "../structs/OperatorData.sol";
@@ -70,6 +70,9 @@ interface IUniFiAVSManager {
 
     /// @notice Thrown when a restaking strategy allowlist update fails
     error RestakingStrategyAllowlistUpdateFailed();
+
+    /// @notice Thrown when an AVS operator status call fails
+    error AVSOperatorStatusCallFailed();
 
     /**
      * @notice Emitted when a new operator is registered in the UniFi AVS.
@@ -171,10 +174,10 @@ interface IUniFiAVSManager {
     function EIGEN_DELEGATION_MANAGER() external view returns (IDelegationManager);
 
     /**
-     * @notice Returns the AVSDirectoryExtended contract.
-     * @return IAVSDirectoryExtended The AVSDirectoryExtended contract.
+     * @notice Returns the AVSDirectory contract.
+     * @return IAVSDirectory The AVSDirectory contract.
      */
-    function AVS_DIRECTORY() external view returns (IAVSDirectoryExtended);
+    function AVS_DIRECTORY() external view returns (IAVSDirectory);
 
     /**
      * @notice Registers a new operator in the UniFi AVS.
@@ -336,4 +339,10 @@ interface IUniFiAVSManager {
 
     /// @notice Returns the EigenLayer AVSDirectory contract.
     function avsDirectory() external view returns (address);
+
+    /**
+     * @notice Submits EigenLayer rewards for operators.
+     * @param submissions The array of rewards submissions.
+     */
+    function submitOperatorRewards(IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata submissions) external;
 }

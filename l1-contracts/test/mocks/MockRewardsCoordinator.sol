@@ -2,10 +2,10 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "../../src/interfaces/EigenLayer/IRewardsCoordinator.sol";
+import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.sol";
 import "eigenlayer/interfaces/IStrategyManager.sol";
 
-contract MockRewardsCoordinator is IRewardsCoordinator {
+contract MockRewardsCoordinator {
     using SafeERC20 for IERC20;
 
     IStrategy public constant beaconChainETHStrategy = IStrategy(0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0);
@@ -38,10 +38,9 @@ contract MockRewardsCoordinator is IRewardsCoordinator {
         strategyManager = _strategyManager;
     }
 
-    /// @inheritdoc IRewardsCoordinator
     function createOperatorDirectedAVSRewardsSubmission(
         address avs,
-        OperatorDirectedRewardsSubmission[] calldata operatorDirectedRewardsSubmissions
+        IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata operatorDirectedRewardsSubmissions
     ) external {
         require(
             msg.sender == avs,
@@ -49,8 +48,7 @@ contract MockRewardsCoordinator is IRewardsCoordinator {
         );
 
         for (uint256 i = 0; i < operatorDirectedRewardsSubmissions.length; i++) {
-            OperatorDirectedRewardsSubmission
-                calldata operatorDirectedRewardsSubmission = operatorDirectedRewardsSubmissions[i];
+            IRewardsCoordinator.OperatorDirectedRewardsSubmission calldata operatorDirectedRewardsSubmission = operatorDirectedRewardsSubmissions[i];
             uint256 nonce = submissionNonce[avs];
             bytes32 operatorDirectedRewardsSubmissionHash = keccak256(
                 abi.encode(avs, nonce, operatorDirectedRewardsSubmission)
@@ -61,7 +59,7 @@ contract MockRewardsCoordinator is IRewardsCoordinator {
             isOperatorDirectedAVSRewardsSubmissionHash[avs][operatorDirectedRewardsSubmissionHash] = true;
             submissionNonce[avs] = nonce + 1;
 
-            emit OperatorDirectedAVSRewardsSubmissionCreated(
+            emit IRewardsCoordinator.OperatorDirectedAVSRewardsSubmissionCreated(
                 msg.sender,
                 avs,
                 operatorDirectedRewardsSubmissionHash,
@@ -79,7 +77,7 @@ contract MockRewardsCoordinator is IRewardsCoordinator {
      * @return total amount to be transferred from the avs to the contract.
      */
     function _validateOperatorDirectedRewardsSubmission(
-        OperatorDirectedRewardsSubmission calldata operatorDirectedRewardsSubmission
+        IRewardsCoordinator.OperatorDirectedRewardsSubmission calldata operatorDirectedRewardsSubmission
     ) internal view returns (uint256) {
         _validateCommonRewardsSubmission(
             operatorDirectedRewardsSubmission.strategiesAndMultipliers,
@@ -94,7 +92,7 @@ contract MockRewardsCoordinator is IRewardsCoordinator {
         uint256 totalAmount = 0;
         address currOperatorAddress = address(0);
         for (uint256 i = 0; i < operatorDirectedRewardsSubmission.operatorRewards.length; ++i) {
-            OperatorReward calldata operatorReward = operatorDirectedRewardsSubmission.operatorRewards[i];
+            IRewardsCoordinator.OperatorReward calldata operatorReward = operatorDirectedRewardsSubmission.operatorRewards[i];
             require(
                 operatorReward.operator != address(0),
                 "RewardsCoordinator._validateOperatorDirectedRewardsSubmission: operator cannot be 0 address"
@@ -128,7 +126,7 @@ contract MockRewardsCoordinator is IRewardsCoordinator {
      * @notice Common checks for all RewardsSubmissions.
      */
     function _validateCommonRewardsSubmission(
-        StrategyAndMultiplier[] calldata strategiesAndMultipliers,
+        IRewardsCoordinator.StrategyAndMultiplier[] calldata strategiesAndMultipliers,
         uint32 startTimestamp,
         uint32 duration
     ) internal view {

@@ -15,7 +15,7 @@ import "eigenlayer-middleware/libraries/BN254.sol";
 import "eigenlayer-middleware/interfaces/IBLSApkRegistry.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { UnitTestHelper } from "../test/helpers/UnitTestHelper.sol";
-import "../src/interfaces/EigenLayer/IRewardsCoordinator.sol";
+import "eigenlayer/interfaces/IRewardsCoordinator.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC20Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
@@ -1079,7 +1079,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
     }
 
-    function testSubmitOperatorRewards_InsufficientBalance() public {
+    function testSubmitOperatorRewards_RevertIf_InsufficientBalance() public {
         // Create mock rewards submission data
         IRewardsCoordinator.OperatorReward[] memory operatorRewards = new IRewardsCoordinator.OperatorReward[](1);
         operatorRewards[0] = IRewardsCoordinator.OperatorReward({

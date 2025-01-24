@@ -9,7 +9,6 @@ import { IRestakingOperator } from "../../src/interfaces/IRestakingOperator.sol"
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
-import { IAVSDirectoryExtended } from "../../src/interfaces/EigenLayer/IAVSDirectoryExtended.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 import "../../src/structs/ValidatorData.sol";
 import "../../src/structs/OperatorData.sol";
@@ -82,8 +81,7 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         // Register operator
         _registerOperator();
 
-        IAVSDirectory.OperatorAVSRegistrationStatus status =
-            IAVSDirectoryExtended(address(avsDirectory)).avsOperatorStatus(address(avsManager), operator);
+        IAVSDirectory.OperatorAVSRegistrationStatus status = _getAvsOperatorStatus(address(avsManager), address(avsDirectory), operator);
         assertEq(
             uint256(status),
             uint256(IAVSDirectory.OperatorAVSRegistrationStatus.REGISTERED),
@@ -107,7 +105,7 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         avsManager.finishDeregisterOperator();
 
         assertEq(
-            uint256(IAVSDirectoryExtended(address(avsDirectory)).avsOperatorStatus(address(avsManager), operator)),
+            uint256(_getAvsOperatorStatus(address(avsManager), address(avsDirectory), operator)),
             uint256(IAVSDirectory.OperatorAVSRegistrationStatus.UNREGISTERED),
             "Operator should be deregistered"
         );
@@ -406,5 +404,19 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
             operatorSignature.signature = abi.encodePacked(r, s, v);
         }
         return (digestHash, operatorSignature);
+    }
+
+    function _getAvsOperatorStatus(address avsManager, address avsDirectory, address operator)
+        internal
+        view
+        returns (IAVSDirectory.OperatorAVSRegistrationStatus)
+    {
+        (bool success, bytes memory data) = address(avsDirectory).staticcall(
+            abi.encodeWithSelector(bytes4(keccak256("avsOperatorStatus(address,address)")), avsManager, operator)
+        );
+        if (!success) {
+            revert("AVS operator status call failed");
+        }
+        return abi.decode(data, (IAVSDirectory.OperatorAVSRegistrationStatus));
     }
 }

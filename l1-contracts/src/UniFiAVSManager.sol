@@ -8,13 +8,12 @@ import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableS
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
-import { IAVSDirectoryExtended } from "./interfaces/EigenLayer/IAVSDirectoryExtended.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 import { IUniFiAVSManager } from "./interfaces/IUniFiAVSManager.sol";
 import { UniFiAVSManagerStorage } from "./UniFiAVSManagerStorage.sol";
-import { IRewardsCoordinator } from "./interfaces/EigenLayer/IRewardsCoordinator.sol";
+import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./structs/ValidatorData.sol";
 import "./structs/OperatorData.sol";
@@ -26,24 +25,20 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, IUniFiAVSManager, UUPSUpgrad
 
     /**
      * @notice The EigenPodManager
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IEigenPodManager public immutable override EIGEN_POD_MANAGER;
     /**
      * @notice The EigenDelegationManager
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IDelegationManager public immutable override EIGEN_DELEGATION_MANAGER;
     /**
      * @notice The RewardsCoordinator contract
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
     IRewardsCoordinator public immutable EIGEN_REWARDS_COORDINATOR;
     /**
      * @notice The AVSDirectory contract
-     * @custom:oz-upgrades-unsafe-allow state-variable-immutable
      */
-    IAVSDirectoryExtended public immutable override AVS_DIRECTORY;
+    IAVSDirectory public immutable override AVS_DIRECTORY;
 
     /**
      * @dev Modifier to check if the pod is delegated to the msg.sender
@@ -63,14 +58,25 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, IUniFiAVSManager, UUPSUpgrad
     }
 
     /**
+     * @dev Internal function to get AVS operator status via staticcall
+     * @param operator The address of the operator
+     */
+    function _getAvsOperatorStatus(address operator) internal view returns (IAVSDirectory.OperatorAVSRegistrationStatus) {
+        (bool success, bytes memory data) = address(AVS_DIRECTORY).staticcall(
+            abi.encodeWithSelector(bytes4(keccak256("avsOperatorStatus(address,address)")), address(this), operator)
+        );
+        if (!success) {
+            revert AVSOperatorStatusCallFailed();
+        }
+        return abi.decode(data, (IAVSDirectory.OperatorAVSRegistrationStatus));
+    }
+
+    /**
      * @dev Modifier to check if the operator is registered in the AVS
      * @param operator The address of the operator
      */
     modifier registeredOperator(address operator) {
-        if (
-            AVS_DIRECTORY.avsOperatorStatus(address(this), operator)
-                == IAVSDirectory.OperatorAVSRegistrationStatus.UNREGISTERED
-        ) {
+        if (_getAvsOperatorStatus(operator) == IAVSDirectory.OperatorAVSRegistrationStatus.UNREGISTERED) {
             revert OperatorNotRegistered();
         }
         _;
@@ -87,7 +93,7 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, IUniFiAVSManager, UUPSUpgrad
     ) {
         EIGEN_POD_MANAGER = eigenPodManagerAddress;
         EIGEN_DELEGATION_MANAGER = eigenDelegationManagerAddress;
-        AVS_DIRECTORY = IAVSDirectoryExtended(address(avsDirectoryAddress));
+        AVS_DIRECTORY = IAVSDirectory(address(avsDirectoryAddress));
         EIGEN_REWARDS_COORDINATOR = IRewardsCoordinator(address(rewardsCoordinatorAddress));
         _disableInitializers();
     }
@@ -360,8 +366,8 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, IUniFiAVSManager, UUPSUpgrad
 
 
     /**
+     * @inheritdoc IUniFiAVSManager
      * @dev Restricted to the OPERATIONS_MULTISIG
-     * @param submissions The array of rewards submissions.
      */
     function submitOperatorRewards(IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata submissions) external restricted {
         uint256 submissionsLength = submissions.length;
@@ -552,8 +558,7 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, IUniFiAVSManager, UUPSUpgrad
             commitment: activeCommitment,
             pendingCommitment: operatorData.pendingCommitment,
             startDeregisterOperatorBlock: operatorData.startDeregisterOperatorBlock,
-            isRegistered: AVS_DIRECTORY.avsOperatorStatus(address(this), operator)
-                == IAVSDirectory.OperatorAVSRegistrationStatus.REGISTERED,
+            isRegistered: _getAvsOperatorStatus(operator) == IAVSDirectory.OperatorAVSRegistrationStatus.REGISTERED,
             commitmentValidAfter: operatorData.commitmentValidAfter
         });
     }

@@ -12,9 +12,7 @@ import "../mocks/MockAVSDirectory.sol";
 import "../mocks/MockStrategyManager.sol";
 import "../mocks/MockRewardsCoordinator.sol";
 import "../mocks/MockERC20.sol";
-import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
-import { IPauserRegistry } from "eigenlayer/interfaces/IPauserRegistry.sol";
 import "forge-std/console.sol";
 
 contract UnitTestHelper is Test, BaseScript {
@@ -80,13 +78,13 @@ contract UnitTestHelper is Test, BaseScript {
         mockAVSDirectory = new MockAVSDirectory();
         mockStrategyManager = new MockStrategyManager();
         mockRewardsCoordinator = new MockRewardsCoordinator(IStrategyManager(address(mockStrategyManager)));
-        AVSDeployment memory avsDeployment = new DeployEverything().run(
-            address(mockEigenPodManager),
-            address(mockDelegationManager),
-            address(mockAVSDirectory),
-            address(mockRewardsCoordinator),
-            DEREGISTRATION_DELAY
-        );
+        AVSDeployment memory avsDeployment = new DeployEverything().run({
+            eigenPodManager: address(mockEigenPodManager),
+            eigenDelegationManager: address(mockDelegationManager),
+            avsDirectory: address(mockAVSDirectory),
+            rewardsCoordinator: address(mockRewardsCoordinator),
+            initialDeregistrationDelay: DEREGISTRATION_DELAY
+        });
 
         mockERC20 = new MockERC20("MockERC20", "MKR", 1000);
 
