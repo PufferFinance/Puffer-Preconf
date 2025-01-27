@@ -3,10 +3,8 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Test.sol";
 import "../src/UniFiAVSManager.sol";
-// import "../src/interfaces/IUniFiAVSManager.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
-import "../src/structs/ValidatorData.sol";
-import "../src/structs/OperatorData.sol";
+import { IUniFiAVSManager } from "../src/interfaces/IUniFiAVSManager.sol";
 import "./mocks/MockEigenPodManager.sol";
 import "./mocks/MockDelegationManager.sol";
 import "./mocks/MockAVSDirectory.sol";
@@ -107,7 +105,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
     function _setOperatorCommitment(address _operator, bytes memory _delegateKey, uint256 _chainIDBitMap) internal {
         vm.prank(_operator);
         avsManager.setOperatorCommitment(
-            OperatorCommitment({ delegateKey: _delegateKey, chainIDBitMap: _chainIDBitMap })
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: _delegateKey, chainIDBitMap: _chainIDBitMap })
         );
 
         vm.roll(block.number + avsManager.getDeregistrationDelay());
@@ -129,7 +127,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         _registerOperator();
         assertTrue(mockAVSDirectory.isOperatorRegistered(operator));
 
-        OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
+        IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.commitment.delegateKey, delegatePubKey);
         assertEq(operatorData.commitment.chainIDBitMap, 0);
         assertEq(operatorData.pendingCommitment.delegateKey, "");
@@ -151,7 +149,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
         assertTrue(mockAVSDirectory.isOperatorRegistered(operator));
 
-        OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
+        IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.validatorCount, 0);
         assertEq(operatorData.commitment.delegateKey, "");
         assertEq(operatorData.commitment.chainIDBitMap, 0);
@@ -186,8 +184,8 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature =
             _registerOperatorParams({ salt: bytes32(uint256(1)), expiry: uint256(block.timestamp + 1 days) });
 
-        OperatorCommitment memory initialCommitment =
-            OperatorCommitment({ delegateKey: delegatePubKey, chainIDBitMap: 2 });
+        IUniFiAVSManager.OperatorCommitment memory initialCommitment =
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: delegatePubKey, chainIDBitMap: 2 });
 
         vm.expectEmit(true, false, false, true);
         emit IUniFiAVSManager.OperatorRegisteredWithCommitment(operator, initialCommitment);
@@ -197,7 +195,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
         assertTrue(mockAVSDirectory.isOperatorRegistered(operator));
 
-        OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
+        IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.validatorCount, 0);
         assertEq(operatorData.commitment.delegateKey, delegatePubKey);
         assertEq(operatorData.commitment.chainIDBitMap, 2);
@@ -226,12 +224,12 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.prank(operator);
         avsManager.registerValidators(podOwner, blsPubKeyHashes);
 
-        OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
+        IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.validatorCount, 2);
         assertEq(operatorData.commitment.delegateKey, delegatePubKey);
 
         for (uint256 i = 0; i < blsPubKeyHashes.length; i++) {
-            ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[i]);
+            IUniFiAVSManager.ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[i]);
             assertEq(validatorData.eigenPod, address(mockEigenPodManager.getPod(podOwner)));
             assertEq(validatorData.operator, operator);
             assertTrue(validatorData.backedByStake);
@@ -311,7 +309,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.prank(operator);
         avsManager.registerValidators(podOwner, blsPubKeyHashes);
 
-        OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
+        IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.validatorCount, 2);
 
         uint256 initialBlockNumber = block.number;
@@ -322,7 +320,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         assertEq(operatorData.validatorCount, 0, "all validators should be deregistered");
 
         for (uint256 i = 0; i < blsPubKeyHashes.length; i++) {
-            ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[i]);
+            IUniFiAVSManager.ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[i]);
             assertTrue(validatorData.registered, "Validator should be registered");
         }
 
@@ -330,7 +328,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.roll(initialBlockNumber + avsManager.getDeregistrationDelay() - 1);
 
         for (uint256 i = 0; i < blsPubKeyHashes.length; i++) {
-            ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[i]);
+            IUniFiAVSManager.ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[i]);
             assertTrue(validatorData.registered, "Validator should be registered before deregistrationDelay blocks");
         }
 
@@ -338,7 +336,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.roll(initialBlockNumber + avsManager.getDeregistrationDelay());
 
         for (uint256 i = 0; i < blsPubKeyHashes.length; i++) {
-            ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[i]);
+            IUniFiAVSManager.ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[i]);
             assertFalse(validatorData.registered, "Validator should not be registered at deregistrationDelay blocks");
         }
 
@@ -346,7 +344,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.roll(initialBlockNumber + avsManager.getDeregistrationDelay() + 1);
 
         for (uint256 i = 0; i < blsPubKeyHashes.length; i++) {
-            ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[i]);
+            IUniFiAVSManager.ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[i]);
             assertFalse(validatorData.registered, "Validator should not be registered after deregistrationDelay blocks");
         }
     }
@@ -393,7 +391,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         avsManager.deregisterValidators(blsPubKeyHashes);
 
         // Verify that the validators are still registered to the first operator
-        OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
+        IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.validatorCount, 1);
     }
 
@@ -407,7 +405,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.prank(operator);
         avsManager.startDeregisterOperator();
 
-        OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
+        IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.startDeregisterOperatorBlock, uint64(block.number));
     }
 
@@ -525,7 +523,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         address randomAddress = makeAddr("random");
         mockDelegationManager.setDelegation(podOwner, randomAddress);
 
-        ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[0]);
+        IUniFiAVSManager.ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[0]);
 
         assertEq(validatorData.operator, operator);
         assertFalse(validatorData.backedByStake, "backedByStake should be false when delegated to a different address");
@@ -540,10 +538,10 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
         vm.prank(operator);
         avsManager.setOperatorCommitment(
-            OperatorCommitment({ delegateKey: newDelegateKey, chainIDBitMap: newChainIDBitMap })
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: newDelegateKey, chainIDBitMap: newChainIDBitMap })
         );
 
-        OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
+        IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.commitment.delegateKey, delegatePubKey, "Delegate key should not change immediately");
         assertEq(operatorData.commitment.chainIDBitMap, 0, "Chain ID bitmap should not change immediately");
         assertEq(operatorData.pendingCommitment.delegateKey, newDelegateKey, "Pending delegate key should be set");
@@ -566,7 +564,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
         vm.prank(operator);
         avsManager.setOperatorCommitment(
-            OperatorCommitment({ delegateKey: newDelegateKey, chainIDBitMap: newChainIDBitMap })
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: newDelegateKey, chainIDBitMap: newChainIDBitMap })
         );
 
         // advance to the update block
@@ -575,14 +573,14 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.expectEmit(true, false, false, true);
         emit IUniFiAVSManager.OperatorCommitmentSet(
             operator,
-            OperatorCommitment({ delegateKey: delegatePubKey, chainIDBitMap: 0 }),
-            OperatorCommitment({ delegateKey: newDelegateKey, chainIDBitMap: newChainIDBitMap })
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: delegatePubKey, chainIDBitMap: 0 }),
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: newDelegateKey, chainIDBitMap: newChainIDBitMap })
         );
 
         vm.prank(operator);
         avsManager.updateOperatorCommitment();
 
-        OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
+        IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.commitment.delegateKey, newDelegateKey, "Delegate key should be updated");
         assertEq(operatorData.commitment.chainIDBitMap, newChainIDBitMap, "Chain ID bitmap should be updated");
         assertEq(operatorData.pendingCommitment.delegateKey, "", "Pending delegate key should be cleared");
@@ -599,7 +597,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
         vm.prank(operator);
         avsManager.setOperatorCommitment(
-            OperatorCommitment({ delegateKey: newDelegateKey, chainIDBitMap: newChainIDBitMap })
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: newDelegateKey, chainIDBitMap: newChainIDBitMap })
         );
 
         vm.roll(block.number + avsManager.getDeregistrationDelay() - 1);
@@ -616,7 +614,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.prank(operator);
         vm.expectRevert(IUniFiAVSManager.OperatorNotRegistered.selector);
         avsManager.setOperatorCommitment(
-            OperatorCommitment({ delegateKey: newDelegateKey, chainIDBitMap: newChainIDBitMap })
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: newDelegateKey, chainIDBitMap: newChainIDBitMap })
         );
     }
 
@@ -812,7 +810,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         uint256 newChainIDBitMap = 0x6; // 0b110, active for chain IDs at index 2 and 3
         vm.prank(operator);
         avsManager.setOperatorCommitment(
-            OperatorCommitment({ delegateKey: delegatePubKey, chainIDBitMap: newChainIDBitMap })
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: delegatePubKey, chainIDBitMap: newChainIDBitMap })
         );
 
         // Before the commitment change takes effect
@@ -884,7 +882,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         avsManager.deregisterValidators(blsPubKeyHashes);
 
         // Verify that the second validator is still registered
-        ValidatorDataExtended memory validator = avsManager.getValidator(blsPubKeyHashes[1]);
+        IUniFiAVSManager.ValidatorDataExtended memory validator = avsManager.getValidator(blsPubKeyHashes[1]);
         assertTrue(validator.registered, "Second validator should still be registered");
 
         // Successfully deregister the second validator

@@ -2,8 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Script.sol";
-import { UniFiAVSManager } from "../src/UniFiAVSManager.sol";
-import "../src/structs/OperatorData.sol";
+import { IUniFiAVSManager } from "../src/interfaces/IUniFiAVSManager.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 import "../test/mocks/MockEigenPodManager.sol";
 import "../test/mocks/MockDelegationManager.sol";
@@ -53,7 +52,7 @@ contract UniFiAVSScripts is Script {
     IDelegationManager delegationManager;
     IEigenPodManager eigenPodManager;
     IAVSDirectory avsDirectory;
-    UniFiAVSManager uniFiAVSManager;
+    IUniFiAVSManager uniFiAVSManager;
 
     // update the addresses to the deployed ones
     address delegationManagerAddress;
@@ -93,7 +92,7 @@ contract UniFiAVSScripts is Script {
         // Initialize the contract instances with their deployed addresses
         delegationManager = IDelegationManager(delegationManagerAddress);
         eigenPodManager = IEigenPodManager(eigenPodManagerAddress);
-        uniFiAVSManager = UniFiAVSManager(uniFiAVSManagerAddress);
+        uniFiAVSManager = IUniFiAVSManager(uniFiAVSManagerAddress);
         avsDirectory = IAVSDirectory(avsDirectoryAddress);
     }
 
@@ -349,7 +348,7 @@ contract UniFiAVSScripts is Script {
     /// @notice Registers an operator with the UniFiAVSManager and sets the initial commitment
     /// @param signerPk The private key of the signer
     /// @param initialCommitment The initial commitment for the operator
-    function registerOperatorToUniFiAVS(uint256 signerPk, OperatorCommitment memory initialCommitment) public {
+    function registerOperatorToUniFiAVS(uint256 signerPk, IUniFiAVSManager.OperatorCommitment memory initialCommitment) public {
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
 
         vm.startBroadcast();
@@ -407,8 +406,8 @@ contract UniFiAVSScripts is Script {
 
         uint256 chainIDBitMap = DEFAULT_CHAIN_BITMAP;
 
-        OperatorCommitment memory initialCommitment =
-            OperatorCommitment({ delegateKey: delegateKey, chainIDBitMap: chainIDBitMap });
+        IUniFiAVSManager.OperatorCommitment memory initialCommitment =
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: delegateKey, chainIDBitMap: chainIDBitMap });
 
         uniFiAVSManager.setOperatorCommitment(initialCommitment);
         vm.stopBroadcast();
@@ -416,7 +415,7 @@ contract UniFiAVSScripts is Script {
 
     /// @notice Sets the operator's commitment
     /// @param newCommitment The new commitment for the operator
-    function setOperatorCommitment(OperatorCommitment memory newCommitment) public {
+    function setOperatorCommitment(IUniFiAVSManager.OperatorCommitment memory newCommitment) public {
         vm.startBroadcast();
         uniFiAVSManager.setOperatorCommitment(newCommitment);
         vm.stopBroadcast();
@@ -476,7 +475,7 @@ contract UniFiAVSScripts is Script {
         return result;
     }
 
-    function getOperator(address operator) public view returns (OperatorDataExtended memory) {
+    function getOperator(address operator) public view returns (IUniFiAVSManager.OperatorDataExtended memory) {
         return uniFiAVSManager.getOperator(operator);
     }
 }

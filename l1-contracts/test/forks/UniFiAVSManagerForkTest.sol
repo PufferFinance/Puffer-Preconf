@@ -10,8 +10,6 @@ import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
-import "../../src/structs/ValidatorData.sol";
-import "../../src/structs/OperatorData.sol";
 import { AVSDeployment } from "script/DeploymentStructs.sol";
 import { BaseScript } from "script/BaseScript.s.sol";
 import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
@@ -115,7 +113,7 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         _registerOperator();
 
         // Set and update operator commitment
-        OperatorCommitment memory newCommitment = OperatorCommitment({
+        IUniFiAVSManager.OperatorCommitment memory newCommitment = IUniFiAVSManager.OperatorCommitment({
             delegateKey: abi.encodePacked(operatorSigner),
             chainIDBitMap: 1 // Assuming chainID 1 for mainnet
          });
@@ -145,10 +143,10 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         avsManager.registerValidators(podOwner, exitedValidators);
 
         // Check registration status
-        ValidatorDataExtended memory activeValidatorData = avsManager.getValidator(activeValidatorPubKeyHash);
+        IUniFiAVSManager.ValidatorDataExtended memory activeValidatorData = avsManager.getValidator(activeValidatorPubKeyHash);
         assertTrue(activeValidatorData.registered, "Active validator should be registered");
 
-        ValidatorDataExtended memory exitedValidatorData = avsManager.getValidator(exitedValidatorPubKeyHash);
+        IUniFiAVSManager.ValidatorDataExtended memory exitedValidatorData = avsManager.getValidator(exitedValidatorPubKeyHash);
         assertFalse(exitedValidatorData.registered, "Exited validator should not be registered");
 
         // Deregister validators
@@ -170,14 +168,14 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
     function test_updateOperatorCommitment() public {
         _registerOperator();
 
-        OperatorCommitment memory newCommitment =
-            OperatorCommitment({ delegateKey: abi.encodePacked(uint256(1337)), chainIDBitMap: 3 });
+        IUniFiAVSManager.OperatorCommitment memory newCommitment =
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: abi.encodePacked(uint256(1337)), chainIDBitMap: 3 });
 
         // Set new commitment
         vm.prank(operator);
         avsManager.setOperatorCommitment(newCommitment);
 
-        OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
+        IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(
             operatorData.pendingCommitment.delegateKey, newCommitment.delegateKey, "Pending delegate key should match"
         );
@@ -252,8 +250,8 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
     function test_startDeregisterOperatorWithValidators() public {
         _registerOperator();
 
-        OperatorCommitment memory newCommitment =
-            OperatorCommitment({ delegateKey: abi.encodePacked(uint256(1337)), chainIDBitMap: 3 });
+        IUniFiAVSManager.OperatorCommitment memory newCommitment =
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: abi.encodePacked(uint256(1337)), chainIDBitMap: 3 });
 
         // Set new commitment
         vm.prank(operator);
@@ -336,8 +334,8 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
     function test_getOperatorRestakedStrategies() public {
         // Register operator
         _registerOperator();
-        OperatorCommitment memory newCommitment =
-            OperatorCommitment({ delegateKey: abi.encodePacked(uint256(1337)), chainIDBitMap: 3 });
+        IUniFiAVSManager.OperatorCommitment memory newCommitment =
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: abi.encodePacked(uint256(1337)), chainIDBitMap: 3 });
 
         // Set new commitment
         vm.prank(operator);

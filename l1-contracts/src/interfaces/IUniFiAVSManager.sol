@@ -5,8 +5,8 @@ import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
 import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.sol";
-import "../structs/ValidatorData.sol";
-import "../structs/OperatorData.sol";
+import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
+import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 
 /**
  * @title IUniFiAVSManager
@@ -14,6 +14,94 @@ import "../structs/OperatorData.sol";
  * @dev This interface defines the main functions and events for operator and validator management.
  */
 interface IUniFiAVSManager {
+
+
+    /**
+    * @title ValidatorData
+    * @notice Struct to store information about a validator in the UniFi AVS system.
+    * @dev This struct is used to keep track of important validator details.
+    */
+    struct ValidatorData {
+        /// @notice The address of the EigenPod associated with this validator.
+        address eigenPod;
+        /// @notice The beacon chain validator index.
+        uint64 index;
+        /// @notice The address of the operator managing this validator.
+        address operator;
+        /// @notice The block number until which the validator is registered.
+        uint64 registeredUntil;
+    }
+
+    /**
+    * @title ValidatorDataExtended
+    * @notice Struct to store comprehensive information about a validator.
+    * @dev This struct combines ValidatorData with additional status information.
+    */
+    struct ValidatorDataExtended {
+        /// @notice The address of the operator this validator is delegated to.
+        address operator;
+        /// @notice The address of the validator's EigenPod.
+        address eigenPod;
+        /// @notice The index of the validator in the beacon chain.
+        uint64 validatorIndex;
+        /// @notice The current status of the validator in the EigenPod.
+        IEigenPod.VALIDATOR_STATUS status;
+        /// @notice The delegate key currently associated with the validator's operator.
+        bytes delegateKey;
+        /// @notice Bitmap of chain IDs the validator's operator is committed to.
+        uint256 chainIDBitMap;
+        /// @notice Indicates whether the validator's EigenPod is currently delegated to the operator.
+        bool backedByStake;
+        /// @notice Indicates whether the validator is currently registered (current block < registeredUntil).
+        bool registered;
+    }
+
+    /**
+    * @title OperatorData
+    * @notice Struct to store information about an operator in the UniFi AVS system.
+    * @dev This struct is used to keep track of important operator details.
+    */
+    struct OperatorCommitment {
+        /// @notice The delegate key for the operator.
+        bytes delegateKey;
+        /// @notice Bitmap of chain IDs the operator is committed to.
+        uint256 chainIDBitMap;
+    }
+
+    struct OperatorData {
+        /// @notice The current commitment of the operator.
+        OperatorCommitment commitment;
+        /// @notice The pending commitment of the operator.
+        OperatorCommitment pendingCommitment;
+        /// @notice The number of validators associated with this operator.
+        uint128 validatorCount;
+        /// @notice The block number when the operator started the deregistration process.
+        uint64 startDeregisterOperatorBlock;
+        /// @notice The block number after which the pending commitment becomes valid.
+        uint64 commitmentValidAfter;
+    }
+
+    /**
+    * @title OperatorDataExtended
+    * @notice Struct to store extended information about an operator in the UniFi AVS system.
+    * @dev This struct combines OperatorData with additional status information.
+    */
+    struct OperatorDataExtended {
+        /// @notice The current commitment of the operator.
+        OperatorCommitment commitment;
+        /// @notice The pending commitment of the operator.
+        OperatorCommitment pendingCommitment;
+        /// @notice The number of validators associated with this operator.
+        uint128 validatorCount;
+        /// @notice The block number when the operator started the deregistration process.
+        uint128 startDeregisterOperatorBlock;
+        /// @notice The block number after which the pending commitment becomes valid.
+        uint128 commitmentValidAfter;
+        /// @notice Whether the operator is registered or not.
+        bool isRegistered;
+    }
+    // 7 bytes padding here (automatically added by the compiler)
+
     /// @notice Thrown when an operator attempts to deregister while still having validators
     error OperatorHasValidators();
 

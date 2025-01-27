@@ -2,15 +2,13 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "./structs/ValidatorData.sol";
-import "./structs/OperatorData.sol";
-
+import { IUniFiAVSManager } from "./interfaces/IUniFiAVSManager.sol";
 /**
  * @title UniFiAVSManagerStorage
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-abstract contract UniFiAVSManagerStorage {
+abstract contract UniFiAVSManagerStorage is IUniFiAVSManager {
     struct UniFiAVSStorage {
         mapping(bytes32 => ValidatorData) validators;
         mapping(uint256 => bytes32) validatorIndexes;
