@@ -209,7 +209,7 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         uint256 expiry = block.timestamp + 1 days;
 
         // Generate an invalid signature
-        (bytes32 digestHash, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) =
+        (, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) =
             _getOperatorSignature(operator, address(avsManager), salt, expiry);
         operatorSignature.signature = abi.encodePacked(bytes32(0), bytes32(0), uint8(0));
 

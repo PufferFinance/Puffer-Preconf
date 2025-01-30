@@ -86,8 +86,14 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         internal
         returns (ISignatureUtils.SignatureWithSaltAndExpiry memory)
     {
-        (bytes32 digestHash, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) =
-            _getOperatorSignature(operatorPrivateKey, operator, address(avsManager), salt, expiry);
+        (, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) =
+            _getOperatorSignature({
+                _operatorPrivateKey: operatorPrivateKey,
+                _operator: operator,
+                avs: address(avsManager),
+                salt: salt,
+                expiry: expiry
+            });
 
         return operatorSignature;
     }
