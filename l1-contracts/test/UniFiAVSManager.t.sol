@@ -1031,16 +1031,16 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         assertEq(restakedStrategies.length, 0, "Should return no restaked strategies for unregistered operator");
     }
 
-    function testSubmitOperatorRewards() public {
+    function testSubmitOperatorRewards_works() public {
         // Create mock rewards submission data
         IRewardsCoordinator.OperatorReward[] memory operatorRewards = new IRewardsCoordinator.OperatorReward[](2);
         operatorRewards[0] = IRewardsCoordinator.OperatorReward({
             operator: address(0x1),
-            amount: 100
+            amount: 33333333333333328000
         });
         operatorRewards[1] = IRewardsCoordinator.OperatorReward({
             operator: address(operator),
-            amount: 200
+            amount: 66666666666666656000
         });
 
         IRewardsCoordinator.StrategyAndMultiplier[] memory strategiesAndMultipliers = new IRewardsCoordinator.StrategyAndMultiplier[](1);
@@ -1075,6 +1075,9 @@ contract UniFiAVSManagerTest is UnitTestHelper {
             address(mockRewardsCoordinator),
             abi.encodeCall(IRewardsCoordinator.createOperatorDirectedAVSRewardsSubmission, (address(avsManager), submissions))
         );
+        
+        console.log("Encoded calldata:");
+        console.logBytes(abi.encodeCall(avsManager.submitOperatorRewards, (submissions)));
 
         vm.prank(OPERATIONS_MULTISIG);
         vm.expectEmit();
