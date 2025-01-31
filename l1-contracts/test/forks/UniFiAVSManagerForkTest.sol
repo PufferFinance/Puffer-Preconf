@@ -112,10 +112,13 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
     function test_registerAndDeregisterValidators() public {
         _registerOperator();
 
+        uint256[] memory initialChainIds = new uint256[](1);
+        initialChainIds[0] = 1;
+
         // Set and update operator commitment
         IUniFiAVSManager.OperatorCommitment memory newCommitment = IUniFiAVSManager.OperatorCommitment({
             delegateKey: abi.encodePacked(operatorSigner),
-            chainIDBitMap: 1 // Assuming chainID 1 for mainnet
+            chainIds: initialChainIds
          });
 
         // Set new commitment
@@ -168,8 +171,11 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
     function test_updateOperatorCommitment() public {
         _registerOperator();
 
+        uint256[] memory newChainIds = new uint256[](2);
+        newChainIds[0] = 1;
+        newChainIds[1] = 137;
         IUniFiAVSManager.OperatorCommitment memory newCommitment =
-            IUniFiAVSManager.OperatorCommitment({ delegateKey: abi.encodePacked(uint256(1337)), chainIDBitMap: 3 });
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: abi.encodePacked(uint256(1337)), chainIds: newChainIds });
 
         // Set new commitment
         vm.prank(operator);
@@ -180,10 +186,13 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
             operatorData.pendingCommitment.delegateKey, newCommitment.delegateKey, "Pending delegate key should match"
         );
         assertEq(
-            operatorData.pendingCommitment.chainIDBitMap,
-            newCommitment.chainIDBitMap,
-            "Pending chainIDBitMap should match"
+            operatorData.pendingCommitment.chainIds.length,
+            newCommitment.chainIds.length,
+            "Pending chainIds length should match"
         );
+        for (uint256 i = 0; i < newCommitment.chainIds.length; i++) {
+            assertEq(operatorData.pendingCommitment.chainIds[i], newCommitment.chainIds[i], "Pending chainIds should match");
+        }
 
         // Try to update before delay
         vm.prank(operator);
@@ -200,8 +209,11 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.commitment.delegateKey, newCommitment.delegateKey, "Active delegate key should match");
         assertEq(
-            operatorData.commitment.chainIDBitMap, newCommitment.chainIDBitMap, "Active chainIDBitMap should match"
+            operatorData.commitment.chainIds.length, newCommitment.chainIds.length, "Active chainIds length should match"
         );
+        for (uint256 i = 0; i < newCommitment.chainIds.length; i++) {
+            assertEq(operatorData.commitment.chainIds[i], newCommitment.chainIds[i], "Active chainIds should match");
+        }
     }
 
     function test_registerOperatorWithInvalidSignature() public {
@@ -250,8 +262,11 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
     function test_startDeregisterOperatorWithValidators() public {
         _registerOperator();
 
+        uint256[] memory newChainIds = new uint256[](2);
+        newChainIds[0] = 1;
+        newChainIds[1] = 137;
         IUniFiAVSManager.OperatorCommitment memory newCommitment =
-            IUniFiAVSManager.OperatorCommitment({ delegateKey: abi.encodePacked(uint256(1337)), chainIDBitMap: 3 });
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: abi.encodePacked(uint256(1337)), chainIds: newChainIds });
 
         // Set new commitment
         vm.prank(operator);
@@ -290,41 +305,6 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         avsManager.finishDeregisterOperator();
     }
 
-    function test_setAndGetChainID() public {
-        vm.prank(DAO);
-        avsManager.setChainID(1, 1); // Ethereum Mainnet
-
-        uint256 chainID = avsManager.getChainID(1);
-        assertEq(chainID, 1, "ChainID should match");
-    }
-
-    function test_bitmapToChainIDsWithGaps() public {
-        vm.prank(DAO);
-        avsManager.setChainID(1, 1); // Ethereum Mainnet
-        vm.prank(DAO);
-        avsManager.setChainID(3, 137); // Polygon
-
-        uint256 bitmap = 0xA; // 0b1010
-
-        uint256[] memory chainIDs = avsManager.bitmapToChainIDs(bitmap);
-        assertEq(chainIDs.length, 2, "Should return 2 chainIDs");
-        assertEq(chainIDs[0], 1, "First chainID should match");
-        assertEq(chainIDs[1], 137, "Second chainID should match");
-    }
-
-    function test_getBitmapIndexForNonExistentChainID() public {
-        uint32 nonExistentChainID = 999;
-
-        uint8 index = avsManager.getBitmapIndex(nonExistentChainID);
-        assertEq(index, 0, "Bitmap index for non-existent chainID should be 0");
-    }
-
-    function test_setChainIDFromUnauthorizedAddress() public {
-        vm.prank(operator); // Using operator instead of DAO
-        vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, operator));
-        avsManager.setChainID(1, 1); // Attempt to set chain ID without authorization
-    }
-
     function test_setDeregistrationDelayFromUnauthorizedAddress() public {
         vm.prank(operator); // Using operator instead of DAO
         vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, operator));
@@ -334,8 +314,11 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
     function test_getOperatorRestakedStrategies() public {
         // Register operator
         _registerOperator();
+        uint256[] memory newChainIds = new uint256[](2);
+        newChainIds[0] = 1;
+        newChainIds[1] = 137;
         IUniFiAVSManager.OperatorCommitment memory newCommitment =
-            IUniFiAVSManager.OperatorCommitment({ delegateKey: abi.encodePacked(uint256(1337)), chainIDBitMap: 3 });
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: abi.encodePacked(uint256(1337)), chainIds: newChainIds });
 
         // Set new commitment
         vm.prank(operator);

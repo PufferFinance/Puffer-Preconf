@@ -48,8 +48,8 @@ interface IUniFiAVSManager {
         IEigenPod.VALIDATOR_STATUS status;
         /// @notice The delegate key currently associated with the validator's operator.
         bytes delegateKey;
-        /// @notice Bitmap of chain IDs the validator's operator is committed to.
-        uint256 chainIDBitMap;
+        /// @notice Chain IDs the validator's operator is committed to.
+        uint256[] chainIds;
         /// @notice Indicates whether the validator's EigenPod is currently delegated to the operator.
         bool backedByStake;
         /// @notice Indicates whether the validator is currently registered (current block < registeredUntil).
@@ -64,8 +64,8 @@ interface IUniFiAVSManager {
     struct OperatorCommitment {
         /// @notice The delegate key for the operator.
         bytes delegateKey;
-        /// @notice Bitmap of chain IDs the operator is committed to.
-        uint256 chainIDBitMap;
+        /// @notice Chain IDs the operator is committed to.
+        uint256[] chainIds;
     }
 
     struct OperatorData {
@@ -330,14 +330,6 @@ interface IUniFiAVSManager {
     function setDeregistrationDelay(uint64 newDelay) external;
 
     /**
-     * @notice Sets the chain ID for a specific index in the bitmap.
-     * @param index The index in the bitmap to set.
-     * @param chainID The chain ID to set for the given index.
-     * @dev Restricted to the DAO
-     */
-    function setChainID(uint8 index, uint256 chainID) external;
-
-    /**
      * @notice Add or remove a strategy address from the allowlist of restaking strategies
      * @param strategy The address of the strategy to add or remove
      * @param allowed Whether the strategy should be allowed (true) or disallowed (false)
@@ -386,27 +378,6 @@ interface IUniFiAVSManager {
      * @return The current deregistration delay in seconds.
      */
     function getDeregistrationDelay() external view returns (uint64);
-
-    /**
-     * @notice Converts a bitmap to an array of chain IDs.
-     * @param bitmap The bitmap to convert.
-     * @return An array of chain IDs represented by the bitmap.
-     */
-    function bitmapToChainIDs(uint256 bitmap) external view returns (uint256[] memory);
-
-    /**
-     * @notice Retrieves the chain ID for a specific index.
-     * @param index The index to query.
-     * @return The chain ID associated with the given index.
-     */
-    function getChainID(uint8 index) external view returns (uint256);
-
-    /**
-     * @notice Gets the bitmap index for a given chain ID.
-     * @param chainID The chain ID to query.
-     * @return The bitmap index associated with the given chain ID.
-     */
-    function getBitmapIndex(uint256 chainID) external view returns (uint8);
 
     /**
      * @notice Returns the list of strategies that the operator has potentially restaked on the AVS

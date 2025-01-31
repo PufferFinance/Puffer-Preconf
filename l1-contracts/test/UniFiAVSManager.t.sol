@@ -105,13 +105,13 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.prank(operator);
         avsManager.registerOperator(operatorSignature);
 
-        _setOperatorCommitment(operator, delegatePubKey, 0);
+        _setOperatorCommitment(operator, delegatePubKey, new uint256[](0));
     }
 
-    function _setOperatorCommitment(address _operator, bytes memory _delegateKey, uint256 _chainIDBitMap) internal {
+    function _setOperatorCommitment(address _operator, bytes memory _delegateKey, uint256[] memory _chainIds) internal {
         vm.prank(_operator);
         avsManager.setOperatorCommitment(
-            IUniFiAVSManager.OperatorCommitment({ delegateKey: _delegateKey, chainIDBitMap: _chainIDBitMap })
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: _delegateKey, chainIds: _chainIds })
         );
 
         vm.roll(block.number + avsManager.getDeregistrationDelay());
@@ -135,9 +135,9 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
         IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.commitment.delegateKey, delegatePubKey);
-        assertEq(operatorData.commitment.chainIDBitMap, 0);
+        assertEq(operatorData.commitment.chainIds.length, 0);
         assertEq(operatorData.pendingCommitment.delegateKey, "");
-        assertEq(operatorData.pendingCommitment.chainIDBitMap, 0);
+        assertEq(operatorData.pendingCommitment.chainIds.length, 0);
     }
 
     function testRegisterOperator() public {
@@ -158,9 +158,9 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.validatorCount, 0);
         assertEq(operatorData.commitment.delegateKey, "");
-        assertEq(operatorData.commitment.chainIDBitMap, 0);
+        assertEq(operatorData.commitment.chainIds.length, 0);
         assertEq(operatorData.pendingCommitment.delegateKey, "");
-        assertEq(operatorData.pendingCommitment.chainIDBitMap, 0);
+        assertEq(operatorData.pendingCommitment.chainIds.length, 0);
         assertEq(operatorData.startDeregisterOperatorBlock, 0);
         assertEq(operatorData.commitmentValidAfter, 0);
         assertTrue(operatorData.isRegistered);
@@ -190,8 +190,11 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature =
             _registerOperatorParams({ salt: bytes32(uint256(1)), expiry: uint256(block.timestamp + 1 days) });
 
+        uint256[] memory chainIds = new uint256[](1);
+        chainIds[0] = 1;
+
         IUniFiAVSManager.OperatorCommitment memory initialCommitment =
-            IUniFiAVSManager.OperatorCommitment({ delegateKey: delegatePubKey, chainIDBitMap: 2 });
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: delegatePubKey, chainIds: chainIds });
 
         vm.expectEmit(true, false, false, true);
         emit IUniFiAVSManager.OperatorRegisteredWithCommitment(operator, initialCommitment);
@@ -204,9 +207,10 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.validatorCount, 0);
         assertEq(operatorData.commitment.delegateKey, delegatePubKey);
-        assertEq(operatorData.commitment.chainIDBitMap, 2);
+        assertEq(operatorData.commitment.chainIds.length, 1);
+        assertEq(operatorData.commitment.chainIds[0], 1);
         assertEq(operatorData.pendingCommitment.delegateKey, "");
-        assertEq(operatorData.pendingCommitment.chainIDBitMap, 0);
+        assertEq(operatorData.pendingCommitment.chainIds.length, 0);
         assertEq(operatorData.startDeregisterOperatorBlock, 0);
         assertEq(operatorData.commitmentValidAfter, 0);
         assertTrue(operatorData.isRegistered);
@@ -263,7 +267,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         _setupValidators(blsPubKeyHashes);
 
         // Clear the delegate key
-        _setOperatorCommitment(operator, "", 0);
+        _setOperatorCommitment(operator, "", new uint256[](0));
 
         vm.prank(operator);
         vm.expectRevert(IUniFiAVSManager.DelegateKeyNotSet.selector);
@@ -540,20 +544,25 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         _registerOperator();
 
         bytes memory newDelegateKey = abi.encodePacked(uint256(2));
-        uint256 newChainIDBitMap = 3; // 0b11
+        uint256[] memory newChainIds = new uint256[](2);
+        newChainIds[0] = 1;
+        newChainIds[1] = 1337;
 
         vm.prank(operator);
         avsManager.setOperatorCommitment(
-            IUniFiAVSManager.OperatorCommitment({ delegateKey: newDelegateKey, chainIDBitMap: newChainIDBitMap })
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: newDelegateKey, chainIds: newChainIds })
         );
 
         IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.commitment.delegateKey, delegatePubKey, "Delegate key should not change immediately");
-        assertEq(operatorData.commitment.chainIDBitMap, 0, "Chain ID bitmap should not change immediately");
+        assertEq(operatorData.commitment.chainIds.length, 0, "Chain ID bitmap should not change immediately");
         assertEq(operatorData.pendingCommitment.delegateKey, newDelegateKey, "Pending delegate key should be set");
         assertEq(
-            operatorData.pendingCommitment.chainIDBitMap, newChainIDBitMap, "Pending chain ID bitmap should be set"
+            operatorData.pendingCommitment.chainIds.length, newChainIds.length, "Pending chain ID bitmap should be set"
         );
+        for (uint256 i = 0; i < newChainIds.length; i++) {
+            assertEq(operatorData.pendingCommitment.chainIds[i], newChainIds[i], "Pending chain ID should be set");
+        }
         assertEq(
             operatorData.commitmentValidAfter,
             block.number + avsManager.getDeregistrationDelay(),
@@ -566,11 +575,13 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         _registerOperator();
 
         bytes memory newDelegateKey = abi.encodePacked(uint256(2));
-        uint256 newChainIDBitMap = 3; // 0b11
+        uint256[] memory newChainIds = new uint256[](2);
+        newChainIds[0] = 1;
+        newChainIds[1] = 1337;
 
         vm.prank(operator);
         avsManager.setOperatorCommitment(
-            IUniFiAVSManager.OperatorCommitment({ delegateKey: newDelegateKey, chainIDBitMap: newChainIDBitMap })
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: newDelegateKey, chainIds: newChainIds })
         );
 
         // advance to the update block
@@ -579,8 +590,8 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.expectEmit(true, false, false, true);
         emit IUniFiAVSManager.OperatorCommitmentSet(
             operator,
-            IUniFiAVSManager.OperatorCommitment({ delegateKey: delegatePubKey, chainIDBitMap: 0 }),
-            IUniFiAVSManager.OperatorCommitment({ delegateKey: newDelegateKey, chainIDBitMap: newChainIDBitMap })
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: delegatePubKey, chainIds: new uint256[](0) }),
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: newDelegateKey, chainIds: newChainIds })
         );
 
         vm.prank(operator);
@@ -588,10 +599,13 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
         IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.commitment.delegateKey, newDelegateKey, "Delegate key should be updated");
-        assertEq(operatorData.commitment.chainIDBitMap, newChainIDBitMap, "Chain ID bitmap should be updated");
+        assertEq(operatorData.commitment.chainIds.length, newChainIds.length, "Chain ID bitmap should be updated");
         assertEq(operatorData.pendingCommitment.delegateKey, "", "Pending delegate key should be cleared");
-        assertEq(operatorData.pendingCommitment.chainIDBitMap, 0, "Pending chain ID bitmap should be cleared");
+        assertEq(operatorData.pendingCommitment.chainIds.length, 0, "Pending chain ID bitmap should be cleared");
         assertEq(operatorData.commitmentValidAfter, 0, "Commitment valid after should be reset");
+        for (uint256 i = 0; i < newChainIds.length; i++) {
+            assertEq(operatorData.commitment.chainIds[i], newChainIds[i], "Chain ID should be updated");
+        }
     }
 
     function testUpdateOperatorCommitment_TooEarly() public {
@@ -599,11 +613,13 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         _registerOperator();
 
         bytes memory newDelegateKey = abi.encodePacked(uint256(2));
-        uint256 newChainIDBitMap = 3; // 0b11
+        uint256[] memory newChainIds = new uint256[](2);
+        newChainIds[0] = 1;
+        newChainIds[1] = 1337;
 
         vm.prank(operator);
         avsManager.setOperatorCommitment(
-            IUniFiAVSManager.OperatorCommitment({ delegateKey: newDelegateKey, chainIDBitMap: newChainIDBitMap })
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: newDelegateKey, chainIds: newChainIds })
         );
 
         vm.roll(block.number + avsManager.getDeregistrationDelay() - 1);
@@ -615,50 +631,15 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
     function testSetOperatorCommitment_NotRegistered() public {
         bytes memory newDelegateKey = abi.encodePacked(uint256(2));
-        uint256 newChainIDBitMap = 3; // 0b11
+        uint256[] memory newChainIds = new uint256[](2);
+        newChainIds[0] = 1;
+        newChainIds[1] = 1337;
 
         vm.prank(operator);
         vm.expectRevert(IUniFiAVSManager.OperatorNotRegistered.selector);
         avsManager.setOperatorCommitment(
-            IUniFiAVSManager.OperatorCommitment({ delegateKey: newDelegateKey, chainIDBitMap: newChainIDBitMap })
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: newDelegateKey, chainIds: newChainIds })
         );
-    }
-
-    function testSetAndGetChainID() public {
-        vm.startPrank(DAO);
-
-        uint256 chainID1 = 1; // Ethereum Mainnet
-        uint256 chainID2 = 10; // Optimism
-
-        avsManager.setChainID(1, chainID1);
-        avsManager.setChainID(2, chainID2);
-
-        assertEq(avsManager.getChainID(1), chainID1, "ChainID at index 1 should match");
-        assertEq(avsManager.getChainID(2), chainID2, "ChainID at index 2 should match");
-
-        vm.stopPrank();
-    }
-
-    function testSetChainIDOutOfBounds() public {
-        vm.startPrank(DAO);
-
-        vm.expectRevert(IUniFiAVSManager.IndexOutOfBounds.selector);
-        avsManager.setChainID(0, 1);
-
-        vm.stopPrank();
-    }
-
-    function testSetChainIDUnauthorized() public {
-        address unauthorizedUser = address(0x1234);
-        vm.prank(unauthorizedUser);
-        vm.expectRevert(); // todo get correct Unauthorized.selector
-        avsManager.setChainID(0, 1);
-    }
-
-    function testGetChainIDOutOfBounds() public {
-        uint256 chainID = avsManager.getChainID(0);
-
-        assertEq(chainID, 0, "Should return zero");
     }
 
     function testSetDeregistrationDelayUnauthorized() public {
@@ -666,69 +647,6 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.prank(unauthorizedUser);
         vm.expectRevert(); // todo get correct Unauthorized.selector
         avsManager.setDeregistrationDelay(100);
-    }
-
-    function testBitmapToChainIDs() public {
-        vm.startPrank(DAO);
-
-        avsManager.setChainID(1, 1); // Ethereum Mainnet
-        avsManager.setChainID(2, 10); // Optimism
-        avsManager.setChainID(3, 137); // Polygon
-        avsManager.setChainID(255, 1111); // New chain ID at index 255
-
-        uint256 bitmap = 0x800000000000000000000000000000000000000000000000000000000000000e; // 0b1000...1110 (255th and 1st, 2nd, 3rd bits set)
-
-        uint256[] memory chainIDs = avsManager.bitmapToChainIDs(bitmap);
-
-        assertEq(chainIDs.length, 4, "Should return 4 chainIDs");
-        assertEq(chainIDs[0], 1, "First chainID should match");
-        assertEq(chainIDs[1], 10, "Second chainID should match");
-        assertEq(chainIDs[2], 137, "Third chainID should match");
-        assertEq(chainIDs[3], 1111, "Fourth chainID should match");
-
-        vm.stopPrank();
-    }
-
-    function testBitmapToChainIDsWithGaps() public {
-        vm.startPrank(DAO);
-
-        avsManager.setChainID(1, 1); // Ethereum Mainnet
-        avsManager.setChainID(3, 137); // Polygon
-
-        uint256 bitmap = 0xA; // 0b1010
-
-        uint256[] memory chainIDs = avsManager.bitmapToChainIDs(bitmap);
-
-        assertEq(chainIDs.length, 2, "Should return 2 chainIDs");
-        assertEq(chainIDs[0], 1, "First chainID should match");
-        assertEq(chainIDs[1], 137, "Second chainID should match");
-
-        vm.stopPrank();
-    }
-
-    function testGetBitmapIndex() public {
-        vm.startPrank(DAO);
-
-        uint32 chainID1 = 1; // Ethereum Mainnet
-        uint32 chainID2 = 10; // Optimism
-
-        avsManager.setChainID(1, chainID1);
-        avsManager.setChainID(2, chainID2);
-
-        assertEq(avsManager.getBitmapIndex(chainID1), 1, "Bitmap index for chainID1 should be 1");
-        assertEq(avsManager.getBitmapIndex(chainID2), 2, "Bitmap index for chainID2 should be 2");
-
-        vm.stopPrank();
-    }
-
-    function testGetBitmapIndexNonExistent() public {
-        uint32 nonExistentChainID = 999;
-
-        assertEq(
-            avsManager.getBitmapIndex(nonExistentChainID),
-            0,
-            "Bitmap index for non-existent chainID should be type(uint8).max"
-        );
     }
 
     function testIsValidatorInChainId() public {
@@ -739,16 +657,11 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         _registerOperator();
         _setupValidators(blsPubKeyHashes);
 
-        // Set chain IDs
-        vm.startPrank(DAO);
-        avsManager.setChainID(1, 1); // Ethereum Mainnet
-        avsManager.setChainID(2, 10); // Optimism
-        avsManager.setChainID(3, 137); // Polygon
-        vm.stopPrank();
+        uint256[] memory chainIds = new uint256[](2);
+        chainIds[0] = 1;
+        chainIds[1] = 137;
 
-        // Set a chainIDBitMap for the operator
-        uint256 chainIDBitMap = 0x5; // 0b101, active for chain IDs at index 1 and 3
-        _setOperatorCommitment(operator, delegatePubKey, chainIDBitMap);
+        _setOperatorCommitment(operator, delegatePubKey, chainIds);
 
         vm.prank(operator);
         avsManager.registerValidators(podOwner, blsPubKeyHashes);
@@ -798,25 +711,21 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         _registerOperator();
         _setupValidators(blsPubKeyHashes);
 
-        // Set chain IDs
-        vm.startPrank(DAO);
-        avsManager.setChainID(1, 1); // Ethereum Mainnet
-        avsManager.setChainID(2, 10); // Optimism
-        avsManager.setChainID(3, 137); // Polygon
-        vm.stopPrank();
-
-        // Initial chainIDBitMap
-        uint256 initialChainIDBitMap = 0x5; // 0b101, active for chain IDs at index 1 and 3
-        _setOperatorCommitment(operator, delegatePubKey, initialChainIDBitMap);
+        uint256[] memory initialChainIds = new uint256[](2);
+        initialChainIds[0] = 1;
+        initialChainIds[1] = 137;
+        _setOperatorCommitment(operator, delegatePubKey, initialChainIds);
 
         vm.prank(operator);
         avsManager.registerValidators(podOwner, blsPubKeyHashes);
 
         // Change the commitment
-        uint256 newChainIDBitMap = 0x6; // 0b110, active for chain IDs at index 2 and 3
+        uint256[] memory newChainIds = new uint256[](2);
+        newChainIds[0] = 10;
+        newChainIds[1] = 137;
         vm.prank(operator);
         avsManager.setOperatorCommitment(
-            IUniFiAVSManager.OperatorCommitment({ delegateKey: delegatePubKey, chainIDBitMap: newChainIDBitMap })
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: delegatePubKey, chainIds: newChainIds })
         );
 
         // Before the commitment change takes effect

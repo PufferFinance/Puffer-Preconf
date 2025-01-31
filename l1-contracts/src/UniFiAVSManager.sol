@@ -324,20 +324,6 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
      * @inheritdoc IUniFiAVSManager
      * @dev Restricted to the DAO
      */
-    function setChainID(uint8 index, uint256 chainID) external restricted {
-        if (index == 0) revert IndexOutOfBounds();
-
-        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
-        $.bitmapIndexToChainId[index] = chainID;
-        $.chainIdToBitmapIndex[chainID] = index;
-
-        emit ChainIDSet(index, chainID);
-    }
-
-    /**
-     * @inheritdoc IUniFiAVSManager
-     * @dev Restricted to the DAO
-     */
     function updateAVSMetadataURI(string memory _metadataURI) external restricted {
         AVS_DIRECTORY.updateAVSMetadataURI(_metadataURI);
     }
@@ -431,46 +417,6 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
     /**
      * @inheritdoc IUniFiAVSManager
      */
-    function bitmapToChainIDs(uint256 bitmap) public view returns (uint256[] memory) {
-        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
-        uint256[] memory result = new uint256[](256);
-        uint256 count = 0;
-        for (uint8 i = 0; i < 255; i++) {
-            // Check if the bit at position i+1 is set in the bitmap
-            // We use i+1 because index 0 is reserved (not used)
-            if ((bitmap & (1 << (i + 1))) != 0) {
-                result[count] = $.bitmapIndexToChainId[i + 1];
-                count++;
-            }
-        }
-        // Resize the array to remove unused elements
-        assembly {
-            mstore(result, count)
-        }
-        return result;
-    }
-
-    /**
-     * @inheritdoc IUniFiAVSManager
-     */
-    function getChainID(uint8 index) external view returns (uint256) {
-        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
-        return $.bitmapIndexToChainId[index];
-    }
-
-    /**
-     * @inheritdoc IUniFiAVSManager
-     */
-    function getBitmapIndex(uint256 chainID) external view returns (uint8) {
-        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
-        uint8 index = $.chainIdToBitmapIndex[chainID];
-
-        return index; // if 0 then there's no index set
-    }
-
-    /**
-     * @inheritdoc IUniFiAVSManager
-     */
     function isValidatorInChainId(bytes32 blsPubKeyHash, uint256 chainId) external view returns (bool) {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
         ValidatorData storage validator = $.validators[blsPubKeyHash];
@@ -482,12 +428,13 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
         OperatorData storage operator = $.operators[validator.operator];
         OperatorCommitment memory activeCommitment = _getActiveCommitment(operator);
 
-        uint8 bitmapIndex = $.chainIdToBitmapIndex[chainId];
-        if (bitmapIndex == 0) {
-            return false; // ChainId not set
+        uint256 chainIdsLength = activeCommitment.chainIds.length;
+        for (uint256 i = 0; i < chainIdsLength; i++) {
+            if (activeCommitment.chainIds[i] == chainId) {
+                return true;
+            }
         }
-
-        return (activeCommitment.chainIDBitMap & (1 << (bitmapIndex - 1))) != 0;
+        return false;
     }
 
     /**
@@ -580,7 +527,7 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
                 validatorIndex: validatorInfo.validatorIndex,
                 status: validatorInfo.status,
                 delegateKey: activeCommitment.delegateKey,
-                chainIDBitMap: activeCommitment.chainIDBitMap,
+                chainIds: activeCommitment.chainIds,
                 backedByStake: backedByStake,
                 registered: block.number < validatorData.registeredUntil
             });

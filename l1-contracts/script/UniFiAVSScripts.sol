@@ -46,9 +46,6 @@ contract UniFiAVSScripts is Script {
         bool finalized;
     }
 
-    // Set chainIDBitMap with only index 1 as true (2 in binary is 10, which sets the second bit to 1)
-    uint256 constant DEFAULT_CHAIN_BITMAP = 2;
-
     IDelegationManager delegationManager;
     IEigenPodManager eigenPodManager;
     IAVSDirectory avsDirectory;
@@ -404,10 +401,11 @@ contract UniFiAVSScripts is Script {
         });
         uniFiAVSManager.registerOperator(operatorSignature);
 
-        uint256 chainIDBitMap = DEFAULT_CHAIN_BITMAP;
-
+        uint256[] memory chainIds = new uint256[](1);
+        chainIds[0] = 1;
+        
         IUniFiAVSManager.OperatorCommitment memory initialCommitment =
-            IUniFiAVSManager.OperatorCommitment({ delegateKey: delegateKey, chainIDBitMap: chainIDBitMap });
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: delegateKey, chainIds: chainIds });
 
         uniFiAVSManager.setOperatorCommitment(initialCommitment);
         vm.stopBroadcast();
