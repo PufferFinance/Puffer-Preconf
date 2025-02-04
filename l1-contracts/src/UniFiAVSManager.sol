@@ -19,6 +19,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 
 contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManagedUpgradeable {
     using EnumerableSet for EnumerableSet.AddressSet;
+    using EnumerableSet for EnumerableSet.UintSet;
     using SafeERC20 for IERC20;
 
     address public constant BEACON_CHAIN_STRATEGY = 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
@@ -157,6 +158,9 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
         IEigenPod eigenPod = EIGEN_POD_MANAGER.getPod(podOwner);
 
         uint256 newValidatorCount = blsPubKeyHashes.length;
+
+        uint256[] memory validatorIndices = new uint256[](newValidatorCount);
+
         for (uint256 i = 0; i < newValidatorCount; i++) {
             bytes32 blsPubKeyHash = blsPubKeyHashes[i];
             IEigenPod.ValidatorInfo memory validatorInfo = eigenPod.validatorPubkeyHashToInfo(blsPubKeyHash);
@@ -177,6 +181,7 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
             });
 
             $.validatorIndexes[validatorInfo.validatorIndex] = blsPubKeyHash;
+            validatorIndices[i] = validatorInfo.validatorIndex;
 
             emit ValidatorRegistered({
                 podOwner: podOwner,
@@ -190,6 +195,13 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
         OperatorData storage operator = $.operators[msg.sender];
         operator.validatorCount += uint128(newValidatorCount);
         operator.startDeregisterOperatorBlock = 0;
+
+        uint256 chainIdsLength = operator.commitment.chainIds.length;
+        for (uint256 i = 0; i < chainIdsLength; i++) {
+            for (uint256 j = 0; j < newValidatorCount; j++) {
+                $.validatorsCommittedToChainId[operator.commitment.chainIds[i]].add(validatorIndices[j]);
+            }
+        }
     }
 
     /**
@@ -200,7 +212,6 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
 
         uint256 validatorCount = blsPubKeyHashes.length;
-        uint64 deregistrationDelay = $.deregistrationDelay;
 
         for (uint256 i = 0; i < validatorCount; i++) {
             bytes32 blsPubKeyHash = blsPubKeyHashes[i];
@@ -216,7 +227,14 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
                 revert ValidatorAlreadyDeregistered();
             }
 
-            validator.registeredUntil = uint64(block.number) + deregistrationDelay;
+            validator.registeredUntil = uint64(block.number);
+
+            OperatorData storage operatorData = $.operators[operator];
+
+            uint256 chainIdsLength = operatorData.commitment.chainIds.length;
+            for (uint256 j = 0; j < chainIdsLength; j++) {
+                $.validatorsCommittedToChainId[operatorData.commitment.chainIds[j]].remove(validator.index);
+            }
 
             emit ValidatorDeregistered({ operator: operator, blsPubKeyHash: blsPubKeyHash });
         }
@@ -438,6 +456,11 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
             }
         }
         return false;
+    }
+
+    function getValidatorsCommittedToChainId(uint256 chainId) external view returns (uint256[] memory) {
+        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
+        return $.validatorsCommittedToChainId[chainId].values();
     }
 
     /**

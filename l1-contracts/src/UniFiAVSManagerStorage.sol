@@ -17,6 +17,7 @@ abstract contract UniFiAVSManagerStorage is IUniFiAVSManager {
         uint64 deregistrationDelay;
         // Set of allowlisted restaking strategies
         EnumerableSet.AddressSet allowlistedRestakingStrategies;
+        mapping(uint256 chainId => EnumerableSet.UintSet validatorIndexes) validatorsCommittedToChainId;
     }
 
     /**

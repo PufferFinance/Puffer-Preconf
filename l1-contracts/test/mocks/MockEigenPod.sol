@@ -17,7 +17,7 @@ contract MockEigenPod is IEigenPod {
 
     function setValidatorStatus(bytes32 pubkeyHash, VALIDATOR_STATUS status) external {
         validators[pubkeyHash].validatorIndex =
-            validators[pubkeyHash].validatorIndex == 0 ? 1 : validators[pubkeyHash].validatorIndex;
+            validators[pubkeyHash].validatorIndex == 0 ? uint64(uint256(pubkeyHash)) : validators[pubkeyHash].validatorIndex;
         validators[pubkeyHash].status = status;
     }
 

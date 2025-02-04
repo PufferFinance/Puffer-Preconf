@@ -318,7 +318,6 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.validatorCount, 2);
 
-        uint256 initialBlockNumber = block.number;
         vm.prank(operator);
         avsManager.deregisterValidators(blsPubKeyHashes);
 
@@ -327,31 +326,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
         for (uint256 i = 0; i < blsPubKeyHashes.length; i++) {
             IUniFiAVSManager.ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[i]);
-            assertTrue(validatorData.registered, "Validator should be registered");
-        }
-
-        // Advance block number to just before the deregistration delay
-        vm.roll(initialBlockNumber + avsManager.getDeregistrationDelay() - 1);
-
-        for (uint256 i = 0; i < blsPubKeyHashes.length; i++) {
-            IUniFiAVSManager.ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[i]);
-            assertTrue(validatorData.registered, "Validator should be registered before deregistrationDelay blocks");
-        }
-
-        // Advance block number to the deregistration delay
-        vm.roll(initialBlockNumber + avsManager.getDeregistrationDelay());
-
-        for (uint256 i = 0; i < blsPubKeyHashes.length; i++) {
-            IUniFiAVSManager.ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[i]);
-            assertFalse(validatorData.registered, "Validator should not be registered at deregistrationDelay blocks");
-        }
-
-        // Advance block number past the deregistration delay
-        vm.roll(initialBlockNumber + avsManager.getDeregistrationDelay() + 1);
-
-        for (uint256 i = 0; i < blsPubKeyHashes.length; i++) {
-            IUniFiAVSManager.ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[i]);
-            assertFalse(validatorData.registered, "Validator should not be registered after deregistrationDelay blocks");
+            assertFalse(validatorData.registered, "Validator should not be registered");
         }
     }
 
@@ -1035,5 +1010,92 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.prank(operator);
         vm.expectRevert(); // Unauthorized access
         avsManager.submitOperatorRewards(submissions);
+    }
+
+    function testGetValidatorsCommittedToChainId() public {
+        // 1) Setup and register the operator
+        _setupOperator();
+        _registerOperator();
+
+        // 2) Assign some chain IDs to the operator's commitment. For example, chainId 1 and chainId 1337.
+        uint256[] memory chainIds = new uint256[](2);
+        chainIds[0] = 1;
+        chainIds[1] = 1337;
+        _setOperatorCommitment(operator, delegatePubKey, chainIds);
+
+        // 3) Prepare validator pubKey hashes and simulate them being ACTIVE on an EigenPod
+        bytes32[] memory blsPubKeyHashes = new bytes32[](2);
+        blsPubKeyHashes[0] = keccak256(abi.encodePacked("validator1"));
+        blsPubKeyHashes[1] = keccak256(abi.encodePacked("validator2"));
+        _setupValidators(blsPubKeyHashes);
+
+        // 4) Register these validators under our operator
+        vm.prank(operator);
+        avsManager.registerValidators(podOwner, blsPubKeyHashes);
+
+        // Check registered validator data
+        IUniFiAVSManager.ValidatorDataExtended memory validator1 = avsManager.getValidator(blsPubKeyHashes[0]);
+        IUniFiAVSManager.ValidatorDataExtended memory validator2 = avsManager.getValidator(blsPubKeyHashes[1]);
+        uint64 validator1Index = validator1.validatorIndex;
+        uint64 validator2Index = validator2.validatorIndex;
+        assertNotEq(validator1Index, 0, "Validator 1 should have non-zero index");
+        assertNotEq(validator2Index, 0, "Validator 2 should have non-zero index");
+
+        // Now both validators should be tracked in the manager and associated with chainId 1 and 1337
+        // Let's check the enumerated validator indexes for each chain.
+
+        uint256[] memory validatorIndexesChain1 = avsManager.getValidatorsCommittedToChainId(1);
+        uint256[] memory validatorIndexesChain2 = avsManager.getValidatorsCommittedToChainId(1337);
+
+        // We only know they should each contain 2 validatorIndexes, so let's check lengths:
+        assertEq(validatorIndexesChain1.length, 2, "Chain ID 1 should have 2 validator entries");
+        assertEq(validatorIndexesChain2.length, 2, "Chain ID 1337 should have 2 validator entries");
+
+        // Check that the validator indexes are correct
+        assertEq(validatorIndexesChain1[0], validator1Index, "Validator 1 should be in chainId 1");
+        assertEq(validatorIndexesChain1[1], validator2Index, "Validator 2 should be in chainId 1");
+        assertEq(validatorIndexesChain2[0], validator1Index, "Validator 1 should be in chainId 1337");
+        assertEq(validatorIndexesChain2[1], validator2Index, "Validator 2 should be in chainId 1337");
+
+        // 5) Deregister just one validator (the first) and confirm the sets update properly
+        bytes32[] memory firstValidator = new bytes32[](1);
+        firstValidator[0] = blsPubKeyHashes[0];
+
+        vm.prank(operator);
+        avsManager.deregisterValidators(firstValidator);
+        // The actual deregistration in the storage happens immediately for set management,
+        // though the 'registered' field is only zeroed out after the block step in older logic.
+        // With the new patch, we remove immediately from the chain set.
+
+        validatorIndexesChain1 = avsManager.getValidatorsCommittedToChainId(1);
+        validatorIndexesChain2 = avsManager.getValidatorsCommittedToChainId(1337);
+
+        assertEq(validatorIndexesChain1.length, 1, "Chain ID 1 should have 1 validator entry after deregistration");
+        assertEq(validatorIndexesChain2.length, 1, "Chain ID 1337 should have 1 validator entry after deregistration");
+
+        // Check that the validator indexes are correct
+        assertEq(validatorIndexesChain1[0], validator2Index, "Validator 2 should be in chainId 1");
+        assertEq(validatorIndexesChain2[0], validator2Index, "Validator 2 should be in chainId 1337");
+
+        // 6) Deregister the second validator and confirm that both sets become empty
+        bytes32[] memory secondValidator = new bytes32[](1);
+        secondValidator[0] = blsPubKeyHashes[1];
+
+        vm.prank(operator);
+        avsManager.deregisterValidators(secondValidator);
+
+        validatorIndexesChain1 = avsManager.getValidatorsCommittedToChainId(1);
+        validatorIndexesChain2 = avsManager.getValidatorsCommittedToChainId(1337);
+
+        assertEq(
+            validatorIndexesChain1.length,
+            0,
+            "Chain ID 1 should have 0 validators after deregistering the second validator"
+        );
+        assertEq(
+            validatorIndexesChain2.length,
+            0,
+            "Chain ID 1337 should have 0 validators after deregistering the second validator"
+        );
     }
 }

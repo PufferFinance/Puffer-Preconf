@@ -156,16 +156,8 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         vm.prank(operator);
         avsManager.deregisterValidators(activeValidators);
 
-        // Check validator status immediately after deregistration
         activeValidatorData = avsManager.getValidator(activeValidatorPubKeyHash);
-        assertTrue(activeValidatorData.registered, "Validator should still be registered before delay");
-
-        // Advance block number
-        vm.roll(block.number + DEREGISTRATION_DELAY + 1);
-
-        // Check validator status after delay
-        activeValidatorData = avsManager.getValidator(activeValidatorPubKeyHash);
-        assertFalse(activeValidatorData.registered, "Validator should be deregistered after delay");
+        assertFalse(activeValidatorData.registered, "Validator should be deregistered");
     }
 
     function test_updateOperatorCommitment() public {
