@@ -14,10 +14,10 @@ abstract contract UniFiAVSManagerStorage is IUniFiAVSManager {
         mapping(bytes32 blsPubKeyHash => ValidatorData validatorData) validators;
         mapping(uint256 validatorIndex => bytes32 blsPubKeyHash) validatorIndexes;
         mapping(address operator => OperatorData operatorData) operators;
+        mapping(uint256 chainId => EnumerableSet.UintSet validatorIndexes) validatorsCommittedToChainId;
         uint64 deregistrationDelay;
         // Set of allowlisted restaking strategies
         EnumerableSet.AddressSet allowlistedRestakingStrategies;
-        mapping(uint256 chainId => EnumerableSet.UintSet validatorIndexes) validatorsCommittedToChainId;
     }
 
     /**
