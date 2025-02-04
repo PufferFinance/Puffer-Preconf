@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import "forge-std/Test.sol";
+import { Test } from "forge-std/Test.sol";
 import { DeployUniFiToMainnet } from "../../script/DeployUniFiToMainnet.s.sol";
 import { UniFiAVSManager } from "../../src/UniFiAVSManager.sol";
 import { IUniFiAVSManager } from "../../src/interfaces/IUniFiAVSManager.sol";
@@ -10,8 +10,8 @@ import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
-import { AVSDeployment } from "script/DeploymentStructs.sol";
-import { BaseScript } from "script/BaseScript.s.sol";
+import { AVSDeployment } from "../../script/DeploymentStructs.sol";
+import { BaseScript } from "../../script/BaseScript.s.sol";
 import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
 
 contract UniFiAVSManagerForkTest is Test, BaseScript {
@@ -79,7 +79,7 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         // Register operator
         _registerOperator();
 
-        IAVSDirectory.OperatorAVSRegistrationStatus status = _getAvsOperatorStatus(address(avsManager), address(avsDirectory), operator);
+        IAVSDirectory.OperatorAVSRegistrationStatus status = _getAvsOperatorStatus();
         assertEq(
             uint256(status),
             uint256(IAVSDirectory.OperatorAVSRegistrationStatus.REGISTERED),
@@ -103,7 +103,7 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         avsManager.finishDeregisterOperator();
 
         assertEq(
-            uint256(_getAvsOperatorStatus(address(avsManager), address(avsDirectory), operator)),
+            uint256(_getAvsOperatorStatus()),
             uint256(IAVSDirectory.OperatorAVSRegistrationStatus.UNREGISTERED),
             "Operator should be deregistered"
         );
@@ -344,7 +344,7 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         assertEq(restakedStrategies[0], avsManager.BEACON_CHAIN_STRATEGY(), "Should be the Beacon Chain strategy");
     }
 
-    function test_getRestakeableStrategies() public {
+    function test_getRestakeableStrategies() public view {
         // Get restakeable strategies
         address[] memory restakeableStrategies = avsManager.getRestakeableStrategies();
 
@@ -387,7 +387,7 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         return (digestHash, operatorSignature);
     }
 
-    function _getAvsOperatorStatus(address avsManager, address avsDirectory, address operator)
+    function _getAvsOperatorStatus()
         internal
         view
         returns (IAVSDirectory.OperatorAVSRegistrationStatus)

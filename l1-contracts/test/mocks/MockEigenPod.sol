@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import "eigenlayer/interfaces/IEigenPod.sol";
+import { IEigenPod, IEigenPodManager, IERC20, BeaconChainProofs } from "eigenlayer/interfaces/IEigenPod.sol";
 
 contract MockEigenPod is IEigenPod {
-    mapping(bytes32 => ValidatorInfo) public validators;
-    mapping(bytes32 => mapping(uint64 => bool)) public provenWithdrawals;
-    address owner;
+    mapping(bytes32 validatorPubkeyHash => ValidatorInfo validatorInfo) public validators;
+    mapping(bytes32 validatorPubkeyHash => mapping(uint64 slot => bool proven)) public provenWithdrawals;
+    address public owner;
 
     function setValidator(bytes32 pubkeyHash, ValidatorInfo calldata validator) external {
         validators[pubkeyHash].validatorIndex = validator.validatorIndex;

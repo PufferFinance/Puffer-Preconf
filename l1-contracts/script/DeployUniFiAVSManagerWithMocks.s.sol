@@ -5,17 +5,18 @@ import { BaseScript } from "./BaseScript.s.sol";
 import { UniFiAVSManager } from "../src/UniFiAVSManager.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
+import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
 import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { console } from "forge-std/console.sol";
 
-import "../test/mocks/MockEigenPodManager.sol";
-import "../test/mocks/MockDelegationManager.sol";
-import "../test/mocks/MockAVSDirectory.sol";
-import "../test/mocks/MockRewardsCoordinator.sol";
-import "../test/mocks/MockStrategyManager.sol";
+import { MockEigenPodManager } from "../test/mocks/MockEigenPodManager.sol";
+import { MockDelegationManager } from "../test/mocks/MockDelegationManager.sol";
+import { MockAVSDirectory } from "../test/mocks/MockAVSDirectory.sol";
+import { MockRewardsCoordinator } from "../test/mocks/MockRewardsCoordinator.sol";
+import { MockStrategyManager } from "../test/mocks/MockStrategyManager.sol";
 
 contract DeployUniFiAVSManagerWithMocks is BaseScript {
     UniFiAVSManager public uniFiAVSManagerProxy;

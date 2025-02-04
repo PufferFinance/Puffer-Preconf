@@ -9,10 +9,11 @@ import { IUniFiAVSManager } from "./interfaces/IUniFiAVSManager.sol";
  * @custom:security-contact security@puffer.fi
  */
 abstract contract UniFiAVSManagerStorage is IUniFiAVSManager {
+    
     struct UniFiAVSStorage {
-        mapping(bytes32 => ValidatorData) validators;
-        mapping(uint256 => bytes32) validatorIndexes;
-        mapping(address => OperatorData) operators; // operator => OperatorData
+        mapping(bytes32 blsPubKeyHash => ValidatorData validatorData) validators;
+        mapping(uint256 validatorIndex => bytes32 blsPubKeyHash) validatorIndexes;
+        mapping(address operator => OperatorData operatorData) operators;
         uint64 deregistrationDelay;
         // Set of allowlisted restaking strategies
         EnumerableSet.AddressSet allowlistedRestakingStrategies;

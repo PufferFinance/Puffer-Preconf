@@ -16,7 +16,7 @@
     "@crytic/properties": "https://github.com/crytic/properties#f1ff61b",
     "@prb/test": "0.6.4",
     "solarray": "github:evmcheb/solarray#a547630",
-    "solhint": "^5.0.1"
+    "solhint": "^5.0.5"
   },
   "homepage": "https://puffer.fi",
   "keywords": [

@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.sol";
-import "eigenlayer/interfaces/IStrategyManager.sol";
+import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
+import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract MockRewardsCoordinator {
     using SafeERC20 for IERC20;
@@ -26,10 +28,10 @@ contract MockRewardsCoordinator {
     uint256 internal constant GENESIS_REWARDS_TIMESTAMP = 1710979200;
 
     /// @notice Used for unique rewardsSubmissionHashes per AVS and for RewardsForAllSubmitters and the tokenHopper
-    mapping(address => uint256) public submissionNonce;
+    mapping(address avs => uint256 nonce) public submissionNonce;
 
     /// @notice Mapping: avs => operatorDirectedAVSRewardsSubmissionHash => bool to check if operator-directed rewards submission hash has been submitted
-    mapping(address => mapping(bytes32 => bool)) public isOperatorDirectedAVSRewardsSubmissionHash;
+    mapping(address avs => mapping(bytes32 operatorDirectedAVSRewardsSubmissionHash => bool)) public isOperatorDirectedAVSRewardsSubmissionHash;
 
     /// @notice The StrategyManager contract for EigenLayer
     IStrategyManager public immutable strategyManager;
@@ -48,7 +50,8 @@ contract MockRewardsCoordinator {
         );
 
         for (uint256 i = 0; i < operatorDirectedRewardsSubmissions.length; i++) {
-            IRewardsCoordinator.OperatorDirectedRewardsSubmission calldata operatorDirectedRewardsSubmission = operatorDirectedRewardsSubmissions[i];
+            IRewardsCoordinator.OperatorDirectedRewardsSubmission calldata operatorDirectedRewardsSubmission =
+                operatorDirectedRewardsSubmissions[i];
             uint256 nonce = submissionNonce[avs];
             bytes32 operatorDirectedRewardsSubmissionHash = keccak256(
                 abi.encode(avs, nonce, operatorDirectedRewardsSubmission)

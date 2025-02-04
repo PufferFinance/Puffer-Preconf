@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import "forge-std/Test.sol";
+import { Test } from "forge-std/Test.sol";
 import { BaseScript } from "../../script/BaseScript.s.sol";
 import { DeployEverything } from "../../script/DeployEverything.s.sol";
 import { AVSDeployment } from "../../script/DeploymentStructs.sol";
-import "../../src/UniFiAVSManager.sol";
-import "../mocks/MockEigenPodManager.sol";
-import "../mocks/MockDelegationManager.sol";
-import "../mocks/MockAVSDirectory.sol";
-import "../mocks/MockStrategyManager.sol";
-import "../mocks/MockRewardsCoordinator.sol";
-import "../mocks/MockERC20.sol";
+import { UniFiAVSManager } from "../../src/UniFiAVSManager.sol";
+import { MockEigenPodManager } from "../mocks/MockEigenPodManager.sol";
+import { MockDelegationManager } from "../mocks/MockDelegationManager.sol";
+import { MockAVSDirectory } from "../mocks/MockAVSDirectory.sol";
+import { MockStrategyManager } from "../mocks/MockStrategyManager.sol";
+import { MockRewardsCoordinator } from "../mocks/MockRewardsCoordinator.sol";
+import { MockERC20 } from "../mocks/MockERC20.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
-import "forge-std/console.sol";
+import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 
 contract UnitTestHelper is Test, BaseScript {
     address public constant ADDRESS_ZERO = address(0);

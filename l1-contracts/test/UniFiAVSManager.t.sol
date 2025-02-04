@@ -1,27 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import "forge-std/Test.sol";
-import "../src/UniFiAVSManager.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
 import { IUniFiAVSManager } from "../src/interfaces/IUniFiAVSManager.sol";
-import "./mocks/MockEigenPodManager.sol";
-import "./mocks/MockDelegationManager.sol";
-import "./mocks/MockAVSDirectory.sol";
-import "./mocks/MockERC20.sol";
-import "eigenlayer-middleware/libraries/BN254.sol";
-import "eigenlayer-middleware/interfaces/IBLSApkRegistry.sol";
+import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
+import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
+import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
+import { BN254 } from "eigenlayer-middleware/libraries/BN254.sol";
+import { IBLSApkRegistry } from "eigenlayer-middleware/interfaces/IBLSApkRegistry.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { UnitTestHelper } from "../test/helpers/UnitTestHelper.sol";
-import "eigenlayer/interfaces/IRewardsCoordinator.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC20Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 contract UniFiAVSManagerTest is UnitTestHelper {
     using BN254 for BN254.G1Point;
     using Strings for uint256;
 
-    bytes delegatePubKey = abi.encodePacked(uint256(1337));
+    bytes internal delegatePubKey = abi.encodePacked(uint256(1337));
 
     // TEST HELPERS
 
@@ -61,7 +58,6 @@ contract UniFiAVSManagerTest is UnitTestHelper {
     // With ECDSA key, he sign the hash confirming that the operator wants to be registered to a certain restaking service
     function _getOperatorSignature(
         uint256 _operatorPrivateKey,
-        address _operator,
         address avs,
         bytes32 salt,
         uint256 expiry
@@ -84,12 +80,12 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
     function _registerOperatorParams(bytes32 salt, uint256 expiry)
         internal
+        view
         returns (ISignatureUtils.SignatureWithSaltAndExpiry memory)
     {
         (, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) =
             _getOperatorSignature({
                 _operatorPrivateKey: operatorPrivateKey,
-                _operator: operator,
                 avs: address(avsManager),
                 salt: salt,
                 expiry: expiry
@@ -122,7 +118,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
     // BEGIN TESTS
 
-    function testInitialize() public {
+    function testInitialize() public view {
         // todo add appropriate initialization checks here
         assertTrue(address(avsManager) != address(0));
     }
@@ -385,7 +381,6 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
         // Setup and register the second operator
         address secondOperator = address(0x456);
-        uint256 secondOperatorPrivateKey = 789;
         vm.prank(secondOperator);
         mockDelegationManager.setOperator(secondOperator, true);
 
@@ -674,7 +669,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         );
     }
 
-    function testIsValidatorInChainId_ValidatorNotFound() public {
+    function testIsValidatorInChainId_ValidatorNotFound() public view {
         bytes32 nonExistentValidator = keccak256(abi.encodePacked("nonExistentValidator"));
 
         assertFalse(
@@ -696,7 +691,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         assertEq(restakedStrategies[0], avsManager.BEACON_CHAIN_STRATEGY(), "Should return BEACON_CHAIN_STRATEGY");
     }
 
-    function testGetRestakeableStrategies() public {
+    function testGetRestakeableStrategies() public view {
         address[] memory restakeableStrategies = avsManager.getRestakeableStrategies();
 
         assertEq(restakeableStrategies.length, 1, "Should return one restakeable strategy");
@@ -952,7 +947,8 @@ contract UniFiAVSManagerTest is UnitTestHelper {
             amount: 200
         });
 
-        IRewardsCoordinator.StrategyAndMultiplier[] memory strategiesAndMultipliers = new IRewardsCoordinator.StrategyAndMultiplier[](1);
+        IRewardsCoordinator.StrategyAndMultiplier[] memory strategiesAndMultipliers =
+            new IRewardsCoordinator.StrategyAndMultiplier[](1);
         strategiesAndMultipliers[0] = IRewardsCoordinator.StrategyAndMultiplier({
             strategy: IStrategy(avsManager.BEACON_CHAIN_STRATEGY()),
             multiplier: 1
@@ -1000,7 +996,8 @@ contract UniFiAVSManagerTest is UnitTestHelper {
             amount: 1000
         });
 
-        IRewardsCoordinator.StrategyAndMultiplier[] memory strategiesAndMultipliers = new IRewardsCoordinator.StrategyAndMultiplier[](1);
+        IRewardsCoordinator.StrategyAndMultiplier[] memory strategiesAndMultipliers =
+            new IRewardsCoordinator.StrategyAndMultiplier[](1);
         strategiesAndMultipliers[0] = IRewardsCoordinator.StrategyAndMultiplier({
             strategy: IStrategy(avsManager.BEACON_CHAIN_STRATEGY()),
             multiplier: 1

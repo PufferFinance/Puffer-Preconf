@@ -352,7 +352,10 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
      * @inheritdoc IUniFiAVSManager
      * @dev Restricted to the OPERATIONS_MULTISIG
      */
-    function submitOperatorRewards(IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata submissions) external restricted {
+    function submitOperatorRewards(IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata submissions)
+        external
+        restricted
+    {
         uint256 submissionsLength = submissions.length;
         for (uint256 i = 0; i < submissionsLength; i++) {
             IRewardsCoordinator.OperatorDirectedRewardsSubmission calldata submission = submissions[i];
@@ -462,14 +465,15 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
 
             for (uint256 i = 0; i < allowlistedCount; i++) {
                 if (shares[i] > 0) {
-                    restakedStrategies[restakedCount] = address(strategies[i]);
-                    restakedCount++;
+                    restakedStrategies[restakedCount++] = address(strategies[i]);
                 }
             }
 
             // Resize the array to the actual number of restaked strategies
             assembly {
-                mstore(restakedStrategies, restakedCount)
+                if lt(restakedCount, allowlistedCount) {
+                    mstore(restakedStrategies, restakedCount)
+                }
             }
         }
     }
