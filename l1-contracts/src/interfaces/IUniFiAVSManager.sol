@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
-import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
-import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
-import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.sol";
-import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
-import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
+import {IDelegationManager} from "eigenlayer/interfaces/IDelegationManager.sol";
+import {ISignatureUtils} from "eigenlayer/interfaces/ISignatureUtils.sol";
+import {IAVSDirectory} from "eigenlayer/interfaces/IAVSDirectory.sol";
+import {IRewardsCoordinator} from "eigenlayer/interfaces/IRewardsCoordinator.sol";
+import {IEigenPod} from "eigenlayer/interfaces/IEigenPod.sol";
+import {IEigenPodManager} from "eigenlayer/interfaces/IEigenPodManager.sol";
 
 /**
  * @title IUniFiAVSManager
@@ -14,12 +14,11 @@ import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
  * @dev This interface defines the main functions and events for operator and validator management.
  */
 interface IUniFiAVSManager {
-
     /**
-    * @title ValidatorData
-    * @notice Struct to store information about a validator in the UniFi AVS system.
-    * @dev This struct is used to keep track of important validator details.
-    */
+     * @title ValidatorData
+     * @notice Struct to store information about a validator in the UniFi AVS system.
+     * @dev This struct is used to keep track of important validator details.
+     */
     struct ValidatorData {
         /// @notice The address of the EigenPod associated with this validator.
         address eigenPod;
@@ -32,10 +31,10 @@ interface IUniFiAVSManager {
     }
 
     /**
-    * @title OperatorData
-    * @notice Struct to store information about an operator in the UniFi AVS system.
-    * @dev This struct is used to keep track of important operator details.
-    */
+     * @title OperatorData
+     * @notice Struct to store information about an operator in the UniFi AVS system.
+     * @dev This struct is used to keep track of important operator details.
+     */
     struct OperatorData {
         /// @notice The current commitment of the operator.
         OperatorCommitment commitment;
@@ -50,10 +49,10 @@ interface IUniFiAVSManager {
     }
 
     /**
-    * @title ValidatorDataExtended
-    * @notice Struct to store comprehensive information about a validator.
-    * @dev This struct combines ValidatorData with additional status information.
-    */
+     * @title ValidatorDataExtended
+     * @notice Struct to store comprehensive information about a validator.
+     * @dev This struct combines ValidatorData with additional status information.
+     */
     struct ValidatorDataExtended {
         /// @notice The address of the operator this validator is delegated to.
         address operator;
@@ -81,10 +80,10 @@ interface IUniFiAVSManager {
     }
 
     /**
-    * @title OperatorDataExtended
-    * @notice Struct to store extended information about an operator in the UniFi AVS system.
-    * @dev This struct combines OperatorData with additional status information.
-    */
+     * @title OperatorDataExtended
+     * @notice Struct to store extended information about an operator in the UniFi AVS system.
+     * @dev This struct combines OperatorData with additional status information.
+     */
     struct OperatorDataExtended {
         /// @notice The current commitment of the operator.
         OperatorCommitment commitment;
@@ -166,7 +165,7 @@ interface IUniFiAVSManager {
 
     /// @notice Thrown when an invalid EigenDelegationManager address is provided
     error InvalidEigenDelegationManagerAddress();
-    
+
     /// @notice Thrown when an invalid AVSDirectory address is provided
     error InvalidAVSDirectoryAddress();
 
@@ -184,7 +183,10 @@ interface IUniFiAVSManager {
      * @param operator The address of the registered operator.
      * @param commitment The commitment set for the operator.
      */
-    event OperatorRegisteredWithCommitment(address indexed operator, OperatorCommitment commitment);
+    event OperatorRegisteredWithCommitment(
+        address indexed operator,
+        OperatorCommitment commitment
+    );
 
     /**
      * @notice Emitted when a new validator is registered in the UniFi AVS .
@@ -218,7 +220,10 @@ interface IUniFiAVSManager {
      * @param operator The address of the operator managing the validator.
      * @param blsPubKeyHash The BLS public key hash of the deregistered validator.
      */
-    event ValidatorDeregistered(address indexed operator, bytes32 blsPubKeyHash);
+    event ValidatorDeregistered(
+        address indexed operator,
+        bytes32 blsPubKeyHash
+    );
 
     /**
      * @notice Emitted when an operator's commitment is set or updated.
@@ -227,11 +232,16 @@ interface IUniFiAVSManager {
      * @param newCommitment The new commitment for the operator.
      */
     event OperatorCommitmentSet(
-        address indexed operator, OperatorCommitment oldCommitment, OperatorCommitment newCommitment
+        address indexed operator,
+        OperatorCommitment oldCommitment,
+        OperatorCommitment newCommitment
     );
 
     event OperatorCommitmentChangeInitiated(
-        address indexed operator, OperatorCommitment oldCommitment, OperatorCommitment newCommitment, uint128 validAfter
+        address indexed operator,
+        OperatorCommitment oldCommitment,
+        OperatorCommitment newCommitment,
+        uint128 validAfter
     );
 
     /**
@@ -253,7 +263,10 @@ interface IUniFiAVSManager {
      * @param strategy The address of the strategy.
      * @param allowed Whether the strategy is allowed (true) or disallowed (false).
      */
-    event RestakingStrategyAllowlistUpdated(address indexed strategy, bool allowed);
+    event RestakingStrategyAllowlistUpdated(
+        address indexed strategy,
+        bool allowed
+    );
 
     /**
      * @notice Emitted when operator rewards are submitted.
@@ -270,7 +283,10 @@ interface IUniFiAVSManager {
      * @notice Returns the EigenDelegationManager contract.
      * @return IDelegationManager The EigenDelegationManager contract.
      */
-    function EIGEN_DELEGATION_MANAGER() external view returns (IDelegationManager);
+    function EIGEN_DELEGATION_MANAGER()
+        external
+        view
+        returns (IDelegationManager);
 
     /**
      * @notice Returns the AVSDirectory contract.
@@ -282,7 +298,9 @@ interface IUniFiAVSManager {
      * @notice Registers a new operator in the UniFi AVS.
      * @param operatorSignature The signature and associated data for operator registration.
      */
-    function registerOperator(ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) external;
+    function registerOperator(
+        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
+    ) external;
 
     /**
      * @notice Registers a new operator in the UniFi AVS with a commitment.
@@ -299,7 +317,10 @@ interface IUniFiAVSManager {
      * @param podOwner The address of the pod owner.
      * @param blsPubKeyHashes The BLS public key hashes of the validators to register.
      */
-    function registerValidators(address podOwner, bytes32[] calldata blsPubKeyHashes) external;
+    function registerValidators(
+        address podOwner,
+        bytes32[] calldata blsPubKeyHashes
+    ) external;
 
     /**
      * @notice Deregisters validators from the UniFi AVS.
@@ -320,7 +341,9 @@ interface IUniFiAVSManager {
      * @notice Sets the commitment for an operator.
      * @param newCommitment The new commitment to set.
      */
-    function setOperatorCommitment(OperatorCommitment memory newCommitment) external;
+    function setOperatorCommitment(
+        OperatorCommitment memory newCommitment
+    ) external;
 
     /**
      * @notice Updates the operator's commitment after the delay period.
@@ -346,35 +369,46 @@ interface IUniFiAVSManager {
      * @param allowed Whether the strategy should be allowed (true) or disallowed (false)
      * @dev Restricted to the DAO
      */
-    function setAllowlistRestakingStrategy(address strategy, bool allowed) external;
+    function setAllowlistRestakingStrategy(
+        address strategy,
+        bool allowed
+    ) external;
 
     /**
      * @notice Retrieves information about a specific operator.
      * @param operator The address of the operator.
      * @return OperatorDataExtended struct containing information about the operator.
      */
-    function getOperator(address operator) external view returns (OperatorDataExtended memory);
+    function getOperator(
+        address operator
+    ) external view returns (OperatorDataExtended memory);
 
     /**
      * @notice Retrieves information about a validator using its BLS public key hash.
      * @param blsPubKeyHash The BLS public key hash of the validator.
      * @return ValidatorDataExtended struct containing information about the validator.
      */
-    function getValidator(bytes32 blsPubKeyHash) external view returns (ValidatorDataExtended memory);
+    function getValidator(
+        bytes32 blsPubKeyHash
+    ) external view returns (ValidatorDataExtended memory);
 
     /**
      * @notice Retrieves information about a validator using its validator index.
      * @param validatorIndex The index of the validator.
      * @return ValidatorDataExtended struct containing information about the validator.
      */
-    function getValidator(uint256 validatorIndex) external view returns (ValidatorDataExtended memory);
+    function getValidator(
+        uint256 validatorIndex
+    ) external view returns (ValidatorDataExtended memory);
 
     /**
      * @notice Retrieves information about multiple validators.
      * @param blsPubKeyHashes The BLS public key hashes of the validators.
      * @return An array of ValidatorDataExtended structs containing information about the validators.
      */
-    function getValidators(bytes32[] calldata blsPubKeyHashes) external view returns (ValidatorDataExtended[] memory);
+    function getValidators(
+        bytes32[] calldata blsPubKeyHashes
+    ) external view returns (ValidatorDataExtended[] memory);
 
     /**
      * @notice Checks if a validator is registered for a specific chain ID.
@@ -382,7 +416,10 @@ interface IUniFiAVSManager {
      * @param chainId The chain ID to check.
      * @return bool True if the validator is registered for the given chain ID, false otherwise.
      */
-    function isValidatorInChainId(bytes32 blsPubKeyHash, uint256 chainId) external view returns (bool);
+    function isValidatorInChainId(
+        bytes32 blsPubKeyHash,
+        uint256 chainId
+    ) external view returns (bool);
 
     /**
      * @notice Retrieves the current deregistration delay for operators.
@@ -397,7 +434,9 @@ interface IUniFiAVSManager {
      * @dev No guarantee is made on whether the operator has shares for a strategy in a quorum or uniqueness
      *      of each element in the returned array. The off-chain service should do that validation separately
      */
-    function getOperatorRestakedStrategies(address operator) external view returns (address[] memory);
+    function getOperatorRestakedStrategies(
+        address operator
+    ) external view returns (address[] memory);
 
     /**
      * @notice Returns the list of strategies that the AVS supports for restaking
@@ -405,7 +444,10 @@ interface IUniFiAVSManager {
      * @dev No guarantee is made on uniqueness of each element in the returned array.
      *      The off-chain service should do that validation separately
      */
-    function getRestakeableStrategies() external view returns (address[] memory);
+    function getRestakeableStrategies()
+        external
+        view
+        returns (address[] memory);
 
     /// @notice Returns the EigenLayer AVSDirectory contract.
     function avsDirectory() external view returns (address);
@@ -414,5 +456,8 @@ interface IUniFiAVSManager {
      * @notice Submits EigenLayer rewards for operators.
      * @param submissions The array of rewards submissions.
      */
-    function submitOperatorRewards(IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata submissions) external;
+    function submitOperatorRewards(
+        IRewardsCoordinator.OperatorDirectedRewardsSubmission[]
+            calldata submissions
+    ) external;
 }
