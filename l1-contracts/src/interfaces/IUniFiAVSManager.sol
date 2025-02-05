@@ -161,6 +161,18 @@ interface IUniFiAVSManager {
     /// @notice Thrown when an AVS operator status call fails
     error AVSOperatorStatusCallFailed();
 
+    /// @notice Thrown when an invalid EigenPodManager address is provided
+    error InvalidEigenPodManagerAddress();
+
+    /// @notice Thrown when an invalid EigenDelegationManager address is provided
+    error InvalidEigenDelegationManagerAddress();
+    
+    /// @notice Thrown when an invalid AVSDirectory address is provided
+    error InvalidAVSDirectoryAddress();
+
+    /// @notice Thrown when an invalid RewardsCoordinator address is provided
+    error InvalidRewardsCoordinatorAddress();
+
     /**
      * @notice Emitted when a new operator is registered in the UniFi AVS.
      * @param operator The address of the registered operator.

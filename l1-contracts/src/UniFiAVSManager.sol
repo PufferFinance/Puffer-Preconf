@@ -107,6 +107,18 @@ contract UniFiAVSManager is
         IAVSDirectory avsDirectoryAddress,
         IRewardsCoordinator rewardsCoordinatorAddress
     ) {
+        if (address(eigenPodManagerAddress) == address(0)) {
+            revert InvalidEigenPodManagerAddress();
+        }
+        if (address(eigenDelegationManagerAddress) == address(0)) {
+            revert InvalidEigenDelegationManagerAddress();
+        }
+        if (address(avsDirectoryAddress) == address(0)) {
+            revert InvalidAVSDirectoryAddress();
+        }
+        if (address(rewardsCoordinatorAddress) == address(0)) {
+            revert InvalidRewardsCoordinatorAddress();
+        }
         EIGEN_POD_MANAGER = eigenPodManagerAddress;
         EIGEN_DELEGATION_MANAGER = eigenDelegationManagerAddress;
         AVS_DIRECTORY = IAVSDirectory(address(avsDirectoryAddress));
@@ -135,7 +147,7 @@ contract UniFiAVSManager is
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
     function registerOperator(
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
+        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
     ) external restricted {
         AVS_DIRECTORY.registerOperatorToAVS(msg.sender, operatorSignature);
 
@@ -147,14 +159,12 @@ contract UniFiAVSManager is
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
     function registerOperatorWithCommitment(
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature,
-        OperatorCommitment memory initialCommitment
+        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature,
+        OperatorCommitment calldata initialCommitment
     ) external restricted {
         AVS_DIRECTORY.registerOperatorToAVS(msg.sender, operatorSignature);
         
-        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
-        OperatorData storage op = $.operators[msg.sender];
-        op.commitment = initialCommitment;
+        _getUniFiAVSManagerStorage().operators[msg.sender].commitment = initialCommitment;
 
         emit OperatorRegisteredWithCommitment(msg.sender, initialCommitment);
     }
