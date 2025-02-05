@@ -64,9 +64,13 @@ contract UniFiAVSScripts is Script, DeployerHelper {
     function setUp() public {
         isHelderChain = block.chainid == helder;
 
+        avsDirectoryAddress = _getAVSDirectory();
+        eigenPodManagerAddress = _getEigenPodManager();
+        delegationManagerAddress = _getEigenDelegationManager();
         // Initialize the contract instances with their deployed addresses
         delegationManager = IDelegationManager(_getEigenDelegationManager());
         eigenPodManager = IEigenPodManager(_getEigenPodManager());
+        uniFiAVSManagerAddress = _getUnifyAVSManagerProxy();
         uniFiAVSManager = IUniFiAVSManager(_getUnifyAVSManagerProxy());
         avsDirectory = IAVSDirectory(_getAVSDirectory());
     }
