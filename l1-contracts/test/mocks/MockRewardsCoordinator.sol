@@ -31,7 +31,8 @@ contract MockRewardsCoordinator {
     mapping(address avs => uint256 nonce) public submissionNonce;
 
     /// @notice Mapping: avs => operatorDirectedAVSRewardsSubmissionHash => bool to check if operator-directed rewards submission hash has been submitted
-    mapping(address avs => mapping(bytes32 operatorDirectedAVSRewardsSubmissionHash => bool)) public isOperatorDirectedAVSRewardsSubmissionHash;
+    mapping(address avs => mapping(bytes32 operatorDirectedAVSRewardsSubmissionHash => bool)) public
+        isOperatorDirectedAVSRewardsSubmissionHash;
 
     /// @notice The StrategyManager contract for EigenLayer
     IStrategyManager public immutable strategyManager;
@@ -45,17 +46,15 @@ contract MockRewardsCoordinator {
         IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata operatorDirectedRewardsSubmissions
     ) external {
         require(
-            msg.sender == avs,
-            "RewardsCoordinator.createOperatorDirectedAVSRewardsSubmission: caller is not the AVS"
+            msg.sender == avs, "RewardsCoordinator.createOperatorDirectedAVSRewardsSubmission: caller is not the AVS"
         );
 
         for (uint256 i = 0; i < operatorDirectedRewardsSubmissions.length; i++) {
             IRewardsCoordinator.OperatorDirectedRewardsSubmission calldata operatorDirectedRewardsSubmission =
                 operatorDirectedRewardsSubmissions[i];
             uint256 nonce = submissionNonce[avs];
-            bytes32 operatorDirectedRewardsSubmissionHash = keccak256(
-                abi.encode(avs, nonce, operatorDirectedRewardsSubmission)
-            );
+            bytes32 operatorDirectedRewardsSubmissionHash =
+                keccak256(abi.encode(avs, nonce, operatorDirectedRewardsSubmission));
 
             uint256 totalAmount = _validateOperatorDirectedRewardsSubmission(operatorDirectedRewardsSubmission);
 
@@ -95,7 +94,8 @@ contract MockRewardsCoordinator {
         uint256 totalAmount = 0;
         address currOperatorAddress = address(0);
         for (uint256 i = 0; i < operatorDirectedRewardsSubmission.operatorRewards.length; ++i) {
-            IRewardsCoordinator.OperatorReward calldata operatorReward = operatorDirectedRewardsSubmission.operatorRewards[i];
+            IRewardsCoordinator.OperatorReward calldata operatorReward =
+                operatorDirectedRewardsSubmission.operatorRewards[i];
             require(
                 operatorReward.operator != address(0),
                 "RewardsCoordinator._validateOperatorDirectedRewardsSubmission: operator cannot be 0 address"
@@ -117,8 +117,8 @@ contract MockRewardsCoordinator {
         );
 
         require(
-            operatorDirectedRewardsSubmission.startTimestamp + operatorDirectedRewardsSubmission.duration <
-                block.timestamp,
+            operatorDirectedRewardsSubmission.startTimestamp + operatorDirectedRewardsSubmission.duration
+                < block.timestamp,
             "RewardsCoordinator._validateOperatorDirectedRewardsSubmission: operator-directed rewards submission is not retroactive"
         );
 

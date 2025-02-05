@@ -16,8 +16,9 @@ contract MockEigenPod is IEigenPod {
     }
 
     function setValidatorStatus(bytes32 pubkeyHash, VALIDATOR_STATUS status) external {
-        validators[pubkeyHash].validatorIndex =
-            validators[pubkeyHash].validatorIndex == 0 ? uint64(uint256(pubkeyHash)) : validators[pubkeyHash].validatorIndex;
+        validators[pubkeyHash].validatorIndex = validators[pubkeyHash].validatorIndex == 0
+            ? uint64(uint256(pubkeyHash))
+            : validators[pubkeyHash].validatorIndex;
         validators[pubkeyHash].status = status;
     }
 
@@ -107,39 +108,39 @@ contract MockEigenPod is IEigenPod {
     }
 
     /// @notice Number of validators with proven withdrawal credentials, who do not have proven full withdrawals
-    function activeValidatorCount() external view returns (uint256) {}
+    function activeValidatorCount() external view returns (uint256) { }
 
-    function checkpointBalanceExitedGwei(uint64) external view returns (uint64) {}
+    function checkpointBalanceExitedGwei(uint64) external view returns (uint64) { }
 
     /// @notice The timestamp of the currently-active checkpoint. Will be 0 if there is not active checkpoint
-    function currentCheckpointTimestamp() external view returns (uint64) {}
+    function currentCheckpointTimestamp() external view returns (uint64) { }
 
     /// @notice Returns the currently-active checkpoint
-    function currentCheckpoint() external view returns (Checkpoint memory) {}
+    function currentCheckpoint() external view returns (Checkpoint memory) { }
 
     /// @notice Query the 4788 oracle to get the parent block root of the slot with the given `timestamp`
     /// @param timestamp of the block for which the parent block root will be returned. MUST correspond
     /// to an existing slot within the last 24 hours. If the slot at `timestamp` was skipped, this method
     /// will revert.
-    function getParentBlockRoot(uint64 timestamp) external view returns (bytes32) {}
+    function getParentBlockRoot(uint64 timestamp) external view returns (bytes32) { }
 
     /// @notice The timestamp of the last checkpoint finalized
-    function lastCheckpointTimestamp() external view returns (uint64) {}
+    function lastCheckpointTimestamp() external view returns (uint64) { }
 
-    function setProofSubmitter(address newProofSubmitter) external {}
+    function setProofSubmitter(address newProofSubmitter) external { }
 
-    function proofSubmitter() external view returns (address) {}
+    function proofSubmitter() external view returns (address) { }
 
-    function startCheckpoint(bool revertIfNoBalance) external {}
+    function startCheckpoint(bool revertIfNoBalance) external { }
 
     function verifyCheckpointProofs(
         BeaconChainProofs.BalanceContainerProof calldata balanceContainerProof,
         BeaconChainProofs.BalanceProof[] calldata proofs
-    ) external {}
+    ) external { }
 
     function verifyStaleBalance(
         uint64 beaconTimestamp,
         BeaconChainProofs.StateRootProof calldata stateRootProof,
         BeaconChainProofs.ValidatorProof calldata proof
-    ) external {}
+    ) external { }
 }

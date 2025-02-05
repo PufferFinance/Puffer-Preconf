@@ -64,7 +64,6 @@ contract UniFiAVSScripts is Script, DeployerHelper {
     function setUp() public {
         isHelderChain = block.chainid == helder;
 
-        
         // Initialize the contract instances with their deployed addresses
         delegationManager = IDelegationManager(_getEigenDelegationManager());
         eigenPodManager = IEigenPodManager(_getEigenPodManager());
@@ -324,7 +323,9 @@ contract UniFiAVSScripts is Script, DeployerHelper {
     /// @notice Registers an operator with the UniFiAVSManager and sets the initial commitment
     /// @param signerPk The private key of the signer
     /// @param initialCommitment The initial commitment for the operator
-    function registerOperatorToUniFiAVS(uint256 signerPk, IUniFiAVSManager.OperatorCommitment memory initialCommitment) public {
+    function registerOperatorToUniFiAVS(uint256 signerPk, IUniFiAVSManager.OperatorCommitment memory initialCommitment)
+        public
+    {
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
 
         vm.startBroadcast();
@@ -382,7 +383,7 @@ contract UniFiAVSScripts is Script, DeployerHelper {
 
         uint256[] memory chainIds = new uint256[](1);
         chainIds[0] = 1;
-        
+
         IUniFiAVSManager.OperatorCommitment memory initialCommitment =
             IUniFiAVSManager.OperatorCommitment({ delegateKey: delegateKey, chainIds: chainIds });
 

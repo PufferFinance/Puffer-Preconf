@@ -17,17 +17,12 @@ import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.s
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract UniFiAVSManager is
-    UniFiAVSManagerStorage,
-    UUPSUpgradeable,
-    AccessManagedUpgradeable
-{
+contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManagedUpgradeable {
     using EnumerableSet for EnumerableSet.AddressSet;
     using EnumerableSet for EnumerableSet.UintSet;
     using SafeERC20 for IERC20;
 
-    address public constant BEACON_CHAIN_STRATEGY =
-        0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
+    address public constant BEACON_CHAIN_STRATEGY = 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
 
     /**
      * @notice The EigenPodManager
@@ -73,13 +68,7 @@ contract UniFiAVSManager is
         returns (IAVSDirectory.OperatorAVSRegistrationStatus)
     {
         (bool success, bytes memory data) = address(AVS_DIRECTORY).staticcall(
-            abi.encodeWithSelector(
-                bytes4(
-                    keccak256("avsOperatorStatus(address,address)")
-                ),
-                address(this),
-                operator
-            )
+            abi.encodeWithSelector(bytes4(keccak256("avsOperatorStatus(address,address)")), address(this), operator)
         );
         if (!success) {
             revert AVSOperatorStatusCallFailed();
@@ -92,10 +81,7 @@ contract UniFiAVSManager is
      * @param operator The address of the operator
      */
     modifier registeredOperator(address operator) {
-        if (
-            _getAvsOperatorStatus(operator) ==
-            IAVSDirectory.OperatorAVSRegistrationStatus.UNREGISTERED
-        ) {
+        if (_getAvsOperatorStatus(operator) == IAVSDirectory.OperatorAVSRegistrationStatus.UNREGISTERED) {
             revert OperatorNotRegistered();
         }
         _;
@@ -122,16 +108,11 @@ contract UniFiAVSManager is
         EIGEN_POD_MANAGER = eigenPodManagerAddress;
         EIGEN_DELEGATION_MANAGER = eigenDelegationManagerAddress;
         AVS_DIRECTORY = IAVSDirectory(address(avsDirectoryAddress));
-        EIGEN_REWARDS_COORDINATOR = IRewardsCoordinator(
-            address(rewardsCoordinatorAddress)
-        );
+        EIGEN_REWARDS_COORDINATOR = IRewardsCoordinator(address(rewardsCoordinatorAddress));
         _disableInitializers();
     }
 
-    function initialize(address accessManager, uint64 initialDeregistrationDelay)
-        public
-        initializer
-    {
+    function initialize(address accessManager, uint64 initialDeregistrationDelay) public initializer {
         __AccessManaged_init(accessManager);
         _setDeregistrationDelay(initialDeregistrationDelay);
 
@@ -146,9 +127,10 @@ contract UniFiAVSManager is
      * @inheritdoc IUniFiAVSManager
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function registerOperator(
-        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature
-    ) external restricted {
+    function registerOperator(ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature)
+        external
+        restricted
+    {
         AVS_DIRECTORY.registerOperatorToAVS(msg.sender, operatorSignature);
 
         emit OperatorRegistered(msg.sender);
@@ -163,7 +145,7 @@ contract UniFiAVSManager is
         OperatorCommitment calldata initialCommitment
     ) external restricted {
         AVS_DIRECTORY.registerOperatorToAVS(msg.sender, operatorSignature);
-        
+
         _getUniFiAVSManagerStorage().operators[msg.sender].commitment = initialCommitment;
 
         emit OperatorRegisteredWithCommitment(msg.sender, initialCommitment);
@@ -173,10 +155,7 @@ contract UniFiAVSManager is
      * @inheritdoc IUniFiAVSManager
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function registerValidators(
-        address podOwner,
-        bytes32[] calldata blsPubKeyHashes
-    )
+    function registerValidators(address podOwner, bytes32[] calldata blsPubKeyHashes)
         external
         podIsDelegatedToMsgSender(podOwner)
         registeredOperator(msg.sender)
@@ -184,9 +163,7 @@ contract UniFiAVSManager is
     {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
 
-        bytes memory delegateKey = $.operators[msg.sender]
-            .commitment
-            .delegateKey;
+        bytes memory delegateKey = $.operators[msg.sender].commitment.delegateKey;
 
         if (delegateKey.length == 0) {
             revert DelegateKeyNotSet();
@@ -198,8 +175,7 @@ contract UniFiAVSManager is
 
         for (uint256 i = 0; i < newValidatorCount; i++) {
             bytes32 blsPubKeyHash = blsPubKeyHashes[i];
-            IEigenPod.ValidatorInfo memory validatorInfo = eigenPod
-                .validatorPubkeyHashToInfo(blsPubKeyHash);
+            IEigenPod.ValidatorInfo memory validatorInfo = eigenPod.validatorPubkeyHashToInfo(blsPubKeyHash);
 
             if (validatorInfo.status != IEigenPod.VALIDATOR_STATUS.ACTIVE) {
                 revert ValidatorNotActive();
@@ -238,10 +214,7 @@ contract UniFiAVSManager is
      * @inheritdoc IUniFiAVSManager
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function deregisterValidators(bytes32[] calldata blsPubKeyHashes)
-        external
-        restricted
-    {
+    function deregisterValidators(bytes32[] calldata blsPubKeyHashes) external restricted {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
 
         uint256 validatorCount = blsPubKeyHashes.length;
@@ -273,11 +246,7 @@ contract UniFiAVSManager is
      * @inheritdoc IUniFiAVSManager
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function startDeregisterOperator()
-        external
-        registeredOperator(msg.sender)
-        restricted
-    {
+    function startDeregisterOperator() external registeredOperator(msg.sender) restricted {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
 
         OperatorData storage operator = $.operators[msg.sender];
@@ -299,11 +268,7 @@ contract UniFiAVSManager is
      * @inheritdoc IUniFiAVSManager
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function finishDeregisterOperator()
-        external
-        registeredOperator(msg.sender)
-        restricted
-    {
+    function finishDeregisterOperator() external registeredOperator(msg.sender) restricted {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
 
         OperatorData storage operator = $.operators[msg.sender];
@@ -312,9 +277,7 @@ contract UniFiAVSManager is
             revert DeregistrationNotStarted();
         }
 
-        if (
-            block.number < operator.startDeregisterOperatorBlock + $.deregistrationDelay
-        ) {
+        if (block.number < operator.startDeregisterOperatorBlock + $.deregistrationDelay) {
             revert DeregistrationDelayNotElapsed();
         }
 
@@ -341,10 +304,7 @@ contract UniFiAVSManager is
         operator.commitmentValidAfter = uint64(block.number) + $.deregistrationDelay;
 
         emit OperatorCommitmentChangeInitiated(
-            msg.sender,
-            operator.commitment,
-            newCommitment,
-            operator.commitmentValidAfter
+            msg.sender, operator.commitment, newCommitment, operator.commitmentValidAfter
         );
     }
 
@@ -356,10 +316,7 @@ contract UniFiAVSManager is
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
         OperatorData storage operator = $.operators[msg.sender];
 
-        if (
-            operator.commitmentValidAfter == 0 ||
-            block.number < operator.commitmentValidAfter
-        ) {
+        if (operator.commitmentValidAfter == 0 || block.number < operator.commitmentValidAfter) {
             revert CommitmentChangeNotReady();
         }
 
@@ -385,10 +342,7 @@ contract UniFiAVSManager is
      * @inheritdoc IUniFiAVSManager
      * @dev Restricted to the DAO
      */
-    function updateAVSMetadataURI(string memory _metadataURI)
-        external
-        restricted
-    {
+    function updateAVSMetadataURI(string memory _metadataURI) external restricted {
         AVS_DIRECTORY.updateAVSMetadataURI(_metadataURI);
     }
 
@@ -396,10 +350,7 @@ contract UniFiAVSManager is
      * @inheritdoc IUniFiAVSManager
      * @dev Restricted to the DAO
      */
-    function setAllowlistRestakingStrategy(address strategy, bool allowed)
-        external
-        restricted
-    {
+    function setAllowlistRestakingStrategy(address strategy, bool allowed) external restricted {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
         bool success;
         if (allowed) {
@@ -418,27 +369,21 @@ contract UniFiAVSManager is
      * @inheritdoc IUniFiAVSManager
      * @dev Restricted to the OPERATIONS_MULTISIG
      */
-    function submitOperatorRewards(
-        IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata submissions
-    ) external restricted {
+    function submitOperatorRewards(IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata submissions)
+        external
+        restricted
+    {
         uint256 submissionsLength = submissions.length;
         for (uint256 i = 0; i < submissionsLength; i++) {
-            IRewardsCoordinator.OperatorDirectedRewardsSubmission
-                calldata submission = submissions[i];
+            IRewardsCoordinator.OperatorDirectedRewardsSubmission calldata submission = submissions[i];
             uint256 totalRewards = 0;
             uint256 rewardsLength = submission.operatorRewards.length;
             for (uint256 j = 0; j < rewardsLength; j++) {
                 totalRewards += submission.operatorRewards[j].amount;
             }
-            IERC20(address(submission.token)).safeIncreaseAllowance(
-                address(EIGEN_REWARDS_COORDINATOR),
-                totalRewards
-            );
+            IERC20(address(submission.token)).safeIncreaseAllowance(address(EIGEN_REWARDS_COORDINATOR), totalRewards);
         }
-        EIGEN_REWARDS_COORDINATOR.createOperatorDirectedAVSRewardsSubmission(
-            address(this),
-            submissions
-        );
+        EIGEN_REWARDS_COORDINATOR.createOperatorDirectedAVSRewardsSubmission(address(this), submissions);
 
         emit OperatorRewardsSubmitted();
     }
@@ -456,33 +401,21 @@ contract UniFiAVSManager is
     /**
      * @inheritdoc IUniFiAVSManager
      */
-    function getOperator(address operator)
-        external
-        view
-        returns (OperatorDataExtended memory)
-    {
+    function getOperator(address operator) external view returns (OperatorDataExtended memory) {
         return _getOperator(operator);
     }
 
     /**
      * @inheritdoc IUniFiAVSManager
      */
-    function getValidator(bytes32 blsPubKeyHash)
-        external
-        view
-        returns (ValidatorDataExtended memory)
-    {
+    function getValidator(bytes32 blsPubKeyHash) external view returns (ValidatorDataExtended memory) {
         return _getValidator(blsPubKeyHash);
     }
 
     /**
      * @inheritdoc IUniFiAVSManager
      */
-    function getValidator(uint256 validatorIndex)
-        external
-        view
-        returns (ValidatorDataExtended memory)
-    {
+    function getValidator(uint256 validatorIndex) external view returns (ValidatorDataExtended memory) {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
         bytes32 blsPubKeyHash = $.validatorIndexes[validatorIndex];
         return _getValidator(blsPubKeyHash);
@@ -491,15 +424,9 @@ contract UniFiAVSManager is
     /**
      * @inheritdoc IUniFiAVSManager
      */
-    function getValidators(bytes32[] calldata blsPubKeyHashes)
-        external
-        view
-        returns (ValidatorDataExtended[] memory)
-    {
+    function getValidators(bytes32[] calldata blsPubKeyHashes) external view returns (ValidatorDataExtended[] memory) {
         uint256 blsPubKeyHashesLength = blsPubKeyHashes.length;
-        ValidatorDataExtended[] memory validators = new ValidatorDataExtended[](
-            blsPubKeyHashesLength
-        );
+        ValidatorDataExtended[] memory validators = new ValidatorDataExtended[](blsPubKeyHashesLength);
         for (uint256 i = 0; i < blsPubKeyHashesLength; i++) {
             validators[i] = _getValidator(blsPubKeyHashes[i]);
         }
@@ -510,11 +437,7 @@ contract UniFiAVSManager is
      * @notice Checks if a given validator is committed to a particular chain ID,
      * by looking up its operator's active chain commitments.
      */
-    function isValidatorInChainId(bytes32 blsPubKeyHash, uint256 chainId)
-        external
-        view
-        returns (bool)
-    {
+    function isValidatorInChainId(bytes32 blsPubKeyHash, uint256 chainId) external view returns (bool) {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
         ValidatorData storage validator = $.validators[blsPubKeyHash];
 
@@ -525,9 +448,7 @@ contract UniFiAVSManager is
 
         // Check if the operator has the chainId in its active commitment
         OperatorData storage operatorData = $.operators[validator.operator];
-        OperatorCommitment memory activeCommitment = _getActiveCommitment(
-            operatorData
-        );
+        OperatorCommitment memory activeCommitment = _getActiveCommitment(operatorData);
 
         for (uint256 i = 0; i < activeCommitment.chainIds.length; i++) {
             if (activeCommitment.chainIds[i] == chainId) {
@@ -555,10 +476,7 @@ contract UniFiAVSManager is
                 strategies[i] = IStrategy($.allowlistedRestakingStrategies.at(i));
             }
 
-            uint256[] memory shares = EIGEN_DELEGATION_MANAGER.getOperatorShares(
-                operator,
-                strategies
-            );
+            uint256[] memory shares = EIGEN_DELEGATION_MANAGER.getOperatorShares(operator, strategies);
 
             uint256 restakedCount = 0;
             restakedStrategies = new address[](allowlistedCount);
@@ -571,9 +489,7 @@ contract UniFiAVSManager is
 
             // Resize the array to the actual number of restaked strategies
             assembly {
-                if lt(restakedCount, allowlistedCount) {
-                    mstore(restakedStrategies, restakedCount)
-                }
+                if lt(restakedCount, allowlistedCount) { mstore(restakedStrategies, restakedCount) }
             }
         }
     }
@@ -595,51 +511,35 @@ contract UniFiAVSManager is
 
     // INTERNAL FUNCTIONS
 
-    function _getOperator(address operator)
-        internal
-        view
-        returns (OperatorDataExtended memory)
-    {
+    function _getOperator(address operator) internal view returns (OperatorDataExtended memory) {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
         OperatorData storage operatorData = $.operators[operator];
 
-        OperatorCommitment memory activeCommitment = _getActiveCommitment(
-            operatorData
-        );
+        OperatorCommitment memory activeCommitment = _getActiveCommitment(operatorData);
 
         return OperatorDataExtended({
             validatorCount: operatorData.validatorCount,
             commitment: activeCommitment,
             pendingCommitment: operatorData.pendingCommitment,
             startDeregisterOperatorBlock: operatorData.startDeregisterOperatorBlock,
-            isRegistered: _getAvsOperatorStatus(operator) ==
-                IAVSDirectory.OperatorAVSRegistrationStatus.REGISTERED,
+            isRegistered: _getAvsOperatorStatus(operator) == IAVSDirectory.OperatorAVSRegistrationStatus.REGISTERED,
             commitmentValidAfter: operatorData.commitmentValidAfter
         });
     }
 
-    function _getValidator(bytes32 blsPubKeyHash)
-        internal
-        view
-        returns (ValidatorDataExtended memory validator)
-    {
+    function _getValidator(bytes32 blsPubKeyHash) internal view returns (ValidatorDataExtended memory validator) {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
 
         ValidatorData memory validatorData = $.validators[blsPubKeyHash];
 
         if (validatorData.index != 0) {
             IEigenPod eigenPod = IEigenPod(validatorData.eigenPod);
-            IEigenPod.ValidatorInfo memory validatorInfo = eigenPod
-                .validatorPubkeyHashToInfo(blsPubKeyHash);
+            IEigenPod.ValidatorInfo memory validatorInfo = eigenPod.validatorPubkeyHashToInfo(blsPubKeyHash);
 
-            bool backedByStake = EIGEN_DELEGATION_MANAGER.delegatedTo(
-                eigenPod.podOwner()
-            ) == validatorData.operator;
+            bool backedByStake = EIGEN_DELEGATION_MANAGER.delegatedTo(eigenPod.podOwner()) == validatorData.operator;
 
             OperatorData storage operator = $.operators[validatorData.operator];
-            OperatorCommitment memory activeCommitment = _getActiveCommitment(
-                operator
-            );
+            OperatorCommitment memory activeCommitment = _getActiveCommitment(operator);
 
             return ValidatorDataExtended({
                 operator: validatorData.operator,
@@ -659,10 +559,7 @@ contract UniFiAVSManager is
         view
         returns (OperatorCommitment memory)
     {
-        if (
-            operatorData.commitmentValidAfter != 0 &&
-            block.number >= operatorData.commitmentValidAfter
-        ) {
+        if (operatorData.commitmentValidAfter != 0 && block.number >= operatorData.commitmentValidAfter) {
             return operatorData.pendingCommitment;
         }
         return operatorData.commitment;
@@ -680,10 +577,5 @@ contract UniFiAVSManager is
         emit DeregistrationDelaySet(oldDelay, newDelay);
     }
 
-    function _authorizeUpgrade(address newImplementation)
-        internal
-        virtual
-        override
-        restricted
-    {}
+    function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
 }

@@ -119,7 +119,7 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         IUniFiAVSManager.OperatorCommitment memory newCommitment = IUniFiAVSManager.OperatorCommitment({
             delegateKey: abi.encodePacked(operatorSigner),
             chainIds: initialChainIds
-         });
+        });
 
         // Set new commitment
         vm.prank(operator);
@@ -146,10 +146,12 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         avsManager.registerValidators(podOwner, exitedValidators);
 
         // Check registration status
-        IUniFiAVSManager.ValidatorDataExtended memory activeValidatorData = avsManager.getValidator(activeValidatorPubKeyHash);
+        IUniFiAVSManager.ValidatorDataExtended memory activeValidatorData =
+            avsManager.getValidator(activeValidatorPubKeyHash);
         assertTrue(activeValidatorData.registered, "Active validator should be registered");
 
-        IUniFiAVSManager.ValidatorDataExtended memory exitedValidatorData = avsManager.getValidator(exitedValidatorPubKeyHash);
+        IUniFiAVSManager.ValidatorDataExtended memory exitedValidatorData =
+            avsManager.getValidator(exitedValidatorPubKeyHash);
         assertFalse(exitedValidatorData.registered, "Exited validator should not be registered");
 
         // Deregister validators
@@ -183,7 +185,9 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
             "Pending chainIds length should match"
         );
         for (uint256 i = 0; i < newCommitment.chainIds.length; i++) {
-            assertEq(operatorData.pendingCommitment.chainIds[i], newCommitment.chainIds[i], "Pending chainIds should match");
+            assertEq(
+                operatorData.pendingCommitment.chainIds[i], newCommitment.chainIds[i], "Pending chainIds should match"
+            );
         }
 
         // Try to update before delay
@@ -201,7 +205,9 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.commitment.delegateKey, newCommitment.delegateKey, "Active delegate key should match");
         assertEq(
-            operatorData.commitment.chainIds.length, newCommitment.chainIds.length, "Active chainIds length should match"
+            operatorData.commitment.chainIds.length,
+            newCommitment.chainIds.length,
+            "Active chainIds length should match"
         );
         for (uint256 i = 0; i < newCommitment.chainIds.length; i++) {
             assertEq(operatorData.commitment.chainIds[i], newCommitment.chainIds[i], "Active chainIds should match");
@@ -379,11 +385,7 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         return (digestHash, operatorSignature);
     }
 
-    function _getAvsOperatorStatus()
-        internal
-        view
-        returns (IAVSDirectory.OperatorAVSRegistrationStatus)
-    {
+    function _getAvsOperatorStatus() internal view returns (IAVSDirectory.OperatorAVSRegistrationStatus) {
         (bool success, bytes memory data) = address(avsDirectory).staticcall(
             abi.encodeWithSelector(bytes4(keccak256("avsOperatorStatus(address,address)")), avsManager, operator)
         );

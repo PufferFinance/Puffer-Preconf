@@ -19,10 +19,7 @@ contract MockAVSDirectory {
             : IAVSDirectory.OperatorAVSRegistrationStatus.UNREGISTERED;
     }
 
-    function registerOperatorToAVS(
-        address operator,
-        ISignatureUtils.SignatureWithSaltAndExpiry memory
-    ) external {
+    function registerOperatorToAVS(address operator, ISignatureUtils.SignatureWithSaltAndExpiry memory) external {
         require(
             registeredOperators[operator] != true, "AVSDirectory.registerOperatorToAVS: operator already registered"
         );

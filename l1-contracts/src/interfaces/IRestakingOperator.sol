@@ -7,7 +7,6 @@ pragma solidity >=0.8.0 <0.9.0;
  * @custom:security-contact security@puffer.fi
  */
 interface IRestakingOperator {
-
     /**
      * @notice Updates a signature proof by setting the signer address of the message hash
      * @param digestHash is message hash
@@ -23,5 +22,4 @@ interface IRestakingOperator {
     function customCalldataCall(address target, bytes calldata customCalldata)
         external
         returns (bytes memory response);
-
 }

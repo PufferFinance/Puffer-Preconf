@@ -36,7 +36,10 @@ contract DeployUniFiAVSManagerWithMocks is BaseScript {
         accessManager = new AccessManager(_broadcaster);
 
         UniFiAVSManager uniFiAVSManagerImplementation = new UniFiAVSManager(
-            IEigenPodManager(eigenPodManager), IDelegationManager(eigenDelegationManager), IAVSDirectory(avsDirectory), IRewardsCoordinator(rewardsCoordinator)
+            IEigenPodManager(eigenPodManager),
+            IDelegationManager(eigenDelegationManager),
+            IAVSDirectory(avsDirectory),
+            IRewardsCoordinator(rewardsCoordinator)
         );
 
         uniFiAVSManagerProxy = UniFiAVSManager(

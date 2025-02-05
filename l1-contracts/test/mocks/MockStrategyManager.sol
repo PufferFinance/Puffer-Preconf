@@ -6,4 +6,3 @@ contract MockStrategyManager {
         return true;
     }
 }
-

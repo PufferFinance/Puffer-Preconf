@@ -52,7 +52,8 @@ contract SetupAccess is BaseScript {
         bytes[] memory calldatas = new bytes[](2);
 
         calldatas[0] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_DAO, dao, 0);
-        calldatas[1] = abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_OPERATIONS_MULTISIG, operationsMultisig, 0);
+        calldatas[1] =
+            abi.encodeWithSelector(AccessManager.grantRole.selector, ROLE_ID_OPERATIONS_MULTISIG, operationsMultisig, 0);
         return calldatas;
     }
 

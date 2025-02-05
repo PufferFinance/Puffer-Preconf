@@ -56,12 +56,11 @@ contract UniFiAVSManagerTest is UnitTestHelper {
     }
 
     // With ECDSA key, he sign the hash confirming that the operator wants to be registered to a certain restaking service
-    function _getOperatorSignature(
-        uint256 _operatorPrivateKey,
-        address avs,
-        bytes32 salt,
-        uint256 expiry
-    ) internal view returns (bytes32 digestHash, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) {
+    function _getOperatorSignature(uint256 _operatorPrivateKey, address avs, bytes32 salt, uint256 expiry)
+        internal
+        view
+        returns (bytes32 digestHash, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature)
+    {
         operatorSignature.expiry = expiry;
         operatorSignature.salt = salt;
         {
@@ -83,13 +82,12 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         view
         returns (ISignatureUtils.SignatureWithSaltAndExpiry memory)
     {
-        (, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) =
-            _getOperatorSignature({
-                _operatorPrivateKey: operatorPrivateKey,
-                avs: address(avsManager),
-                salt: salt,
-                expiry: expiry
-            });
+        (, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) = _getOperatorSignature({
+            _operatorPrivateKey: operatorPrivateKey,
+            avs: address(avsManager),
+            salt: salt,
+            expiry: expiry
+        });
 
         return operatorSignature;
     }
@@ -104,7 +102,9 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         _setOperatorCommitment(operator, delegatePubKey, new uint256[](0));
     }
 
-    function _setOperatorCommitment(address _operator, bytes memory _delegateKey, uint256[] memory _chainIds) internal {
+    function _setOperatorCommitment(address _operator, bytes memory _delegateKey, uint256[] memory _chainIds)
+        internal
+    {
         vm.prank(_operator);
         avsManager.setOperatorCommitment(
             IUniFiAVSManager.OperatorCommitment({ delegateKey: _delegateKey, chainIds: _chainIds })
@@ -913,14 +913,8 @@ contract UniFiAVSManagerTest is UnitTestHelper {
     function testSubmitOperatorRewards() public {
         // Create mock rewards submission data
         IRewardsCoordinator.OperatorReward[] memory operatorRewards = new IRewardsCoordinator.OperatorReward[](2);
-        operatorRewards[0] = IRewardsCoordinator.OperatorReward({
-            operator: address(0x1),
-            amount: 100
-        });
-        operatorRewards[1] = IRewardsCoordinator.OperatorReward({
-            operator: address(operator),
-            amount: 200
-        });
+        operatorRewards[0] = IRewardsCoordinator.OperatorReward({ operator: address(0x1), amount: 100 });
+        operatorRewards[1] = IRewardsCoordinator.OperatorReward({ operator: address(operator), amount: 200 });
 
         IRewardsCoordinator.StrategyAndMultiplier[] memory strategiesAndMultipliers =
             new IRewardsCoordinator.StrategyAndMultiplier[](1);
@@ -930,7 +924,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         });
 
         vm.warp(1737590400 + 50);
-        IRewardsCoordinator.OperatorDirectedRewardsSubmission[] memory submissions = 
+        IRewardsCoordinator.OperatorDirectedRewardsSubmission[] memory submissions =
             new IRewardsCoordinator.OperatorDirectedRewardsSubmission[](1);
         submissions[0] = IRewardsCoordinator.OperatorDirectedRewardsSubmission({
             strategiesAndMultipliers: strategiesAndMultipliers,
@@ -945,31 +939,26 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         mockERC20.mint(address(avsManager), 1000);
 
         // Expect approval to be called with correct parameters
-        vm.expectCall(
-            address(mockERC20),
-            abi.encodeCall(IERC20.approve, (address(mockRewardsCoordinator), 300))
-        );
+        vm.expectCall(address(mockERC20), abi.encodeCall(IERC20.approve, (address(mockRewardsCoordinator), 300)));
 
         // Expect rewards submission to be called
         vm.expectCall(
             address(mockRewardsCoordinator),
-            abi.encodeCall(IRewardsCoordinator.createOperatorDirectedAVSRewardsSubmission, (address(avsManager), submissions))
+            abi.encodeCall(
+                IRewardsCoordinator.createOperatorDirectedAVSRewardsSubmission, (address(avsManager), submissions)
+            )
         );
 
         vm.prank(OPERATIONS_MULTISIG);
         vm.expectEmit();
         emit IUniFiAVSManager.OperatorRewardsSubmitted();
         avsManager.submitOperatorRewards(submissions);
-
     }
 
     function testSubmitOperatorRewards_RevertIf_InsufficientBalance() public {
         // Create mock rewards submission data
         IRewardsCoordinator.OperatorReward[] memory operatorRewards = new IRewardsCoordinator.OperatorReward[](1);
-        operatorRewards[0] = IRewardsCoordinator.OperatorReward({
-            operator: address(0x1),
-            amount: 1000
-        });
+        operatorRewards[0] = IRewardsCoordinator.OperatorReward({ operator: address(0x1), amount: 1000 });
 
         IRewardsCoordinator.StrategyAndMultiplier[] memory strategiesAndMultipliers =
             new IRewardsCoordinator.StrategyAndMultiplier[](1);
@@ -978,7 +967,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
             multiplier: 1
         });
         vm.warp(1737590400 + 50);
-        IRewardsCoordinator.OperatorDirectedRewardsSubmission[] memory submissions = 
+        IRewardsCoordinator.OperatorDirectedRewardsSubmission[] memory submissions =
             new IRewardsCoordinator.OperatorDirectedRewardsSubmission[](1);
         submissions[0] = IRewardsCoordinator.OperatorDirectedRewardsSubmission({
             strategiesAndMultipliers: strategiesAndMultipliers,
@@ -992,19 +981,16 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         // Give insufficient tokens to AVS manager
         mockERC20.mint(address(avsManager), 500);
 
-        vm.expectRevert(abi.encodeWithSelector(
-            IERC20Errors.ERC20InsufficientBalance.selector,
-            address(avsManager),
-            500,
-            1000
-        ));
+        vm.expectRevert(
+            abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, address(avsManager), 500, 1000)
+        );
 
         vm.prank(OPERATIONS_MULTISIG);
         avsManager.submitOperatorRewards(submissions);
     }
 
     function testSubmitOperatorRewards_Unauthorized() public {
-        IRewardsCoordinator.OperatorDirectedRewardsSubmission[] memory submissions = 
+        IRewardsCoordinator.OperatorDirectedRewardsSubmission[] memory submissions =
             new IRewardsCoordinator.OperatorDirectedRewardsSubmission[](0);
 
         vm.prank(operator);
