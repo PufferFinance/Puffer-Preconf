@@ -347,7 +347,7 @@ interface IUniFiAVSManager {
      * @param validatorIndex The index of the validator.
      * @return ValidatorDataExtended struct containing information about the validator.
      */
-    function getValidator(uint256 validatorIndex) external view returns (ValidatorDataExtended memory);
+    function getValidatorByIndex(uint256 validatorIndex) external view returns (ValidatorDataExtended memory);
 
     /**
      * @notice Retrieves information about multiple validators.
@@ -386,9 +386,6 @@ interface IUniFiAVSManager {
      *      The off-chain service should do that validation separately
      */
     function getRestakeableStrategies() external view returns (address[] memory);
-
-    /// @notice Returns the EigenLayer AVSDirectory contract.
-    function avsDirectory() external view returns (address);
 
     /**
      * @notice Submits EigenLayer rewards for operators.

@@ -415,7 +415,7 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
     /**
      * @inheritdoc IUniFiAVSManager
      */
-    function getValidator(uint256 validatorIndex) external view returns (ValidatorDataExtended memory) {
+    function getValidatorByIndex(uint256 validatorIndex) external view returns (ValidatorDataExtended memory) {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
         bytes32 blsPubKeyHash = $.validatorIndexes[validatorIndex];
         return _getValidator(blsPubKeyHash);
@@ -500,13 +500,6 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
     function getRestakeableStrategies() external view returns (address[] memory) {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
         return $.allowlistedRestakingStrategies.values();
-    }
-
-    /**
-     * @inheritdoc IUniFiAVSManager
-     */
-    function avsDirectory() external view returns (address) {
-        return address(AVS_DIRECTORY);
     }
 
     // INTERNAL FUNCTIONS

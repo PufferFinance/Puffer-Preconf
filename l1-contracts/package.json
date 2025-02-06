@@ -37,6 +37,8 @@
     "gas": "forge test --gas-report --mp \"./test/unit/**/*.sol\"",
     "lint": "yarn run lint:sol",
     "test:unit": "forge test --mp \"./test/unit/**/*.sol\" -vvv",
+    "coverage-lcov": "forge coverage --force --no-match-coverage \"(script|test|mock|node_modules|integrations|echidna)\" --report lcov",
+    "coverage": "forge coverage --force --no-match-coverage \"(script|test|mock|node_modules|integrations|echidna)\"",
     "slither": "slither ."
   }
 }
