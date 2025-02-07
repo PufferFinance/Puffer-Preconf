@@ -322,11 +322,6 @@ interface IUniFiAVSManager {
     function setOperatorCommitment(OperatorCommitment memory newCommitment) external;
 
     /**
-     * @notice Updates the operator's commitment after the delay period.
-     */
-    function updateOperatorCommitment() external;
-
-    /**
      * @notice Updates the metadata URI for the AVS
      * @param _metadataURI is the metadata URI for the AVS
      */

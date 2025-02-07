@@ -163,7 +163,7 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
     {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
 
-        bytes memory delegateKey = $.operators[msg.sender].commitment.delegateKey;
+        bytes memory delegateKey = _getActiveCommitment($.operators[msg.sender]).delegateKey;
 
         if (delegateKey.length == 0) {
             revert DelegateKeyNotSet();
@@ -300,34 +300,16 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
         OperatorData storage operator = $.operators[msg.sender];
 
+        if (operator.commitmentValidAfter != 0 && block.number >= operator.commitmentValidAfter) {
+            operator.commitment = operator.pendingCommitment;
+        }
+
         operator.pendingCommitment = newCommitment;
         operator.commitmentValidAfter = uint64(block.number) + $.deregistrationDelay;
 
         emit OperatorCommitmentChangeInitiated(
             msg.sender, operator.commitment, newCommitment, operator.commitmentValidAfter
         );
-    }
-
-    /**
-     * @inheritdoc IUniFiAVSManager
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
-     */
-    function updateOperatorCommitment() external restricted {
-        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
-        OperatorData storage operator = $.operators[msg.sender];
-
-        if (operator.commitmentValidAfter == 0 || block.number < operator.commitmentValidAfter) {
-            revert CommitmentChangeNotReady();
-        }
-
-        OperatorCommitment memory oldCommitment = operator.commitment;
-        operator.commitment = operator.pendingCommitment;
-
-        // Reset pending data
-        delete operator.pendingCommitment;
-        delete operator.commitmentValidAfter;
-
-        emit OperatorCommitmentSet(msg.sender, oldCommitment, operator.commitment);
     }
 
     /**

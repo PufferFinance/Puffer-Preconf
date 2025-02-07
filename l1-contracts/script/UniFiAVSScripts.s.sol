@@ -201,9 +201,6 @@ contract UniFiAVSScripts is Script, DeployerHelper {
         // Step 3: Register the Operator
         registerOperatorToUniFiAVSWithDelegateKey(signerPk, delegateKey);
 
-        // Step 4: Update the commitment to activate the operator
-        updateOperatorCommitment();
-
         // Step 4: Add validators to pod and register them to the AVS
         addValidatorsFromJsonFile(filePath, podOwner);
     }
@@ -231,10 +228,7 @@ contract UniFiAVSScripts is Script, DeployerHelper {
         // Step 3: Register the Operator
         registerOperatorToUniFiAVSWithDelegateKey(signerPk, delegateKey);
 
-        // Step 4: Update the commitment to activate the operator
-        updateOperatorCommitment();
-
-        // Step 5: Add validators to pod and register them to the AVS
+        // Step 4: Add validators to pod and register them to the AVS
         addValidatorsToEigenPodAndRegisterToAVS(podOwner, pubkeys, validatorIndices);
     }
 
@@ -396,14 +390,6 @@ contract UniFiAVSScripts is Script, DeployerHelper {
     function setOperatorCommitment(IUniFiAVSManager.OperatorCommitment memory newCommitment) public {
         vm.startBroadcast();
         uniFiAVSManager.setOperatorCommitment(newCommitment);
-        vm.stopBroadcast();
-    }
-
-    /// @notice Updates the operator's commitment after the delay period
-    /// @dev This function can only be called after the deregistration delay has passed since setOperatorCommitment() was called
-    function updateOperatorCommitment() public {
-        vm.startBroadcast();
-        uniFiAVSManager.updateOperatorCommitment();
         vm.stopBroadcast();
     }
 
