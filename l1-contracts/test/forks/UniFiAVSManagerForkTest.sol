@@ -128,10 +128,6 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         // Advance block number
         vm.roll(block.number + DEREGISTRATION_DELAY + 1);
 
-        // Update commitment
-        vm.prank(operator);
-        avsManager.updateOperatorCommitment();
-
         // Register active validator
         bytes32[] memory activeValidators = new bytes32[](1);
         activeValidators[0] = activeValidatorPubKeyHash;
@@ -160,58 +156,6 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
 
         activeValidatorData = avsManager.getValidator(activeValidatorPubKeyHash);
         assertFalse(activeValidatorData.registered, "Validator should be deregistered");
-    }
-
-    function test_updateOperatorCommitment() public {
-        _registerOperator();
-
-        uint256[] memory newChainIds = new uint256[](2);
-        newChainIds[0] = 1;
-        newChainIds[1] = 137;
-        IUniFiAVSManager.OperatorCommitment memory newCommitment =
-            IUniFiAVSManager.OperatorCommitment({ delegateKey: abi.encodePacked(uint256(1337)), chainIds: newChainIds });
-
-        // Set new commitment
-        vm.prank(operator);
-        avsManager.setOperatorCommitment(newCommitment);
-
-        IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
-        assertEq(
-            operatorData.pendingCommitment.delegateKey, newCommitment.delegateKey, "Pending delegate key should match"
-        );
-        assertEq(
-            operatorData.pendingCommitment.chainIds.length,
-            newCommitment.chainIds.length,
-            "Pending chainIds length should match"
-        );
-        for (uint256 i = 0; i < newCommitment.chainIds.length; i++) {
-            assertEq(
-                operatorData.pendingCommitment.chainIds[i], newCommitment.chainIds[i], "Pending chainIds should match"
-            );
-        }
-
-        // Try to update before delay
-        vm.prank(operator);
-        vm.expectRevert(IUniFiAVSManager.CommitmentChangeNotReady.selector);
-        avsManager.updateOperatorCommitment();
-
-        // Advance block number instead of time
-        vm.roll(block.number + DEREGISTRATION_DELAY + 1);
-
-        // Update commitment
-        vm.prank(operator);
-        avsManager.updateOperatorCommitment();
-
-        operatorData = avsManager.getOperator(operator);
-        assertEq(operatorData.commitment.delegateKey, newCommitment.delegateKey, "Active delegate key should match");
-        assertEq(
-            operatorData.commitment.chainIds.length,
-            newCommitment.chainIds.length,
-            "Active chainIds length should match"
-        );
-        for (uint256 i = 0; i < newCommitment.chainIds.length; i++) {
-            assertEq(operatorData.commitment.chainIds[i], newCommitment.chainIds[i], "Active chainIds should match");
-        }
     }
 
     function test_registerOperatorWithInvalidSignature() public {
@@ -273,10 +217,6 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         // Advance block number
         vm.roll(block.number + DEREGISTRATION_DELAY + 1);
 
-        // Update commitment
-        vm.prank(operator);
-        avsManager.updateOperatorCommitment();
-
         bytes32[] memory blsPubKeyHashes = new bytes32[](1);
         blsPubKeyHashes[0] = activeValidatorPubKeyHash;
 
@@ -325,9 +265,6 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         // Advance block number
         vm.roll(block.number + DEREGISTRATION_DELAY + 1);
 
-        // Update commitment
-        vm.prank(operator);
-        avsManager.updateOperatorCommitment();
         // Register active validator
         bytes32[] memory activeValidators = new bytes32[](1);
         activeValidators[0] = activeValidatorPubKeyHash;
