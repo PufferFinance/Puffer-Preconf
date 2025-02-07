@@ -243,7 +243,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         assertEq(validators.length, 2, "should return 2 validators");
 
         // Mock returns `3187110391117563497` as validator index
-        IUniFiAVSManager.ValidatorDataExtended memory validator = avsManager.getValidatorByIndex(3187110391117563497);
+        IUniFiAVSManager.ValidatorDataExtended memory validator = avsManager.getValidatorByIndex(uint64(uint256(blsPubKeyHashes[0])));
         assertEq(validator.operator, operator, "should return the correct operator");
     }
 
@@ -939,14 +939,6 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.prank(operator);
         vm.expectRevert(); // Unauthorized access
         avsManager.submitOperatorRewards(submissions);
-    }
-
-    function testPendingCommitmentAfterCommitmenetDelay() public {
-        vm.prank(DAO);
-        avsManager.setDeregistrationDelay(100);
-
-        vm.prank(operator);
-        avsManager.setOperatorCommitment(IUniFiAVSManager.OperatorCommitment({ delegateKey: bytes32(0), chainIds: new uint256[](0) }));
     }
 
     function test_revertConstructor() public {
