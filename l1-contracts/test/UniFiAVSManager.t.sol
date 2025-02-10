@@ -242,7 +242,6 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         IUniFiAVSManager.ValidatorDataExtended[] memory validators = avsManager.getValidators(blsPubKeyHashes);
         assertEq(validators.length, 2, "should return 2 validators");
 
-        // Mock returns `3187110391117563497` as validator index
         IUniFiAVSManager.ValidatorDataExtended memory validator = avsManager.getValidatorByIndex(uint64(uint256(blsPubKeyHashes[0])));
         assertEq(validator.operator, operator, "should return the correct operator");
     }
