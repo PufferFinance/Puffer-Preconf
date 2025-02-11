@@ -307,9 +307,12 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
         operator.pendingCommitment = newCommitment;
         operator.commitmentValidAfter = uint64(block.number) + $.deregistrationDelay;
 
-        emit OperatorCommitmentChangeInitiated(
-            msg.sender, operator.commitment, newCommitment, operator.commitmentValidAfter
-        );
+        emit OperatorCommitmentChangeInitiated({
+            operator: msg.sender,
+            oldCommitment: operator.commitment,
+            newCommitment: newCommitment,
+            validAfter: operator.commitmentValidAfter
+        });
     }
 
     /**
