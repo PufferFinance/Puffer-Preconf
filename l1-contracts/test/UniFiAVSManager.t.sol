@@ -10,8 +10,11 @@ import { BN254 } from "eigenlayer-middleware/libraries/BN254.sol";
 import { IBLSApkRegistry } from "eigenlayer-middleware/interfaces/IBLSApkRegistry.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { UnitTestHelper } from "../test/helpers/UnitTestHelper.sol";
+import { UniFiAVSManager } from "../src/UniFiAVSManager.sol";
 import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
+import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IERC20Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 contract UniFiAVSManagerTest is UnitTestHelper {
@@ -235,6 +238,12 @@ contract UniFiAVSManagerTest is UnitTestHelper {
             assertEq(validatorData.operator, operator);
             assertTrue(validatorData.backedByStake);
         }
+
+        IUniFiAVSManager.ValidatorDataExtended[] memory validators = avsManager.getValidators(blsPubKeyHashes);
+        assertEq(validators.length, 2, "should return 2 validators");
+
+        IUniFiAVSManager.ValidatorDataExtended memory validator = avsManager.getValidatorByIndex(uint64(uint256(blsPubKeyHashes[0])));
+        assertEq(validator.operator, operator, "should return the correct operator");
     }
 
     function testRegisterValidators_OperatorNotRegistered() public {
@@ -929,5 +938,16 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.prank(operator);
         vm.expectRevert(); // Unauthorized access
         avsManager.submitOperatorRewards(submissions);
+    }
+
+    function test_revertConstructor() public {
+        vm.expectRevert(IUniFiAVSManager.InvalidEigenPodManagerAddress.selector);
+        new UniFiAVSManager(IEigenPodManager(address(0)), IDelegationManager(address(0)), IAVSDirectory(address(0)), IRewardsCoordinator(address(0)));
+        vm.expectRevert(IUniFiAVSManager.InvalidEigenDelegationManagerAddress.selector);
+        new UniFiAVSManager(IEigenPodManager(address(1)), IDelegationManager(address(0)), IAVSDirectory(address(0)), IRewardsCoordinator(address(0)));
+        vm.expectRevert(IUniFiAVSManager.InvalidAVSDirectoryAddress.selector);
+        new UniFiAVSManager(IEigenPodManager(address(1)), IDelegationManager(address(1)), IAVSDirectory(address(0)), IRewardsCoordinator(address(0)));
+        vm.expectRevert(IUniFiAVSManager.InvalidRewardsCoordinatorAddress.selector);
+        new UniFiAVSManager(IEigenPodManager(address(1)), IDelegationManager(address(1)), IAVSDirectory(address(1)), IRewardsCoordinator(address(0)));
     }
 }

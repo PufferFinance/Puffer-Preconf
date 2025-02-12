@@ -127,9 +127,6 @@ interface IUniFiAVSManager {
     /// @notice Thrown when an action requires a registered operator, but the operator is not registered
     error OperatorNotRegistered();
 
-    /// @notice Thrown when attempting to register an operator that is already registered
-    error OperatorAlreadyRegistered();
-
     /// @notice Thrown when a non-operator attempts to deregister a validator
     error NotValidatorOperator();
 
@@ -139,17 +136,8 @@ interface IUniFiAVSManager {
     /// @notice Thrown when an operator's delegate key is not set
     error DelegateKeyNotSet();
 
-    /// @notice Thrown when a validator cannot be found
-    error ValidatorNotFound();
-
-    /// @notice Thrown when an unauthorized action is attempted
-    error Unauthorized();
-
     /// @notice Thrown when trying to update an operator commitment before the change delay has passed
     error CommitmentChangeNotReady();
-
-    /// @notice Thrown when an index is out of bounds
-    error IndexOutOfBounds();
 
     /// @notice Thrown when attempting to deregister a validator that is already deregistered
     error ValidatorAlreadyDeregistered();
@@ -239,13 +227,6 @@ interface IUniFiAVSManager {
      * @param newDelay The new deregistration delay value.
      */
     event DeregistrationDelaySet(uint64 oldDelay, uint64 newDelay);
-
-    /**
-     * @notice Emitted when a chain ID is set for a specific index.
-     * @param index The index in the bitmap.
-     * @param chainID The chain ID set for the given index.
-     */
-    event ChainIDSet(uint8 index, uint256 chainID);
 
     /**
      * @notice Emitted when a restaking strategy is added or removed from the allowlist.
@@ -361,7 +342,7 @@ interface IUniFiAVSManager {
      * @param validatorIndex The index of the validator.
      * @return ValidatorDataExtended struct containing information about the validator.
      */
-    function getValidator(uint256 validatorIndex) external view returns (ValidatorDataExtended memory);
+    function getValidatorByIndex(uint256 validatorIndex) external view returns (ValidatorDataExtended memory);
 
     /**
      * @notice Retrieves information about multiple validators.
@@ -400,9 +381,6 @@ interface IUniFiAVSManager {
      *      The off-chain service should do that validation separately
      */
     function getRestakeableStrategies() external view returns (address[] memory);
-
-    /// @notice Returns the EigenLayer AVSDirectory contract.
-    function avsDirectory() external view returns (address);
 
     /**
      * @notice Submits EigenLayer rewards for operators.
