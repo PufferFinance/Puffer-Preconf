@@ -529,10 +529,10 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
         IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.commitment.delegateKey, delegatePubKey, "Delegate key should not change immediately");
-        assertEq(operatorData.commitment.chainIds.length, 0, "Chain ID bitmap should not change immediately");
+        assertEq(operatorData.commitment.chainIds.length, 0, "Chain IDs should not change immediately");
         assertEq(operatorData.pendingCommitment.delegateKey, newDelegateKey, "Pending delegate key should be set");
         assertEq(
-            operatorData.pendingCommitment.chainIds.length, newChainIds.length, "Pending chain ID bitmap should be set"
+            operatorData.pendingCommitment.chainIds.length, newChainIds.length, "Pending chain IDs should be set"
         );
         for (uint256 i = 0; i < newChainIds.length; i++) {
             assertEq(operatorData.pendingCommitment.chainIds[i], newChainIds[i], "Pending chain ID should be set");

@@ -47,14 +47,12 @@ sequenceDiagram
     Operator->>UniFiAVSManager: setOperatorCommitment(newCommitment)
     UniFiAVSManager-->>Operator: Commitment change initiated
     Note over Operator,UniFiAVSManager: Wait for deregistration delay
-    Operator->>UniFiAVSManager: updateOperatorCommitment()
-    UniFiAVSManager-->>Operator: Commitment updated
+    Note over Operator,UniFiAVSManager: New commitment is now valid
 ```
 
-1. The `Operator` calls `setOperatorCommitment()` on the `UniFiAVSManager`, providing the new commitment (delegate key and chain ID bitmap).
+1. The `Operator` calls `setOperatorCommitment()` on the `UniFiAVSManager`, providing the new commitment (delegate key and chain IDs).
 2. The `UniFiAVSManager` initiates the commitment change process, setting a future block number when the change can be finalized.
-3. After the deregistration delay has passed, the `Operator` calls `updateOperatorCommitment()`.
-4. The `UniFiAVSManager` updates the commitment for the Operator.
+3. After the deregistration delay has passed, the new commitment automatically falls into effect.
 
 #### Commitment Update Process
 
@@ -62,27 +60,14 @@ The commitment change process involves a delay mechanism to ensure security and 
 
 1. When `setOperatorCommitment()` is called:
    - The new commitment is stored as a pending change.
+   - The last commitment before this one is written as the current valid commitment and all the other previous ones are discarded.
    - A block number is set for when the change can be finalized (current block + deregistration delay).
 
-2. After the delay period, `updateOperatorCommitment()` can be called to finalize the change:
-   - This function checks if the delay period has passed.
-   - If so, it updates the commitment to the pending new commitment.
-   - The pending commitment and validation block are then reset.
+2. After the delay period, the pending commitment will be automatically in effect.
 
-This two-step process with a delay prevents a malicious Operator from switching their commitment during the lookahead window. If they were to do so they could sign preconfs, and break promises by switching their key or supported chains without facing penalties.
+Note (for devs only): To ensure to correct commitment is read at any time, this field should never be accessed directly and should be read through the `_getActiveCommitment()` method instead.
 
-#### Chain ID Bitmap
-
-The `chainIDBitMap` is a 256-bit integer where each bit represents a specific chain ID. If a bit is set to 1, it means the Operator is committed to supporting that chain. This bitmap allows for efficient storage and quick checking of supported chains.
-
-Note: chainId 0 and bitmap position 0 are not allowed to be used.
-
-For example:
-- chainIdBitMap = 2 (binary: 0010): The operator is committed to the chain with ID at position 1.
-- chainIdBitMap = 6 (binary: 0110): The operator is committed to chains with IDs at positions 1 and 2. where position 1 may correspond to mainnet (0x1) and position 2 may correspond to a based rollup with chainID (0xabcd).
-
-
-The `UniFiAVSManager` contract provides a `bitmapToChainIDs` function to convert this bitmap into an array of 4-byte chain IDs, making it easy to retrieve the list of supported chains for any Operator. For example calling `bitmapToChainIDs(0b101)` may return two stored chainIDs `[0x11111111, 0x22222222]`.
+This process with a delay prevents a malicious Operator from switching their commitment during the lookahead window. If they were to do so they could sign preconfs, and break promises by switching their key or supported chains without facing penalties.
 
 #### Key Type
 The type of key (e.g., ECDSA or BLS) is not specified in the registration process. This decision allows for flexibility in the future, accommodating different key types as needed without requiring changes to the core registration mechanism.
@@ -167,6 +152,8 @@ sequenceDiagram
 5. The `UniFiAVSManager` updates the operator's validator count and resets their deregistration state if they had previously queued to deregister their operator.
 
 These checks will ensure that a validator can only be registered exactly once in the AVS, and that it can only be to the Operator whom the validator's podOwner is delegated to.
+
+Gateways wishing to get all validators that are participating in the preconf ecosystem should do so by reading the `ValidatorRegistered()` and `ValidatorDeregistered()` events from the logs. To ensure the validator is currently participating in preconfs, `isValidatorInChainId()` method can be called on-chain.
 
 
 # Deregistering from UniFi AVS

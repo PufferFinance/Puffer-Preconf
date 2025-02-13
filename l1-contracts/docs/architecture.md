@@ -81,7 +81,28 @@ Here's a detailed description of the preconf flow:
     - A flat fee is awarded to the Gateway for their coordination services.
 
 13. **AVS Reward**:
-    - The rest of the block rewards are deposited into the `RewardsManager` contract. Here the RewardsManager smooths out the rewards from the participating validators, ensuring a more consistent distribution over time.
+    - The rest of the block rewards are deposited into EigenLayer's `RewardsCoordinator` contract. Operators then can claim their rewards from the EigenLayer's interface.
+
+## Rewards Flow
+
+An overview of where the fees originate and where they end up can be seen in the chart below.
+
+> ![alt text](images/rewards-flow.png)
+
+For a comprehensive overview of the rewards distribution system, including its key features, benefits, and impact on the Ethereum ecosystem, see the [Rewards Distribution](rewards.md) document.
+
+The following diagram illustrates the flow of rewards in the UniFi AVS system:
+
+```mermaid
+graph TD
+    A[User] -->|Pays preconf tips in priority fees| B[Sequencer]
+    B -->|Bridges fees back to L1| C[RewardsManager Contract]
+    C -->|Distribute rewards| D[Gateway]
+    C -->|Distribute rewards| E[AVS]
+    F[Rewards Calculator Subgraph] -->|Submit bi-weekly operator rewards| E[AVS]
+    E -->|Submit Rewards| G[EigenLayer Rewards Coordinator]
+    G -->|Claim reward| H[Operators]
+```
 
 ## Operator Software
 ![alt text](images/software-stack.png)
@@ -104,30 +125,6 @@ Each `Operator` will register an `OperatorCommitment` containing a `delegateKey`
 If an EigenPod owner has delegated their stake to an `Operator`, then the `Operator` can register the EigenPod's validators as preconferers in the AVS. See the [Validator Registration](registration.md#validator-registration) section for more details.
 
 > **Aside on Neutrality**: In the spirit of neutrality, it is important to keep preconf registrations credibly neutral. As such, the Ethereum community is working to launch a permissionless registry contract that exists outside of any protocols (i.e., outside of Puffer or EigenLayer). To prevent fragmentation, the `UniFiAVSManager` contract will look to this registry as a primary source when validators register, and revert if the validator is not opted-in.
-
-### `RewardsManager` - Rewards Distribution
-
-The rewards distribution in UniFi AVS is designed to provide a consistent and attractive incentive structure for participating validators. Key features of the rewards system include:
-
-1. preconf fees
-2. MEV-smoothing mechanism
-3. Ether-only payouts
-4. Competitive earnings potential
-
-For a comprehensive overview of the rewards distribution system, including its key features, benefits, and impact on the Ethereum ecosystem, see the [Rewards Distribution](rewards.md) document.
-
-The following diagram illustrates the flow of rewards in the UniFi AVS system:
-
-```mermaid
-graph TD
-    A[User] -->|Pays preconf tips in priority fees| B[Gateway]
-    B -->|Aggregates transactions and produces blocks| C[Validators]
-    C -->|Publish blocks| D[Fee Recipient]
-    D -->|Sends block rewards| E[RewardsManager Contract]
-    E -->|Distribute rewards| F[Operators]
-    E -->|Distribute rewards| G[Validators]
-    E -->|Distribute rewards| H[Gateway]
-```
 
 This diagram shows how rewards flow from users through the system, ultimately being distributed to operators, validators, and the gateway.
 

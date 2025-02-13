@@ -34,22 +34,11 @@ forge script script/UniFiAVSScripts.sol:UniFiAVSScripts --sig "functionName(para
 
 Replace `functionName` with the desired function and provide the necessary parameters. To broadcast the script results on-chain you will also need to include flags like `--rpc-url https://rpc.helder-devnets.xyz/ --broadcast --account <your-cast-wallet-name>`. 
 
-## Understanding OperatorCommitment and chainIdBitMap
+## Understanding OperatorCommitment
 
 The OperatorCommitment is a struct that contains two important pieces of information:
 1. delegateKey: A bytes array representing the delegate key for the operator.
-2. chainIDBitMap: A uint256 representing the chains the operator is committed to serve.
-
-The chainIdBitMap is a bitmap where each bit represents a specific chain ID. If a bit is set to 1, it means the operator is committed to serving that chain. The mapping between bit positions and chain IDs is maintained separately in the UniFiAVSManager contract.
-
-Note: chainId 0 and bitmap index 0 are not allowed to be used.
-
-Examples:
-- chainIdBitMap = 2 (binary: 0010): The operator is committed to the chain with ID at position 1.
-- chainIdBitMap = 6 (binary: 0110): The operator is committed to chains with IDs at positions 1 and 2. where position 1 may correspond to mainnet (0x1) and position 2 may correspond to a based rollup with chainID (0xabcd).
-- chainIdBitMap = 14 (binary: 1110): The operator is committed to chains with IDs at positions 1, 2, and 3.
-
-When setting or updating an operator's commitment, you need to provide both the delegateKey and the chainIdBitMap.
+2. chainIds: A uint256 array of chain IDs the operator is committed to.
 
 ## Deregistration Delay
 
@@ -57,7 +46,7 @@ The UniFiAVSManager implements a deregistration delay mechanism for security pur
 
 Functions affected by the deregistration delay:
 - finishDeregisterOperator(): Can only be called after the delay period since startDeregisterOperator() was called.
-- updateOperatorCommitment(): Updates the operator's commitment after the delay period since setOperatorCommitment() was called.
+- setOperatorCommitment(): Sets into effect the new commitment only after the delay period is passed.
 
 The length of the delay is configurable and can be queried using the getDeregistrationDelay() function.
 
@@ -137,12 +126,7 @@ The length of the delay is configurable and can be queried using the getDeregist
 * `setOperatorCommitment(OperatorCommitment memory newCommitment)`
     - Sets the operator's commitment.
     - Usage: `forge script script/UniFiAVSScripts.sol:UniFiAVSScripts --sig "setOperatorCommitment((bytes,uint256))" '["0xnewDelegateKey...",42]'`
-    - Note: This initiates the commitment change process. The new commitment will not be active until updateOperatorCommitment() is called after the deregistration delay.
-
-* `updateOperatorCommitment()`
-    - Updates the operator's commitment after the delay period.
-    - Usage: `forge script script/UniFiAVSScripts.sol:UniFiAVSScripts --sig "updateOperatorCommitment()"`
-    - Note: This can only be called after the deregistration delay has passed since setOperatorCommitment() was called.
+    - Note: This initiates the commitment change process. The new commitment will not be active until the deregistration delay amount of time has passed.
 
 * `startDeregisterOperator()`
     - Starts the process of deregistering an operator.
