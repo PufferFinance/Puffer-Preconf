@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import "eigenlayer/interfaces/IAVSDirectory.sol";
-import "eigenlayer/interfaces/ISignatureUtils.sol";
+import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
+import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 
 contract MockAVSDirectory {
     event AVSMetadataURIUpdated(address indexed avs, string metadataURI);
 
-    mapping(address => bool) public registeredOperators;
+    mapping(address operator => bool registered) public registeredOperators;
 
     function avsOperatorStatus(address, address operator)
         external
@@ -19,10 +19,7 @@ contract MockAVSDirectory {
             : IAVSDirectory.OperatorAVSRegistrationStatus.UNREGISTERED;
     }
 
-    function registerOperatorToAVS(
-        address operator,
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
-    ) external {
+    function registerOperatorToAVS(address operator, ISignatureUtils.SignatureWithSaltAndExpiry memory) external {
         require(
             registeredOperators[operator] != true, "AVSDirectory.registerOperatorToAVS: operator already registered"
         );

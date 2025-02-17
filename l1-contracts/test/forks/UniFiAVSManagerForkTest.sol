@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import "forge-std/Test.sol";
+import { Test } from "forge-std/Test.sol";
 import { DeployUniFiToMainnet } from "../../script/DeployUniFiToMainnet.s.sol";
 import { UniFiAVSManager } from "../../src/UniFiAVSManager.sol";
 import { IUniFiAVSManager } from "../../src/interfaces/IUniFiAVSManager.sol";
@@ -9,12 +9,9 @@ import { IRestakingOperator } from "../../src/interfaces/IRestakingOperator.sol"
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
-import { IAVSDirectoryExtended } from "../../src/interfaces/EigenLayer/IAVSDirectoryExtended.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
-import "../../src/structs/ValidatorData.sol";
-import "../../src/structs/OperatorData.sol";
-import { AVSDeployment } from "script/DeploymentStructs.sol";
-import { BaseScript } from "script/BaseScript.s.sol";
+import { AVSDeployment } from "../../script/DeploymentStructs.sol";
+import { BaseScript } from "../../script/BaseScript.s.sol";
 import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
 
 contract UniFiAVSManagerForkTest is Test, BaseScript {
@@ -82,8 +79,7 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         // Register operator
         _registerOperator();
 
-        IAVSDirectory.OperatorAVSRegistrationStatus status =
-            IAVSDirectoryExtended(address(avsDirectory)).avsOperatorStatus(address(avsManager), operator);
+        IAVSDirectory.OperatorAVSRegistrationStatus status = _getAvsOperatorStatus();
         assertEq(
             uint256(status),
             uint256(IAVSDirectory.OperatorAVSRegistrationStatus.REGISTERED),
@@ -107,7 +103,7 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         avsManager.finishDeregisterOperator();
 
         assertEq(
-            uint256(IAVSDirectoryExtended(address(avsDirectory)).avsOperatorStatus(address(avsManager), operator)),
+            uint256(_getAvsOperatorStatus()),
             uint256(IAVSDirectory.OperatorAVSRegistrationStatus.UNREGISTERED),
             "Operator should be deregistered"
         );
@@ -116,11 +112,14 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
     function test_registerAndDeregisterValidators() public {
         _registerOperator();
 
+        uint256[] memory initialChainIds = new uint256[](1);
+        initialChainIds[0] = 1;
+
         // Set and update operator commitment
-        OperatorCommitment memory newCommitment = OperatorCommitment({
+        IUniFiAVSManager.OperatorCommitment memory newCommitment = IUniFiAVSManager.OperatorCommitment({
             delegateKey: abi.encodePacked(operatorSigner),
-            chainIDBitMap: 1 // Assuming chainID 1 for mainnet
-         });
+            chainIds: initialChainIds
+        });
 
         // Set new commitment
         vm.prank(operator);
@@ -128,10 +127,6 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
 
         // Advance block number
         vm.roll(block.number + DEREGISTRATION_DELAY + 1);
-
-        // Update commitment
-        vm.prank(operator);
-        avsManager.updateOperatorCommitment();
 
         // Register active validator
         bytes32[] memory activeValidators = new bytes32[](1);
@@ -147,65 +142,20 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         avsManager.registerValidators(podOwner, exitedValidators);
 
         // Check registration status
-        ValidatorDataExtended memory activeValidatorData = avsManager.getValidator(activeValidatorPubKeyHash);
+        IUniFiAVSManager.ValidatorDataExtended memory activeValidatorData =
+            avsManager.getValidator(activeValidatorPubKeyHash);
         assertTrue(activeValidatorData.registered, "Active validator should be registered");
 
-        ValidatorDataExtended memory exitedValidatorData = avsManager.getValidator(exitedValidatorPubKeyHash);
+        IUniFiAVSManager.ValidatorDataExtended memory exitedValidatorData =
+            avsManager.getValidator(exitedValidatorPubKeyHash);
         assertFalse(exitedValidatorData.registered, "Exited validator should not be registered");
 
         // Deregister validators
         vm.prank(operator);
         avsManager.deregisterValidators(activeValidators);
 
-        // Check validator status immediately after deregistration
         activeValidatorData = avsManager.getValidator(activeValidatorPubKeyHash);
-        assertTrue(activeValidatorData.registered, "Validator should still be registered before delay");
-
-        // Advance block number
-        vm.roll(block.number + DEREGISTRATION_DELAY + 1);
-
-        // Check validator status after delay
-        activeValidatorData = avsManager.getValidator(activeValidatorPubKeyHash);
-        assertFalse(activeValidatorData.registered, "Validator should be deregistered after delay");
-    }
-
-    function test_updateOperatorCommitment() public {
-        _registerOperator();
-
-        OperatorCommitment memory newCommitment =
-            OperatorCommitment({ delegateKey: abi.encodePacked(uint256(1337)), chainIDBitMap: 3 });
-
-        // Set new commitment
-        vm.prank(operator);
-        avsManager.setOperatorCommitment(newCommitment);
-
-        OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
-        assertEq(
-            operatorData.pendingCommitment.delegateKey, newCommitment.delegateKey, "Pending delegate key should match"
-        );
-        assertEq(
-            operatorData.pendingCommitment.chainIDBitMap,
-            newCommitment.chainIDBitMap,
-            "Pending chainIDBitMap should match"
-        );
-
-        // Try to update before delay
-        vm.prank(operator);
-        vm.expectRevert(IUniFiAVSManager.CommitmentChangeNotReady.selector);
-        avsManager.updateOperatorCommitment();
-
-        // Advance block number instead of time
-        vm.roll(block.number + DEREGISTRATION_DELAY + 1);
-
-        // Update commitment
-        vm.prank(operator);
-        avsManager.updateOperatorCommitment();
-
-        operatorData = avsManager.getOperator(operator);
-        assertEq(operatorData.commitment.delegateKey, newCommitment.delegateKey, "Active delegate key should match");
-        assertEq(
-            operatorData.commitment.chainIDBitMap, newCommitment.chainIDBitMap, "Active chainIDBitMap should match"
-        );
+        assertFalse(activeValidatorData.registered, "Validator should be deregistered");
     }
 
     function test_registerOperatorWithInvalidSignature() public {
@@ -213,7 +163,7 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         uint256 expiry = block.timestamp + 1 days;
 
         // Generate an invalid signature
-        (bytes32 digestHash, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) =
+        (, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) =
             _getOperatorSignature(operator, address(avsManager), salt, expiry);
         operatorSignature.signature = abi.encodePacked(bytes32(0), bytes32(0), uint8(0));
 
@@ -254,8 +204,11 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
     function test_startDeregisterOperatorWithValidators() public {
         _registerOperator();
 
-        OperatorCommitment memory newCommitment =
-            OperatorCommitment({ delegateKey: abi.encodePacked(uint256(1337)), chainIDBitMap: 3 });
+        uint256[] memory newChainIds = new uint256[](2);
+        newChainIds[0] = 1;
+        newChainIds[1] = 137;
+        IUniFiAVSManager.OperatorCommitment memory newCommitment =
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: abi.encodePacked(uint256(1337)), chainIds: newChainIds });
 
         // Set new commitment
         vm.prank(operator);
@@ -263,10 +216,6 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
 
         // Advance block number
         vm.roll(block.number + DEREGISTRATION_DELAY + 1);
-
-        // Update commitment
-        vm.prank(operator);
-        avsManager.updateOperatorCommitment();
 
         bytes32[] memory blsPubKeyHashes = new bytes32[](1);
         blsPubKeyHashes[0] = activeValidatorPubKeyHash;
@@ -294,41 +243,6 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         avsManager.finishDeregisterOperator();
     }
 
-    function test_setAndGetChainID() public {
-        vm.prank(DAO);
-        avsManager.setChainID(1, 1); // Ethereum Mainnet
-
-        uint256 chainID = avsManager.getChainID(1);
-        assertEq(chainID, 1, "ChainID should match");
-    }
-
-    function test_bitmapToChainIDsWithGaps() public {
-        vm.prank(DAO);
-        avsManager.setChainID(1, 1); // Ethereum Mainnet
-        vm.prank(DAO);
-        avsManager.setChainID(3, 137); // Polygon
-
-        uint256 bitmap = 0xA; // 0b1010
-
-        uint256[] memory chainIDs = avsManager.bitmapToChainIDs(bitmap);
-        assertEq(chainIDs.length, 2, "Should return 2 chainIDs");
-        assertEq(chainIDs[0], 1, "First chainID should match");
-        assertEq(chainIDs[1], 137, "Second chainID should match");
-    }
-
-    function test_getBitmapIndexForNonExistentChainID() public {
-        uint32 nonExistentChainID = 999;
-
-        uint8 index = avsManager.getBitmapIndex(nonExistentChainID);
-        assertEq(index, 0, "Bitmap index for non-existent chainID should be 0");
-    }
-
-    function test_setChainIDFromUnauthorizedAddress() public {
-        vm.prank(operator); // Using operator instead of DAO
-        vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, operator));
-        avsManager.setChainID(1, 1); // Attempt to set chain ID without authorization
-    }
-
     function test_setDeregistrationDelayFromUnauthorizedAddress() public {
         vm.prank(operator); // Using operator instead of DAO
         vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, operator));
@@ -338,8 +252,11 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
     function test_getOperatorRestakedStrategies() public {
         // Register operator
         _registerOperator();
-        OperatorCommitment memory newCommitment =
-            OperatorCommitment({ delegateKey: abi.encodePacked(uint256(1337)), chainIDBitMap: 3 });
+        uint256[] memory newChainIds = new uint256[](2);
+        newChainIds[0] = 1;
+        newChainIds[1] = 137;
+        IUniFiAVSManager.OperatorCommitment memory newCommitment =
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: abi.encodePacked(uint256(1337)), chainIds: newChainIds });
 
         // Set new commitment
         vm.prank(operator);
@@ -348,9 +265,6 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         // Advance block number
         vm.roll(block.number + DEREGISTRATION_DELAY + 1);
 
-        // Update commitment
-        vm.prank(operator);
-        avsManager.updateOperatorCommitment();
         // Register active validator
         bytes32[] memory activeValidators = new bytes32[](1);
         activeValidators[0] = activeValidatorPubKeyHash;
@@ -365,7 +279,7 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         assertEq(restakedStrategies[0], avsManager.BEACON_CHAIN_STRATEGY(), "Should be the Beacon Chain strategy");
     }
 
-    function test_getRestakeableStrategies() public {
+    function test_getRestakeableStrategies() public view {
         // Get restakeable strategies
         address[] memory restakeableStrategies = avsManager.getRestakeableStrategies();
 
@@ -406,5 +320,15 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
             operatorSignature.signature = abi.encodePacked(r, s, v);
         }
         return (digestHash, operatorSignature);
+    }
+
+    function _getAvsOperatorStatus() internal view returns (IAVSDirectory.OperatorAVSRegistrationStatus) {
+        (bool success, bytes memory data) = address(avsDirectory).staticcall(
+            abi.encodeWithSelector(bytes4(keccak256("avsOperatorStatus(address,address)")), avsManager, operator)
+        );
+        if (!success) {
+            revert("AVS operator status call failed");
+        }
+        return abi.decode(data, (IAVSDirectory.OperatorAVSRegistrationStatus));
     }
 }

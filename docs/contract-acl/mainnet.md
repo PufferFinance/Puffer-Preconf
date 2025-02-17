@@ -25,5 +25,4 @@
 | finishDeregisterOperator                | max_int | Public              |
 | deregisterValidators                    | max_int | Public              |                                       |
 | setOperatorCommitment                   | max_int | Public              |                                       |
-| updateOperatorCommitment                | max_int | Public              |                                       |
 | registerOperatorWithCommitment          | max_int | Public              |                                       |

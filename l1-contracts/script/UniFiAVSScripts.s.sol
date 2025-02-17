@@ -1,26 +1,25 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import "forge-std/Script.sol";
-import { UniFiAVSManager } from "../src/UniFiAVSManager.sol";
-import "../src/structs/OperatorData.sol";
+import { Script } from "forge-std/Script.sol";
+import { DeployerHelper } from "./DeployerHelper.s.sol";
+import { IUniFiAVSManager } from "../src/interfaces/IUniFiAVSManager.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
-import "../test/mocks/MockEigenPodManager.sol";
-import "../test/mocks/MockDelegationManager.sol";
-import "../test/mocks/MockAVSDirectory.sol";
+import { MockEigenPodManager } from "../test/mocks/MockEigenPodManager.sol";
+import { MockDelegationManager } from "../test/mocks/MockDelegationManager.sol";
+import { MockAVSDirectory } from "../test/mocks/MockAVSDirectory.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
-import { stdJson } from "forge-std/StdJson.sol";
+import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
-import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
+import { console } from "forge-std/console.sol";
 
 // to run the script: forge script script/UniFiAVSScripts.sol:UniFiAVSScripts --sig "createEigenPod(address)" "0xabcdefg..."
 
-contract UniFiAVSScripts is Script {
+contract UniFiAVSScripts is Script, DeployerHelper {
     using Strings for uint256;
 
     // DO NOT CHANGE THE ORDER OF THE STRUCTS BELOW
@@ -49,54 +48,31 @@ contract UniFiAVSScripts is Script {
         bool finalized;
     }
 
-    // Set chainIDBitMap with only index 1 as true (2 in binary is 10, which sets the second bit to 1)
-    uint256 constant DEFAULT_CHAIN_BITMAP = 2;
-
-    IDelegationManager delegationManager;
-    IEigenPodManager eigenPodManager;
-    IAVSDirectory avsDirectory;
-    UniFiAVSManager uniFiAVSManager;
+    IDelegationManager public delegationManager;
+    IEigenPodManager public eigenPodManager;
+    IAVSDirectory public avsDirectory;
+    IUniFiAVSManager public uniFiAVSManager;
 
     // update the addresses to the deployed ones
-    address delegationManagerAddress;
-    address eigenPodManagerAddress;
-    address uniFiAVSManagerAddress;
-    address avsDirectoryAddress;
+    address public delegationManagerAddress;
+    address public eigenPodManagerAddress;
+    address public uniFiAVSManagerAddress;
+    address public avsDirectoryAddress;
 
-    bool isHelderChain;
+    bool public isHelderChain;
 
     function setUp() public {
-        isHelderChain = false;
-        // Determine which chain we're on and set the appropriate addresses
-        if (block.chainid == 7014190335) {
-            // chain ID for Helder
-            isHelderChain = true;
-            delegationManagerAddress = address(0x239eD3B6B4bd3a1cCaDB79d2A8c4862BB2324D89);
-            eigenPodManagerAddress = address(0x27065dA1e634119b5f50167A650B7109B8965350);
-            uniFiAVSManagerAddress = address(0x5CcEa336064524a3D7d636e33BFd53f2917F27A0);
-            avsDirectoryAddress = address(0x5d0F57C63Bd70843dc600A6da78fEcC7c390Cb34);
-        } else if (block.chainid == 1) {
-            // Ethereum mainnet
-            delegationManagerAddress = address(0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A);
-            eigenPodManagerAddress = address(0x91E677b07F7AF907ec9a428aafA9fc14a0d3A338);
-            uniFiAVSManagerAddress = address(0x2d86E90ED40a034C753931eE31b1bD5E1970113d);
-            avsDirectoryAddress = address(0x135DDa560e946695d6f155dACaFC6f1F25C1F5AF);
-        } else if (block.chainid == 17000) {
-            // Holesky testnet
-            delegationManagerAddress = address(0xA44151489861Fe9e3055d95adC98FbD462B948e7);
-            eigenPodManagerAddress = address(0x30770d7E3e71112d7A6b7259542D1f680a70e315);
-            uniFiAVSManagerAddress = address(0x89F967F4548705809c1a5B85a33C29B1A83434E1);
-            avsDirectoryAddress = address(0x055733000064333CaDDbC92763c58BF0192fFeBf);
-        } else {
-            // For other networks, you might want to revert or set default values
-            revert("Unsupported network");
-        }
+        isHelderChain = block.chainid == helder;
 
+        avsDirectoryAddress = _getAVSDirectory();
+        eigenPodManagerAddress = _getEigenPodManager();
+        delegationManagerAddress = _getEigenDelegationManager();
         // Initialize the contract instances with their deployed addresses
-        delegationManager = IDelegationManager(delegationManagerAddress);
-        eigenPodManager = IEigenPodManager(eigenPodManagerAddress);
-        uniFiAVSManager = UniFiAVSManager(uniFiAVSManagerAddress);
-        avsDirectory = IAVSDirectory(avsDirectoryAddress);
+        delegationManager = IDelegationManager(_getEigenDelegationManager());
+        eigenPodManager = IEigenPodManager(_getEigenPodManager());
+        uniFiAVSManagerAddress = _getUnifyAVSManagerProxy();
+        uniFiAVSManager = IUniFiAVSManager(_getUnifyAVSManagerProxy());
+        avsDirectory = IAVSDirectory(_getAVSDirectory());
     }
 
     // Helder-only functions
@@ -162,7 +138,7 @@ contract UniFiAVSScripts is Script {
             validators[i] = IEigenPod.ValidatorInfo({
                 validatorIndex: uint64(index),
                 restakedBalanceGwei: 0,
-                mostRecentBalanceUpdateTimestamp: 0,
+                lastCheckpointedAt: 0,
                 status: IEigenPod.VALIDATOR_STATUS.ACTIVE
             });
 
@@ -196,7 +172,7 @@ contract UniFiAVSScripts is Script {
             validators[i] = IEigenPod.ValidatorInfo({
                 validatorIndex: validatorIndices[i],
                 restakedBalanceGwei: 0,
-                mostRecentBalanceUpdateTimestamp: 0,
+                lastCheckpointedAt: 0,
                 status: IEigenPod.VALIDATOR_STATUS.ACTIVE
             });
 
@@ -229,9 +205,6 @@ contract UniFiAVSScripts is Script {
         // Step 3: Register the Operator
         registerOperatorToUniFiAVSWithDelegateKey(signerPk, delegateKey);
 
-        // Step 4: Update the commitment to activate the operator
-        updateOperatorCommitment();
-
         // Step 4: Add validators to pod and register them to the AVS
         addValidatorsFromJsonFile(filePath, podOwner);
     }
@@ -259,10 +232,7 @@ contract UniFiAVSScripts is Script {
         // Step 3: Register the Operator
         registerOperatorToUniFiAVSWithDelegateKey(signerPk, delegateKey);
 
-        // Step 4: Update the commitment to activate the operator
-        updateOperatorCommitment();
-
-        // Step 5: Add validators to pod and register them to the AVS
+        // Step 4: Add validators to pod and register them to the AVS
         addValidatorsToEigenPodAndRegisterToAVS(podOwner, pubkeys, validatorIndices);
     }
 
@@ -313,9 +283,13 @@ contract UniFiAVSScripts is Script {
             MockDelegationManager(address(delegationManager)).setOperator(operator, true);
             MockDelegationManager(address(delegationManager)).setDelegation(staker, operator);
         } else {
-            delegationManager.delegateToBySignature(
-                staker, operator, stakerSignatureAndExpiry, approverSignatureAndExpiry, approverSalt
-            );
+            delegationManager.delegateToBySignature({
+                staker: staker,
+                operator: operator,
+                stakerSignatureAndExpiry: stakerSignatureAndExpiry,
+                approverSignatureAndExpiry: approverSignatureAndExpiry,
+                approverSalt: approverSalt
+            });
         }
         vm.stopBroadcast();
     }
@@ -347,17 +321,19 @@ contract UniFiAVSScripts is Script {
     /// @notice Registers an operator with the UniFiAVSManager and sets the initial commitment
     /// @param signerPk The private key of the signer
     /// @param initialCommitment The initial commitment for the operator
-    function registerOperatorToUniFiAVS(uint256 signerPk, OperatorCommitment memory initialCommitment) public {
+    function registerOperatorToUniFiAVS(uint256 signerPk, IUniFiAVSManager.OperatorCommitment memory initialCommitment)
+        public
+    {
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
 
         vm.startBroadcast();
-        (, operatorSignature) = _getOperatorSignature(
-            signerPk,
-            msg.sender,
-            uniFiAVSManagerAddress,
-            bytes32(keccak256(abi.encodePacked(block.timestamp, msg.sender))),
-            type(uint256).max
-        );
+        (, operatorSignature) = _getOperatorSignature({
+            _operatorPrivateKey: signerPk,
+            operator: msg.sender,
+            avs: uniFiAVSManagerAddress,
+            salt: bytes32(keccak256(abi.encodePacked(block.timestamp, msg.sender))),
+            expiry: type(uint256).max
+        });
         uniFiAVSManager.registerOperator(operatorSignature);
         uniFiAVSManager.setOperatorCommitment(initialCommitment);
         vm.stopBroadcast();
@@ -375,13 +351,13 @@ contract UniFiAVSScripts is Script {
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
 
         vm.startBroadcast();
-        (, operatorSignature) = _getOperatorSignature(
-            signerPk,
-            msg.sender,
-            uniFiAVSManagerAddress,
-            bytes32(keccak256(abi.encodePacked(block.timestamp, msg.sender))),
-            type(uint256).max
-        );
+        (, operatorSignature) = _getOperatorSignature({
+            _operatorPrivateKey: signerPk,
+            operator: msg.sender,
+            avs: uniFiAVSManagerAddress,
+            salt: bytes32(keccak256(abi.encodePacked(block.timestamp, msg.sender))),
+            expiry: type(uint256).max
+        });
         uniFiAVSManager.registerOperator(operatorSignature);
 
         vm.stopBroadcast();
@@ -394,19 +370,20 @@ contract UniFiAVSScripts is Script {
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
 
         vm.startBroadcast();
-        (, operatorSignature) = _getOperatorSignature(
-            signerPk,
-            msg.sender,
-            uniFiAVSManagerAddress,
-            bytes32(keccak256(abi.encodePacked(block.timestamp, msg.sender))),
-            type(uint256).max
-        );
+        (, operatorSignature) = _getOperatorSignature({
+            _operatorPrivateKey: signerPk,
+            operator: msg.sender,
+            avs: uniFiAVSManagerAddress,
+            salt: bytes32(keccak256(abi.encodePacked(block.timestamp, msg.sender))),
+            expiry: type(uint256).max
+        });
         uniFiAVSManager.registerOperator(operatorSignature);
 
-        uint256 chainIDBitMap = DEFAULT_CHAIN_BITMAP;
+        uint256[] memory chainIds = new uint256[](1);
+        chainIds[0] = 1;
 
-        OperatorCommitment memory initialCommitment =
-            OperatorCommitment({ delegateKey: delegateKey, chainIDBitMap: chainIDBitMap });
+        IUniFiAVSManager.OperatorCommitment memory initialCommitment =
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: delegateKey, chainIds: chainIds });
 
         uniFiAVSManager.setOperatorCommitment(initialCommitment);
         vm.stopBroadcast();
@@ -414,17 +391,9 @@ contract UniFiAVSScripts is Script {
 
     /// @notice Sets the operator's commitment
     /// @param newCommitment The new commitment for the operator
-    function setOperatorCommitment(OperatorCommitment memory newCommitment) public {
+    function setOperatorCommitment(IUniFiAVSManager.OperatorCommitment memory newCommitment) public {
         vm.startBroadcast();
         uniFiAVSManager.setOperatorCommitment(newCommitment);
-        vm.stopBroadcast();
-    }
-
-    /// @notice Updates the operator's commitment after the delay period
-    /// @dev This function can only be called after the deregistration delay has passed since setOperatorCommitment() was called
-    function updateOperatorCommitment() public {
-        vm.startBroadcast();
-        uniFiAVSManager.updateOperatorCommitment();
         vm.stopBroadcast();
     }
 
@@ -474,7 +443,7 @@ contract UniFiAVSScripts is Script {
         return result;
     }
 
-    function getOperator(address operator) public view returns (OperatorDataExtended memory) {
+    function getOperator(address operator) public view returns (IUniFiAVSManager.OperatorDataExtended memory) {
         return uniFiAVSManager.getOperator(operator);
     }
 }

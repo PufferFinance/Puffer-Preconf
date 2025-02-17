@@ -1,17 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import "forge-std/Test.sol";
+import { Test } from "forge-std/Test.sol";
 import { BaseScript } from "../../script/BaseScript.s.sol";
 import { DeployEverything } from "../../script/DeployEverything.s.sol";
 import { AVSDeployment } from "../../script/DeploymentStructs.sol";
-import "../../src/UniFiAVSManager.sol";
-import "../mocks/MockEigenPodManager.sol";
-import "../mocks/MockDelegationManager.sol";
-import "../mocks/MockAVSDirectory.sol";
-import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
+import { UniFiAVSManager } from "../../src/UniFiAVSManager.sol";
+import { MockEigenPodManager } from "../mocks/MockEigenPodManager.sol";
+import { MockDelegationManager } from "../mocks/MockDelegationManager.sol";
+import { MockAVSDirectory } from "../mocks/MockAVSDirectory.sol";
+import { MockStrategyManager } from "../mocks/MockStrategyManager.sol";
+import { MockRewardsCoordinator } from "../mocks/MockRewardsCoordinator.sol";
+import { MockERC20 } from "../mocks/MockERC20.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
-import "forge-std/console.sol";
+import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 
 contract UnitTestHelper is Test, BaseScript {
     address public constant ADDRESS_ZERO = address(0);
@@ -28,10 +30,12 @@ contract UnitTestHelper is Test, BaseScript {
     MockEigenPodManager public mockEigenPodManager;
     MockDelegationManager public mockDelegationManager;
     MockAVSDirectory public mockAVSDirectory;
-
+    MockStrategyManager public mockStrategyManager;
+    MockRewardsCoordinator public mockRewardsCoordinator;
+    MockERC20 public mockERC20;
     address public DAO = makeAddr("DAO");
     address public COMMUNITY_MULTISIG = makeAddr("communityMultisig");
-    address public OPERATIONS_MULTISIG = makeAddr("operationsMultisig");
+    address public OPERATIONS_MULTISIG = address(0x031337);
 
     uint256 public operatorPrivateKey = 0xA11CE;
     address public operator = vm.addr(operatorPrivateKey);
@@ -72,13 +76,17 @@ contract UnitTestHelper is Test, BaseScript {
         mockEigenPodManager = new MockEigenPodManager();
         mockDelegationManager = new MockDelegationManager();
         mockAVSDirectory = new MockAVSDirectory();
+        mockStrategyManager = new MockStrategyManager();
+        mockRewardsCoordinator = new MockRewardsCoordinator(IStrategyManager(address(mockStrategyManager)));
+        AVSDeployment memory avsDeployment = new DeployEverything().run({
+            eigenPodManager: address(mockEigenPodManager),
+            eigenDelegationManager: address(mockDelegationManager),
+            avsDirectory: address(mockAVSDirectory),
+            rewardsCoordinator: address(mockRewardsCoordinator),
+            initialDeregistrationDelay: DEREGISTRATION_DELAY
+        });
 
-        AVSDeployment memory avsDeployment = new DeployEverything().run(
-            address(mockEigenPodManager),
-            address(mockDelegationManager),
-            address(mockAVSDirectory),
-            DEREGISTRATION_DELAY
-        );
+        mockERC20 = new MockERC20("MockERC20", "MKR", 1000);
 
         // accessManager = AccessManager(avsDeployment.accessManager);
         timelock = avsDeployment.timelock;

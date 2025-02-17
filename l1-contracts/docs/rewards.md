@@ -45,3 +45,12 @@ The rewards distribution mechanism in UniFi AVS is designed to provide a consist
    - Potentially lower fees due to increased competition among validators.
 
 This reward structure aims to create a win-win situation for validators and the Ethereum network, promoting the adoption of pre-confirmations and enhancing the overall user experience on Ethereum.
+
+
+## Claiming the Rewards
+1. Rewards are distributed at the end of every 2 weeks where AVS preconfs participation rewards are calculated for each operator per their validators' performance.
+   - All the fees accrued during this 2 week period is deposited into the AVS and is distributed to each operator based on the amount of actively participating (registered) validators they had.
+   - If an operator has deregistered a validator at any moment during this 2 week window, the operator will not be given any rewards for that particular validator.
+   - If a validator missed a block, thus failing to submit the preconf on-chain, then its operator's rewards are penalized. Missing a block invalidates all rewards for that particular validator and it is then removed from the total number of validators. In other words, if a validator missed a block in this 2 week period, it accrues no rewards for the operator.
+2. Operators can claim their rewards directly from the EigenLayer app. Alternatively they can also generate the calldata to claim rewards from the EigenLayer Rewards Updater (sidecar) public repository.
+   - The rewards will be available once EigenLayer submits the rewards proof on-chain. This usually happens once every 2 weeks, but for latest information refer to their own docs.

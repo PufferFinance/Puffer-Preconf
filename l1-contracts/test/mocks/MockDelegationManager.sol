@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import "eigenlayer/interfaces/IDelegationManager.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 
 contract MockDelegationManager {
-    mapping(address => bool) public operators;
-    mapping(address => address) public delegations;
-    mapping(address => mapping(IStrategy => uint256)) public operatorShares;
+    mapping(address operator => bool isOperator) public operators;
+    mapping(address podOwner => address delegatee) public delegations;
+    mapping(address operator => mapping(IStrategy strategy => uint256 amount)) public operatorShares;
 
     function isOperator(address operator) external view returns (bool) {
         return operators[operator];

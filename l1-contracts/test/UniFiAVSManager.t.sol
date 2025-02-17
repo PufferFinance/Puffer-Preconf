@@ -1,25 +1,27 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import "forge-std/Test.sol";
-import "../src/UniFiAVSManager.sol";
-import "../src/interfaces/IUniFiAVSManager.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
-import "../src/structs/ValidatorData.sol";
-import "../src/structs/OperatorData.sol";
-import "./mocks/MockEigenPodManager.sol";
-import "./mocks/MockDelegationManager.sol";
-import "./mocks/MockAVSDirectory.sol";
-import "eigenlayer-middleware/libraries/BN254.sol";
-import "eigenlayer-middleware/interfaces/IBLSApkRegistry.sol";
+import { IUniFiAVSManager } from "../src/interfaces/IUniFiAVSManager.sol";
+import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
+import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
+import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
+import { BN254 } from "eigenlayer-middleware/libraries/BN254.sol";
+import { IBLSApkRegistry } from "eigenlayer-middleware/interfaces/IBLSApkRegistry.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { UnitTestHelper } from "../test/helpers/UnitTestHelper.sol";
+import { UniFiAVSManager } from "../src/UniFiAVSManager.sol";
+import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
+import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
+import { IERC20Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 contract UniFiAVSManagerTest is UnitTestHelper {
     using BN254 for BN254.G1Point;
     using Strings for uint256;
 
-    bytes delegatePubKey = abi.encodePacked(uint256(1337));
+    bytes internal delegatePubKey = abi.encodePacked(uint256(1337));
 
     // TEST HELPERS
 
@@ -57,13 +59,11 @@ contract UniFiAVSManagerTest is UnitTestHelper {
     }
 
     // With ECDSA key, he sign the hash confirming that the operator wants to be registered to a certain restaking service
-    function _getOperatorSignature(
-        uint256 _operatorPrivateKey,
-        address _operator,
-        address avs,
-        bytes32 salt,
-        uint256 expiry
-    ) internal view returns (bytes32 digestHash, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) {
+    function _getOperatorSignature(uint256 _operatorPrivateKey, address avs, bytes32 salt, uint256 expiry)
+        internal
+        view
+        returns (bytes32 digestHash, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature)
+    {
         operatorSignature.expiry = expiry;
         operatorSignature.salt = salt;
         {
@@ -82,10 +82,15 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
     function _registerOperatorParams(bytes32 salt, uint256 expiry)
         internal
+        view
         returns (ISignatureUtils.SignatureWithSaltAndExpiry memory)
     {
-        (bytes32 digestHash, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) =
-            _getOperatorSignature(operatorPrivateKey, operator, address(avsManager), salt, expiry);
+        (, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) = _getOperatorSignature({
+            _operatorPrivateKey: operatorPrivateKey,
+            avs: address(avsManager),
+            salt: salt,
+            expiry: expiry
+        });
 
         return operatorSignature;
     }
@@ -97,24 +102,23 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.prank(operator);
         avsManager.registerOperator(operatorSignature);
 
-        _setOperatorCommitment(operator, delegatePubKey, 0);
+        _setOperatorCommitment(operator, delegatePubKey, new uint256[](0));
     }
 
-    function _setOperatorCommitment(address _operator, bytes memory _delegateKey, uint256 _chainIDBitMap) internal {
+    function _setOperatorCommitment(address _operator, bytes memory _delegateKey, uint256[] memory _chainIds)
+        internal
+    {
         vm.prank(_operator);
         avsManager.setOperatorCommitment(
-            OperatorCommitment({ delegateKey: _delegateKey, chainIDBitMap: _chainIDBitMap })
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: _delegateKey, chainIds: _chainIds })
         );
 
         vm.roll(block.number + avsManager.getDeregistrationDelay());
-
-        vm.prank(_operator);
-        avsManager.updateOperatorCommitment();
     }
 
     // BEGIN TESTS
 
-    function testInitialize() public {
+    function testInitialize() public view {
         // todo add appropriate initialization checks here
         assertTrue(address(avsManager) != address(0));
     }
@@ -125,11 +129,9 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         _registerOperator();
         assertTrue(mockAVSDirectory.isOperatorRegistered(operator));
 
-        OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
+        IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.commitment.delegateKey, delegatePubKey);
-        assertEq(operatorData.commitment.chainIDBitMap, 0);
-        assertEq(operatorData.pendingCommitment.delegateKey, "");
-        assertEq(operatorData.pendingCommitment.chainIDBitMap, 0);
+        assertEq(operatorData.commitment.chainIds.length, 0);
     }
 
     function testRegisterOperator() public {
@@ -147,12 +149,12 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
         assertTrue(mockAVSDirectory.isOperatorRegistered(operator));
 
-        OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
+        IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.validatorCount, 0);
         assertEq(operatorData.commitment.delegateKey, "");
-        assertEq(operatorData.commitment.chainIDBitMap, 0);
+        assertEq(operatorData.commitment.chainIds.length, 0);
         assertEq(operatorData.pendingCommitment.delegateKey, "");
-        assertEq(operatorData.pendingCommitment.chainIDBitMap, 0);
+        assertEq(operatorData.pendingCommitment.chainIds.length, 0);
         assertEq(operatorData.startDeregisterOperatorBlock, 0);
         assertEq(operatorData.commitmentValidAfter, 0);
         assertTrue(operatorData.isRegistered);
@@ -182,8 +184,11 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature =
             _registerOperatorParams({ salt: bytes32(uint256(1)), expiry: uint256(block.timestamp + 1 days) });
 
-        OperatorCommitment memory initialCommitment =
-            OperatorCommitment({ delegateKey: delegatePubKey, chainIDBitMap: 2 });
+        uint256[] memory chainIds = new uint256[](1);
+        chainIds[0] = 1;
+
+        IUniFiAVSManager.OperatorCommitment memory initialCommitment =
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: delegatePubKey, chainIds: chainIds });
 
         vm.expectEmit(true, false, false, true);
         emit IUniFiAVSManager.OperatorRegisteredWithCommitment(operator, initialCommitment);
@@ -193,12 +198,13 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
         assertTrue(mockAVSDirectory.isOperatorRegistered(operator));
 
-        OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
+        IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.validatorCount, 0);
         assertEq(operatorData.commitment.delegateKey, delegatePubKey);
-        assertEq(operatorData.commitment.chainIDBitMap, 2);
+        assertEq(operatorData.commitment.chainIds.length, 1);
+        assertEq(operatorData.commitment.chainIds[0], 1);
         assertEq(operatorData.pendingCommitment.delegateKey, "");
-        assertEq(operatorData.pendingCommitment.chainIDBitMap, 0);
+        assertEq(operatorData.pendingCommitment.chainIds.length, 0);
         assertEq(operatorData.startDeregisterOperatorBlock, 0);
         assertEq(operatorData.commitmentValidAfter, 0);
         assertTrue(operatorData.isRegistered);
@@ -222,16 +228,22 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.prank(operator);
         avsManager.registerValidators(podOwner, blsPubKeyHashes);
 
-        OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
+        IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.validatorCount, 2);
         assertEq(operatorData.commitment.delegateKey, delegatePubKey);
 
         for (uint256 i = 0; i < blsPubKeyHashes.length; i++) {
-            ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[i]);
+            IUniFiAVSManager.ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[i]);
             assertEq(validatorData.eigenPod, address(mockEigenPodManager.getPod(podOwner)));
             assertEq(validatorData.operator, operator);
             assertTrue(validatorData.backedByStake);
         }
+
+        IUniFiAVSManager.ValidatorDataExtended[] memory validators = avsManager.getValidators(blsPubKeyHashes);
+        assertEq(validators.length, 2, "should return 2 validators");
+
+        IUniFiAVSManager.ValidatorDataExtended memory validator = avsManager.getValidatorByIndex(uint64(uint256(blsPubKeyHashes[0])));
+        assertEq(validator.operator, operator, "should return the correct operator");
     }
 
     function testRegisterValidators_OperatorNotRegistered() public {
@@ -255,7 +267,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         _setupValidators(blsPubKeyHashes);
 
         // Clear the delegate key
-        _setOperatorCommitment(operator, "", 0);
+        _setOperatorCommitment(operator, "", new uint256[](0));
 
         vm.prank(operator);
         vm.expectRevert(IUniFiAVSManager.DelegateKeyNotSet.selector);
@@ -307,10 +319,9 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.prank(operator);
         avsManager.registerValidators(podOwner, blsPubKeyHashes);
 
-        OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
+        IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.validatorCount, 2);
 
-        uint256 initialBlockNumber = block.number;
         vm.prank(operator);
         avsManager.deregisterValidators(blsPubKeyHashes);
 
@@ -318,32 +329,8 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         assertEq(operatorData.validatorCount, 0, "all validators should be deregistered");
 
         for (uint256 i = 0; i < blsPubKeyHashes.length; i++) {
-            ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[i]);
-            assertTrue(validatorData.registered, "Validator should be registered");
-        }
-
-        // Advance block number to just before the deregistration delay
-        vm.roll(initialBlockNumber + avsManager.getDeregistrationDelay() - 1);
-
-        for (uint256 i = 0; i < blsPubKeyHashes.length; i++) {
-            ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[i]);
-            assertTrue(validatorData.registered, "Validator should be registered before deregistrationDelay blocks");
-        }
-
-        // Advance block number to the deregistration delay
-        vm.roll(initialBlockNumber + avsManager.getDeregistrationDelay());
-
-        for (uint256 i = 0; i < blsPubKeyHashes.length; i++) {
-            ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[i]);
-            assertFalse(validatorData.registered, "Validator should not be registered at deregistrationDelay blocks");
-        }
-
-        // Advance block number past the deregistration delay
-        vm.roll(initialBlockNumber + avsManager.getDeregistrationDelay() + 1);
-
-        for (uint256 i = 0; i < blsPubKeyHashes.length; i++) {
-            ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[i]);
-            assertFalse(validatorData.registered, "Validator should not be registered after deregistrationDelay blocks");
+            IUniFiAVSManager.ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[i]);
+            assertFalse(validatorData.registered, "Validator should not be registered");
         }
     }
 
@@ -373,7 +360,6 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
         // Setup and register the second operator
         address secondOperator = address(0x456);
-        uint256 secondOperatorPrivateKey = 789;
         vm.prank(secondOperator);
         mockDelegationManager.setOperator(secondOperator, true);
 
@@ -389,7 +375,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         avsManager.deregisterValidators(blsPubKeyHashes);
 
         // Verify that the validators are still registered to the first operator
-        OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
+        IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.validatorCount, 1);
     }
 
@@ -403,7 +389,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.prank(operator);
         avsManager.startDeregisterOperator();
 
-        OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
+        IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.startDeregisterOperatorBlock, uint64(block.number));
     }
 
@@ -521,7 +507,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         address randomAddress = makeAddr("random");
         mockDelegationManager.setDelegation(podOwner, randomAddress);
 
-        ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[0]);
+        IUniFiAVSManager.ValidatorDataExtended memory validatorData = avsManager.getValidator(blsPubKeyHashes[0]);
 
         assertEq(validatorData.operator, operator);
         assertFalse(validatorData.backedByStake, "backedByStake should be false when delegated to a different address");
@@ -532,20 +518,25 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         _registerOperator();
 
         bytes memory newDelegateKey = abi.encodePacked(uint256(2));
-        uint256 newChainIDBitMap = 3; // 0b11
+        uint256[] memory newChainIds = new uint256[](2);
+        newChainIds[0] = 1;
+        newChainIds[1] = 1337;
 
         vm.prank(operator);
         avsManager.setOperatorCommitment(
-            OperatorCommitment({ delegateKey: newDelegateKey, chainIDBitMap: newChainIDBitMap })
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: newDelegateKey, chainIds: newChainIds })
         );
 
-        OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
+        IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.commitment.delegateKey, delegatePubKey, "Delegate key should not change immediately");
-        assertEq(operatorData.commitment.chainIDBitMap, 0, "Chain ID bitmap should not change immediately");
+        assertEq(operatorData.commitment.chainIds.length, 0, "Chain IDs should not change immediately");
         assertEq(operatorData.pendingCommitment.delegateKey, newDelegateKey, "Pending delegate key should be set");
         assertEq(
-            operatorData.pendingCommitment.chainIDBitMap, newChainIDBitMap, "Pending chain ID bitmap should be set"
+            operatorData.pendingCommitment.chainIds.length, newChainIds.length, "Pending chain IDs should be set"
         );
+        for (uint256 i = 0; i < newChainIds.length; i++) {
+            assertEq(operatorData.pendingCommitment.chainIds[i], newChainIds[i], "Pending chain ID should be set");
+        }
         assertEq(
             operatorData.commitmentValidAfter,
             block.number + avsManager.getDeregistrationDelay(),
@@ -553,104 +544,17 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         );
     }
 
-    function testUpdateOperatorCommitment() public {
-        _setupOperator();
-        _registerOperator();
-
-        bytes memory newDelegateKey = abi.encodePacked(uint256(2));
-        uint256 newChainIDBitMap = 3; // 0b11
-
-        vm.prank(operator);
-        avsManager.setOperatorCommitment(
-            OperatorCommitment({ delegateKey: newDelegateKey, chainIDBitMap: newChainIDBitMap })
-        );
-
-        // advance to the update block
-        vm.roll(block.number + avsManager.getDeregistrationDelay());
-
-        vm.expectEmit(true, false, false, true);
-        emit IUniFiAVSManager.OperatorCommitmentSet(
-            operator,
-            OperatorCommitment({ delegateKey: delegatePubKey, chainIDBitMap: 0 }),
-            OperatorCommitment({ delegateKey: newDelegateKey, chainIDBitMap: newChainIDBitMap })
-        );
-
-        vm.prank(operator);
-        avsManager.updateOperatorCommitment();
-
-        OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
-        assertEq(operatorData.commitment.delegateKey, newDelegateKey, "Delegate key should be updated");
-        assertEq(operatorData.commitment.chainIDBitMap, newChainIDBitMap, "Chain ID bitmap should be updated");
-        assertEq(operatorData.pendingCommitment.delegateKey, "", "Pending delegate key should be cleared");
-        assertEq(operatorData.pendingCommitment.chainIDBitMap, 0, "Pending chain ID bitmap should be cleared");
-        assertEq(operatorData.commitmentValidAfter, 0, "Commitment valid after should be reset");
-    }
-
-    function testUpdateOperatorCommitment_TooEarly() public {
-        _setupOperator();
-        _registerOperator();
-
-        bytes memory newDelegateKey = abi.encodePacked(uint256(2));
-        uint256 newChainIDBitMap = 3; // 0b11
-
-        vm.prank(operator);
-        avsManager.setOperatorCommitment(
-            OperatorCommitment({ delegateKey: newDelegateKey, chainIDBitMap: newChainIDBitMap })
-        );
-
-        vm.roll(block.number + avsManager.getDeregistrationDelay() - 1);
-
-        vm.expectRevert(IUniFiAVSManager.CommitmentChangeNotReady.selector);
-        vm.prank(operator);
-        avsManager.updateOperatorCommitment();
-    }
-
     function testSetOperatorCommitment_NotRegistered() public {
         bytes memory newDelegateKey = abi.encodePacked(uint256(2));
-        uint256 newChainIDBitMap = 3; // 0b11
+        uint256[] memory newChainIds = new uint256[](2);
+        newChainIds[0] = 1;
+        newChainIds[1] = 1337;
 
         vm.prank(operator);
         vm.expectRevert(IUniFiAVSManager.OperatorNotRegistered.selector);
         avsManager.setOperatorCommitment(
-            OperatorCommitment({ delegateKey: newDelegateKey, chainIDBitMap: newChainIDBitMap })
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: newDelegateKey, chainIds: newChainIds })
         );
-    }
-
-    function testSetAndGetChainID() public {
-        vm.startPrank(DAO);
-
-        uint256 chainID1 = 1; // Ethereum Mainnet
-        uint256 chainID2 = 10; // Optimism
-
-        avsManager.setChainID(1, chainID1);
-        avsManager.setChainID(2, chainID2);
-
-        assertEq(avsManager.getChainID(1), chainID1, "ChainID at index 1 should match");
-        assertEq(avsManager.getChainID(2), chainID2, "ChainID at index 2 should match");
-
-        vm.stopPrank();
-    }
-
-    function testSetChainIDOutOfBounds() public {
-        vm.startPrank(DAO);
-
-        vm.expectRevert(IUniFiAVSManager.IndexOutOfBounds.selector);
-        avsManager.setChainID(0, 1);
-
-        vm.stopPrank();
-    }
-
-    function testSetChainIDUnauthorized() public {
-        address unauthorizedUser = address(0x1234);
-        vm.prank(unauthorizedUser);
-        vm.expectRevert(); // todo get correct Unauthorized.selector
-        avsManager.setChainID(0, 1);
-    }
-
-    function testGetChainIDOutOfBounds() public {
-        uint256 chainID = avsManager.getChainID(0);
-
-        assertEq(chainID, 0, "Should return zero");
     }
 
     function testSetDeregistrationDelayUnauthorized() public {
@@ -658,69 +562,6 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.prank(unauthorizedUser);
         vm.expectRevert(); // todo get correct Unauthorized.selector
         avsManager.setDeregistrationDelay(100);
-    }
-
-    function testBitmapToChainIDs() public {
-        vm.startPrank(DAO);
-
-        avsManager.setChainID(1, 1); // Ethereum Mainnet
-        avsManager.setChainID(2, 10); // Optimism
-        avsManager.setChainID(3, 137); // Polygon
-        avsManager.setChainID(255, 1111); // New chain ID at index 255
-
-        uint256 bitmap = 0x800000000000000000000000000000000000000000000000000000000000000e; // 0b1000...1110 (255th and 1st, 2nd, 3rd bits set)
-
-        uint256[] memory chainIDs = avsManager.bitmapToChainIDs(bitmap);
-
-        assertEq(chainIDs.length, 4, "Should return 4 chainIDs");
-        assertEq(chainIDs[0], 1, "First chainID should match");
-        assertEq(chainIDs[1], 10, "Second chainID should match");
-        assertEq(chainIDs[2], 137, "Third chainID should match");
-        assertEq(chainIDs[3], 1111, "Fourth chainID should match");
-
-        vm.stopPrank();
-    }
-
-    function testBitmapToChainIDsWithGaps() public {
-        vm.startPrank(DAO);
-
-        avsManager.setChainID(1, 1); // Ethereum Mainnet
-        avsManager.setChainID(3, 137); // Polygon
-
-        uint256 bitmap = 0xA; // 0b1010
-
-        uint256[] memory chainIDs = avsManager.bitmapToChainIDs(bitmap);
-
-        assertEq(chainIDs.length, 2, "Should return 2 chainIDs");
-        assertEq(chainIDs[0], 1, "First chainID should match");
-        assertEq(chainIDs[1], 137, "Second chainID should match");
-
-        vm.stopPrank();
-    }
-
-    function testGetBitmapIndex() public {
-        vm.startPrank(DAO);
-
-        uint32 chainID1 = 1; // Ethereum Mainnet
-        uint32 chainID2 = 10; // Optimism
-
-        avsManager.setChainID(1, chainID1);
-        avsManager.setChainID(2, chainID2);
-
-        assertEq(avsManager.getBitmapIndex(chainID1), 1, "Bitmap index for chainID1 should be 1");
-        assertEq(avsManager.getBitmapIndex(chainID2), 2, "Bitmap index for chainID2 should be 2");
-
-        vm.stopPrank();
-    }
-
-    function testGetBitmapIndexNonExistent() public {
-        uint32 nonExistentChainID = 999;
-
-        assertEq(
-            avsManager.getBitmapIndex(nonExistentChainID),
-            0,
-            "Bitmap index for non-existent chainID should be type(uint8).max"
-        );
     }
 
     function testIsValidatorInChainId() public {
@@ -731,16 +572,11 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         _registerOperator();
         _setupValidators(blsPubKeyHashes);
 
-        // Set chain IDs
-        vm.startPrank(DAO);
-        avsManager.setChainID(1, 1); // Ethereum Mainnet
-        avsManager.setChainID(2, 10); // Optimism
-        avsManager.setChainID(3, 137); // Polygon
-        vm.stopPrank();
+        uint256[] memory chainIds = new uint256[](2);
+        chainIds[0] = 1;
+        chainIds[1] = 137;
 
-        // Set a chainIDBitMap for the operator
-        uint256 chainIDBitMap = 0x5; // 0b101, active for chain IDs at index 1 and 3
-        _setOperatorCommitment(operator, delegatePubKey, chainIDBitMap);
+        _setOperatorCommitment(operator, delegatePubKey, chainIds);
 
         vm.prank(operator);
         avsManager.registerValidators(podOwner, blsPubKeyHashes);
@@ -753,7 +589,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         );
     }
 
-    function testIsValidatorInChainId_ValidatorNotFound() public {
+    function testIsValidatorInChainId_ValidatorNotFound() public view {
         bytes32 nonExistentValidator = keccak256(abi.encodePacked("nonExistentValidator"));
 
         assertFalse(
@@ -775,7 +611,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         assertEq(restakedStrategies[0], avsManager.BEACON_CHAIN_STRATEGY(), "Should return BEACON_CHAIN_STRATEGY");
     }
 
-    function testGetRestakeableStrategies() public {
+    function testGetRestakeableStrategies() public view {
         address[] memory restakeableStrategies = avsManager.getRestakeableStrategies();
 
         assertEq(restakeableStrategies.length, 1, "Should return one restakeable strategy");
@@ -790,25 +626,21 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         _registerOperator();
         _setupValidators(blsPubKeyHashes);
 
-        // Set chain IDs
-        vm.startPrank(DAO);
-        avsManager.setChainID(1, 1); // Ethereum Mainnet
-        avsManager.setChainID(2, 10); // Optimism
-        avsManager.setChainID(3, 137); // Polygon
-        vm.stopPrank();
-
-        // Initial chainIDBitMap
-        uint256 initialChainIDBitMap = 0x5; // 0b101, active for chain IDs at index 1 and 3
-        _setOperatorCommitment(operator, delegatePubKey, initialChainIDBitMap);
+        uint256[] memory initialChainIds = new uint256[](2);
+        initialChainIds[0] = 1;
+        initialChainIds[1] = 137;
+        _setOperatorCommitment(operator, delegatePubKey, initialChainIds);
 
         vm.prank(operator);
         avsManager.registerValidators(podOwner, blsPubKeyHashes);
 
         // Change the commitment
-        uint256 newChainIDBitMap = 0x6; // 0b110, active for chain IDs at index 2 and 3
+        uint256[] memory newChainIds = new uint256[](2);
+        newChainIds[0] = 10;
+        newChainIds[1] = 137;
         vm.prank(operator);
         avsManager.setOperatorCommitment(
-            OperatorCommitment({ delegateKey: delegatePubKey, chainIDBitMap: newChainIDBitMap })
+            IUniFiAVSManager.OperatorCommitment({ delegateKey: delegatePubKey, chainIds: newChainIds })
         );
 
         // Before the commitment change takes effect
@@ -819,9 +651,6 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
         // Advance to make the new commitment active
         vm.roll(block.number + avsManager.getDeregistrationDelay());
-
-        vm.prank(operator);
-        avsManager.updateOperatorCommitment();
 
         // After the commitment change takes effect
         assertFalse(
@@ -880,7 +709,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         avsManager.deregisterValidators(blsPubKeyHashes);
 
         // Verify that the second validator is still registered
-        ValidatorDataExtended memory validator = avsManager.getValidator(blsPubKeyHashes[1]);
+        IUniFiAVSManager.ValidatorDataExtended memory validator = avsManager.getValidator(blsPubKeyHashes[1]);
         assertTrue(validator.registered, "Second validator should still be registered");
 
         // Successfully deregister the second validator
@@ -1021,5 +850,117 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         address[] memory restakedStrategies = avsManager.getOperatorRestakedStrategies(operator);
 
         assertEq(restakedStrategies.length, 0, "Should return no restaked strategies for unregistered operator");
+    }
+
+    function testSubmitOperatorRewards() public {
+        // Create mock rewards submission data
+        IRewardsCoordinator.OperatorReward[] memory operatorRewards = new IRewardsCoordinator.OperatorReward[](2);
+        operatorRewards[0] = IRewardsCoordinator.OperatorReward({ operator: address(0x1), amount: 100 });
+        operatorRewards[1] = IRewardsCoordinator.OperatorReward({ operator: address(operator), amount: 200 });
+
+        IRewardsCoordinator.StrategyAndMultiplier[] memory strategiesAndMultipliers =
+            new IRewardsCoordinator.StrategyAndMultiplier[](1);
+        strategiesAndMultipliers[0] = IRewardsCoordinator.StrategyAndMultiplier({
+            strategy: IStrategy(avsManager.BEACON_CHAIN_STRATEGY()),
+            multiplier: 1
+        });
+
+        vm.warp(1737590400 + 50);
+        IRewardsCoordinator.OperatorDirectedRewardsSubmission[] memory submissions =
+            new IRewardsCoordinator.OperatorDirectedRewardsSubmission[](1);
+        submissions[0] = IRewardsCoordinator.OperatorDirectedRewardsSubmission({
+            strategiesAndMultipliers: strategiesAndMultipliers,
+            token: mockERC20,
+            operatorRewards: operatorRewards,
+            startTimestamp: uint32(block.timestamp - 2 weeks - 50),
+            duration: 2 weeks,
+            description: "test"
+        });
+
+        // Give tokens to AVS manager
+        mockERC20.mint(address(avsManager), 1000);
+
+        // Expect approval to be called with correct parameters
+        vm.expectCall(address(mockERC20), abi.encodeCall(IERC20.approve, (address(mockRewardsCoordinator), 300)));
+
+        // Expect rewards submission to be called
+        vm.expectCall(
+            address(mockRewardsCoordinator),
+            abi.encodeCall(
+                IRewardsCoordinator.createOperatorDirectedAVSRewardsSubmission, (address(avsManager), submissions)
+            )
+        );
+
+        vm.prank(OPERATIONS_MULTISIG);
+        vm.expectEmit();
+        emit IUniFiAVSManager.OperatorRewardsSubmitted();
+        avsManager.submitOperatorRewards(submissions);
+    }
+
+    function testSubmitOperatorRewards_RevertIf_InsufficientBalance() public {
+        // Create mock rewards submission data
+        IRewardsCoordinator.OperatorReward[] memory operatorRewards = new IRewardsCoordinator.OperatorReward[](1);
+        operatorRewards[0] = IRewardsCoordinator.OperatorReward({ operator: address(0x1), amount: 1000 });
+
+        IRewardsCoordinator.StrategyAndMultiplier[] memory strategiesAndMultipliers =
+            new IRewardsCoordinator.StrategyAndMultiplier[](1);
+        strategiesAndMultipliers[0] = IRewardsCoordinator.StrategyAndMultiplier({
+            strategy: IStrategy(avsManager.BEACON_CHAIN_STRATEGY()),
+            multiplier: 1
+        });
+        vm.warp(1737590400 + 50);
+        IRewardsCoordinator.OperatorDirectedRewardsSubmission[] memory submissions =
+            new IRewardsCoordinator.OperatorDirectedRewardsSubmission[](1);
+        submissions[0] = IRewardsCoordinator.OperatorDirectedRewardsSubmission({
+            strategiesAndMultipliers: strategiesAndMultipliers,
+            token: mockERC20,
+            operatorRewards: operatorRewards,
+            startTimestamp: uint32(block.timestamp - 2 weeks - 50),
+            duration: 2 weeks,
+            description: "test"
+        });
+
+        // Give insufficient tokens to AVS manager
+        mockERC20.mint(address(avsManager), 500);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, address(avsManager), 500, 1000)
+        );
+
+        vm.prank(OPERATIONS_MULTISIG);
+        avsManager.submitOperatorRewards(submissions);
+    }
+
+    function testSubmitOperatorRewards_Unauthorized() public {
+        IRewardsCoordinator.OperatorDirectedRewardsSubmission[] memory submissions =
+            new IRewardsCoordinator.OperatorDirectedRewardsSubmission[](0);
+
+        vm.prank(operator);
+        vm.expectRevert(); // Unauthorized access
+        avsManager.submitOperatorRewards(submissions);
+    }
+
+    function testSetClaimerFor() public {
+        vm.prank(OPERATIONS_MULTISIG);
+        avsManager.setClaimerFor(address(0x1337));
+
+        assertEq(mockRewardsCoordinator.claimerFor(address(avsManager)), address(0x1337));
+    }
+
+    function testSetClaimerFor_Unauthorized() public {
+        vm.prank(operator);
+        vm.expectRevert(); // Unauthorized access
+        avsManager.setClaimerFor(address(0x1337));
+    }
+    
+    function test_revertConstructor() public {
+        vm.expectRevert(IUniFiAVSManager.InvalidEigenPodManagerAddress.selector);
+        new UniFiAVSManager(IEigenPodManager(address(0)), IDelegationManager(address(0)), IAVSDirectory(address(0)), IRewardsCoordinator(address(0)));
+        vm.expectRevert(IUniFiAVSManager.InvalidEigenDelegationManagerAddress.selector);
+        new UniFiAVSManager(IEigenPodManager(address(1)), IDelegationManager(address(0)), IAVSDirectory(address(0)), IRewardsCoordinator(address(0)));
+        vm.expectRevert(IUniFiAVSManager.InvalidAVSDirectoryAddress.selector);
+        new UniFiAVSManager(IEigenPodManager(address(1)), IDelegationManager(address(1)), IAVSDirectory(address(0)), IRewardsCoordinator(address(0)));
+        vm.expectRevert(IUniFiAVSManager.InvalidRewardsCoordinatorAddress.selector);
+        new UniFiAVSManager(IEigenPodManager(address(1)), IDelegationManager(address(1)), IAVSDirectory(address(1)), IRewardsCoordinator(address(0)));
     }
 }

@@ -1,23 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import "eigenlayer/interfaces/IEigenPod.sol";
+import { IEigenPod, IEigenPodManager, IERC20, BeaconChainProofs } from "eigenlayer/interfaces/IEigenPod.sol";
 
 contract MockEigenPod is IEigenPod {
-    mapping(bytes32 => ValidatorInfo) public validators;
-    mapping(bytes32 => mapping(uint64 => bool)) public provenWithdrawals;
-    address owner;
+    mapping(bytes32 validatorPubkeyHash => ValidatorInfo validatorInfo) public validators;
+    mapping(bytes32 validatorPubkeyHash => mapping(uint64 slot => bool proven)) public provenWithdrawals;
+    address public owner;
 
     function setValidator(bytes32 pubkeyHash, ValidatorInfo calldata validator) external {
         validators[pubkeyHash].validatorIndex = validator.validatorIndex;
         validators[pubkeyHash].restakedBalanceGwei = validator.restakedBalanceGwei;
-        validators[pubkeyHash].mostRecentBalanceUpdateTimestamp = validator.mostRecentBalanceUpdateTimestamp;
+        validators[pubkeyHash].lastCheckpointedAt = validator.lastCheckpointedAt;
         validators[pubkeyHash].status = validator.status;
     }
 
     function setValidatorStatus(bytes32 pubkeyHash, VALIDATOR_STATUS status) external {
-        validators[pubkeyHash].validatorIndex =
-            validators[pubkeyHash].validatorIndex == 0 ? 1 : validators[pubkeyHash].validatorIndex;
+        validators[pubkeyHash].validatorIndex = validators[pubkeyHash].validatorIndex == 0
+            ? uint64(uint256(pubkeyHash))
+            : validators[pubkeyHash].validatorIndex;
         validators[pubkeyHash].status = status;
     }
 
@@ -85,16 +86,6 @@ contract MockEigenPod is IEigenPod {
         return 0;
     }
 
-    // Implement the missing functions
-    function verifyAndProcessWithdrawals(
-        uint64,
-        BeaconChainProofs.StateRootProof calldata,
-        BeaconChainProofs.WithdrawalProof[] calldata,
-        bytes[] calldata,
-        bytes32[][] calldata,
-        bytes32[][] calldata
-    ) external { }
-
     function verifyBalanceUpdates(
         uint64,
         uint40[] calldata,
@@ -115,4 +106,41 @@ contract MockEigenPod is IEigenPod {
     function setProvenWithdrawal(bytes32 validatorPubkeyHash, uint64 slot, bool proven) external {
         provenWithdrawals[validatorPubkeyHash][slot] = proven;
     }
+
+    /// @notice Number of validators with proven withdrawal credentials, who do not have proven full withdrawals
+    function activeValidatorCount() external view returns (uint256) { }
+
+    function checkpointBalanceExitedGwei(uint64) external view returns (uint64) { }
+
+    /// @notice The timestamp of the currently-active checkpoint. Will be 0 if there is not active checkpoint
+    function currentCheckpointTimestamp() external view returns (uint64) { }
+
+    /// @notice Returns the currently-active checkpoint
+    function currentCheckpoint() external view returns (Checkpoint memory) { }
+
+    /// @notice Query the 4788 oracle to get the parent block root of the slot with the given `timestamp`
+    /// @param timestamp of the block for which the parent block root will be returned. MUST correspond
+    /// to an existing slot within the last 24 hours. If the slot at `timestamp` was skipped, this method
+    /// will revert.
+    function getParentBlockRoot(uint64 timestamp) external view returns (bytes32) { }
+
+    /// @notice The timestamp of the last checkpoint finalized
+    function lastCheckpointTimestamp() external view returns (uint64) { }
+
+    function setProofSubmitter(address newProofSubmitter) external { }
+
+    function proofSubmitter() external view returns (address) { }
+
+    function startCheckpoint(bool revertIfNoBalance) external { }
+
+    function verifyCheckpointProofs(
+        BeaconChainProofs.BalanceContainerProof calldata balanceContainerProof,
+        BeaconChainProofs.BalanceProof[] calldata proofs
+    ) external { }
+
+    function verifyStaleBalance(
+        uint64 beaconTimestamp,
+        BeaconChainProofs.StateRootProof calldata stateRootProof,
+        BeaconChainProofs.ValidatorProof calldata proof
+    ) external { }
 }

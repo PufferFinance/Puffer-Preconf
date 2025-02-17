@@ -9,14 +9,13 @@
   "dependencies": {
     "@openzeppelin/contracts": "5.0.1",
     "@openzeppelin/contracts-upgradeable": "5.0.1",
-    "eigenlayer-contracts": "https://github.com/Layr-Labs/eigenlayer-contracts.git#1bf4c12",
-    "eigenlayer-middleware": "https://github.com/bxmmm1/eigenlayer-middleware.git#dbf6c1a"
+    "eigenlayer-contracts": "https://github.com/Layr-Labs/eigenlayer-contracts.git#ecaff63"
   },
   "devDependencies": {
     "@crytic/properties": "https://github.com/crytic/properties#f1ff61b",
     "@prb/test": "0.6.4",
     "solarray": "github:evmcheb/solarray#a547630",
-    "solhint": "^5.0.1"
+    "solhint": "^5.0.5"
   },
   "homepage": "https://puffer.fi",
   "keywords": [
@@ -37,6 +36,8 @@
     "gas": "forge test --gas-report --mp \"./test/unit/**/*.sol\"",
     "lint": "yarn run lint:sol",
     "test:unit": "forge test --mp \"./test/unit/**/*.sol\" -vvv",
+    "coverage-lcov": "forge coverage --force --no-match-coverage \"(script|test|mock|node_modules|integrations|echidna)\" --report lcov",
+    "coverage": "forge coverage --force --no-match-coverage \"(script|test|mock|node_modules|integrations|echidna)\"",
     "slither": "slither ."
   }
 }

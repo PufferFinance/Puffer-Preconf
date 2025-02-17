@@ -10,4 +10,5 @@ struct AVSDeployment {
     address accessManager;
     address timelock;
     address dao;
+    address operationsMultisig;
 }

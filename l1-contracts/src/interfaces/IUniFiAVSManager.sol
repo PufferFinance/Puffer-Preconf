@@ -3,9 +3,10 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
-import { IAVSDirectoryExtended } from "../interfaces/EigenLayer/IAVSDirectoryExtended.sol";
-import "../structs/ValidatorData.sol";
-import "../structs/OperatorData.sol";
+import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
+import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.sol";
+import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
+import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 
 /**
  * @title IUniFiAVSManager
@@ -13,6 +14,92 @@ import "../structs/OperatorData.sol";
  * @dev This interface defines the main functions and events for operator and validator management.
  */
 interface IUniFiAVSManager {
+    /**
+     * @title ValidatorData
+     * @notice Struct to store information about a validator in the UniFi AVS system.
+     * @dev This struct is used to keep track of important validator details.
+     */
+    struct ValidatorData {
+        /// @notice The address of the EigenPod associated with this validator.
+        address eigenPod;
+        /// @notice The beacon chain validator index.
+        uint64 index;
+        /// @notice The address of the operator managing this validator.
+        address operator;
+        /// @notice The block number until which the validator is registered.
+        uint64 registeredUntil;
+    }
+
+    /**
+     * @title OperatorData
+     * @notice Struct to store information about an operator in the UniFi AVS system.
+     * @dev This struct is used to keep track of important operator details.
+     */
+    struct OperatorData {
+        /// @notice The current commitment of the operator.
+        OperatorCommitment commitment;
+        /// @notice The pending commitment of the operator.
+        OperatorCommitment pendingCommitment;
+        /// @notice The number of validators associated with this operator.
+        uint128 validatorCount;
+        /// @notice The block number when the operator started the deregistration process.
+        uint64 startDeregisterOperatorBlock;
+        /// @notice The block number after which the pending commitment becomes valid.
+        uint64 commitmentValidAfter;
+    }
+
+    /**
+     * @title ValidatorDataExtended
+     * @notice Struct to store comprehensive information about a validator.
+     * @dev This struct combines ValidatorData with additional status information.
+     */
+    struct ValidatorDataExtended {
+        /// @notice The address of the operator this validator is delegated to.
+        address operator;
+        /// @notice The address of the validator's EigenPod.
+        address eigenPod;
+        /// @notice The index of the validator in the beacon chain.
+        uint64 validatorIndex;
+        /// @notice The current status of the validator in the EigenPod.
+        IEigenPod.VALIDATOR_STATUS status;
+        /// @notice The delegate key currently associated with the validator's operator.
+        bytes delegateKey;
+        /// @notice Chain IDs the validator's operator is committed to.
+        uint256[] chainIds;
+        /// @notice Indicates whether the validator's EigenPod is currently delegated to the operator.
+        bool backedByStake;
+        /// @notice Indicates whether the validator is currently registered (current block < registeredUntil).
+        bool registered;
+    }
+
+    struct OperatorCommitment {
+        /// @notice The delegate key for the operator.
+        bytes delegateKey;
+        /// @notice Chain IDs the operator is committed to.
+        uint256[] chainIds;
+    }
+
+    /**
+     * @title OperatorDataExtended
+     * @notice Struct to store extended information about an operator in the UniFi AVS system.
+     * @dev This struct combines OperatorData with additional status information.
+     */
+    struct OperatorDataExtended {
+        /// @notice The current commitment of the operator.
+        OperatorCommitment commitment;
+        /// @notice The pending commitment of the operator.
+        OperatorCommitment pendingCommitment;
+        /// @notice The number of validators associated with this operator.
+        uint128 validatorCount;
+        /// @notice The block number when the operator started the deregistration process.
+        uint128 startDeregisterOperatorBlock;
+        /// @notice The block number after which the pending commitment becomes valid.
+        uint128 commitmentValidAfter;
+        /// @notice Whether the operator is registered or not.
+        bool isRegistered;
+    }
+    // 7 bytes padding here (automatically added by the compiler)
+
     /// @notice Thrown when an operator attempts to deregister while still having validators
     error OperatorHasValidators();
 
@@ -40,9 +127,6 @@ interface IUniFiAVSManager {
     /// @notice Thrown when an action requires a registered operator, but the operator is not registered
     error OperatorNotRegistered();
 
-    /// @notice Thrown when attempting to register an operator that is already registered
-    error OperatorAlreadyRegistered();
-
     /// @notice Thrown when a non-operator attempts to deregister a validator
     error NotValidatorOperator();
 
@@ -52,23 +136,29 @@ interface IUniFiAVSManager {
     /// @notice Thrown when an operator's delegate key is not set
     error DelegateKeyNotSet();
 
-    /// @notice Thrown when a validator cannot be found
-    error ValidatorNotFound();
-
-    /// @notice Thrown when an unauthorized action is attempted
-    error Unauthorized();
-
     /// @notice Thrown when trying to update an operator commitment before the change delay has passed
     error CommitmentChangeNotReady();
-
-    /// @notice Thrown when an index is out of bounds
-    error IndexOutOfBounds();
 
     /// @notice Thrown when attempting to deregister a validator that is already deregistered
     error ValidatorAlreadyDeregistered();
 
     /// @notice Thrown when a restaking strategy allowlist update fails
     error RestakingStrategyAllowlistUpdateFailed();
+
+    /// @notice Thrown when an AVS operator status call fails
+    error AVSOperatorStatusCallFailed();
+
+    /// @notice Thrown when an invalid EigenPodManager address is provided
+    error InvalidEigenPodManagerAddress();
+
+    /// @notice Thrown when an invalid EigenDelegationManager address is provided
+    error InvalidEigenDelegationManagerAddress();
+
+    /// @notice Thrown when an invalid AVSDirectory address is provided
+    error InvalidAVSDirectoryAddress();
+
+    /// @notice Thrown when an invalid RewardsCoordinator address is provided
+    error InvalidRewardsCoordinatorAddress();
 
     /**
      * @notice Emitted when a new operator is registered in the UniFi AVS.
@@ -139,18 +229,16 @@ interface IUniFiAVSManager {
     event DeregistrationDelaySet(uint64 oldDelay, uint64 newDelay);
 
     /**
-     * @notice Emitted when a chain ID is set for a specific index.
-     * @param index The index in the bitmap.
-     * @param chainID The chain ID set for the given index.
-     */
-    event ChainIDSet(uint8 index, uint256 chainID);
-
-    /**
      * @notice Emitted when a restaking strategy is added or removed from the allowlist.
      * @param strategy The address of the strategy.
      * @param allowed Whether the strategy is allowed (true) or disallowed (false).
      */
     event RestakingStrategyAllowlistUpdated(address indexed strategy, bool allowed);
+
+    /**
+     * @notice Emitted when operator rewards are submitted.
+     */
+    event OperatorRewardsSubmitted();
 
     /**
      * @notice Returns the EigenPodManager contract.
@@ -165,10 +253,10 @@ interface IUniFiAVSManager {
     function EIGEN_DELEGATION_MANAGER() external view returns (IDelegationManager);
 
     /**
-     * @notice Returns the AVSDirectoryExtended contract.
-     * @return IAVSDirectoryExtended The AVSDirectoryExtended contract.
+     * @notice Returns the AVSDirectory contract.
+     * @return IAVSDirectory The AVSDirectory contract.
      */
-    function AVS_DIRECTORY() external view returns (IAVSDirectoryExtended);
+    function AVS_DIRECTORY() external view returns (IAVSDirectory);
 
     /**
      * @notice Registers a new operator in the UniFi AVS.
@@ -215,11 +303,6 @@ interface IUniFiAVSManager {
     function setOperatorCommitment(OperatorCommitment memory newCommitment) external;
 
     /**
-     * @notice Updates the operator's commitment after the delay period.
-     */
-    function updateOperatorCommitment() external;
-
-    /**
      * @notice Updates the metadata URI for the AVS
      * @param _metadataURI is the metadata URI for the AVS
      */
@@ -231,14 +314,6 @@ interface IUniFiAVSManager {
      * @dev Restricted to the DAO
      */
     function setDeregistrationDelay(uint64 newDelay) external;
-
-    /**
-     * @notice Sets the chain ID for a specific index in the bitmap.
-     * @param index The index in the bitmap to set.
-     * @param chainID The chain ID to set for the given index.
-     * @dev Restricted to the DAO
-     */
-    function setChainID(uint8 index, uint256 chainID) external;
 
     /**
      * @notice Add or remove a strategy address from the allowlist of restaking strategies
@@ -267,7 +342,7 @@ interface IUniFiAVSManager {
      * @param validatorIndex The index of the validator.
      * @return ValidatorDataExtended struct containing information about the validator.
      */
-    function getValidator(uint256 validatorIndex) external view returns (ValidatorDataExtended memory);
+    function getValidatorByIndex(uint256 validatorIndex) external view returns (ValidatorDataExtended memory);
 
     /**
      * @notice Retrieves information about multiple validators.
@@ -291,27 +366,6 @@ interface IUniFiAVSManager {
     function getDeregistrationDelay() external view returns (uint64);
 
     /**
-     * @notice Converts a bitmap to an array of chain IDs.
-     * @param bitmap The bitmap to convert.
-     * @return An array of chain IDs represented by the bitmap.
-     */
-    function bitmapToChainIDs(uint256 bitmap) external view returns (uint256[] memory);
-
-    /**
-     * @notice Retrieves the chain ID for a specific index.
-     * @param index The index to query.
-     * @return The chain ID associated with the given index.
-     */
-    function getChainID(uint8 index) external view returns (uint256);
-
-    /**
-     * @notice Gets the bitmap index for a given chain ID.
-     * @param chainID The chain ID to query.
-     * @return The bitmap index associated with the given chain ID.
-     */
-    function getBitmapIndex(uint256 chainID) external view returns (uint8);
-
-    /**
      * @notice Returns the list of strategies that the operator has potentially restaked on the AVS
      * @param operator The address of the operator to get restaked strategies for
      * @dev This function is intended to be called off-chain
@@ -328,6 +382,16 @@ interface IUniFiAVSManager {
      */
     function getRestakeableStrategies() external view returns (address[] memory);
 
-    /// @notice Returns the EigenLayer AVSDirectory contract.
-    function avsDirectory() external view returns (address);
+    /**
+     * @notice Submits EigenLayer rewards for operators.
+     * @param submissions The array of rewards submissions.
+     */
+    function submitOperatorRewards(IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata submissions)
+        external;
+
+    /**
+     * @notice Sets the claimer for the AVS to get excess rewards back.
+     * @param claimer The address of the claimer.
+     */
+    function setClaimerFor(address claimer) external;
 }
