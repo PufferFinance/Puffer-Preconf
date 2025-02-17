@@ -182,7 +182,6 @@ contract MockRewardsCoordinator {
     }
 
     function _setClaimer(address earner, address claimer) internal {
-        address prevClaimer = claimerFor[earner];
         claimerFor[earner] = claimer;
     }
 }
