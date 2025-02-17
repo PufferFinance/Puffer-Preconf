@@ -388,4 +388,10 @@ interface IUniFiAVSManager {
      */
     function submitOperatorRewards(IRewardsCoordinator.OperatorDirectedRewardsSubmission[] calldata submissions)
         external;
+
+    /**
+     * @notice Sets the claimer for the AVS to get excess rewards back.
+     * @param claimer The address of the claimer.
+     */
+    function setClaimerFor(address claimer) external;
 }

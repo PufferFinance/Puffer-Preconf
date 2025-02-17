@@ -27,6 +27,10 @@ contract MockRewardsCoordinator {
     /// @notice The genesis timestamp for rewards, constrained by off-chain calculation
     uint256 internal constant GENESIS_REWARDS_TIMESTAMP = 1710979200;
 
+    /// @notice Returns the `claimer` for a given `earner`.
+    /// @dev The claimer is able to call `processClaim` on behalf of the `earner`.
+    mapping(address earner => address claimer) public claimerFor;
+
     /// @notice Used for unique rewardsSubmissionHashes per AVS and for RewardsForAllSubmitters and the tokenHopper
     mapping(address avs => uint256 nonce) public submissionNonce;
 
@@ -168,5 +172,17 @@ contract MockRewardsCoordinator {
             );
             currAddress = address(strategy);
         }
+    }
+
+    function setClaimerFor(
+        address claimer
+    ) external {
+        address earner = msg.sender;
+        _setClaimer(earner, claimer);
+    }
+
+    function _setClaimer(address earner, address claimer) internal {
+        address prevClaimer = claimerFor[earner];
+        claimerFor[earner] = claimer;
     }
 }

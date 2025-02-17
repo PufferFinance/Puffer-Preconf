@@ -98,8 +98,9 @@ contract SetupAccess is BaseScript {
             accessManager.PUBLIC_ROLE()
         );
 
-        bytes4[] memory operationsMultisigSelectors = new bytes4[](1);
+        bytes4[] memory operationsMultisigSelectors = new bytes4[](2);
         operationsMultisigSelectors[0] = UniFiAVSManager.submitOperatorRewards.selector;
+        operationsMultisigSelectors[1] = UniFiAVSManager.setClaimerFor.selector;
 
         calldatas[2] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

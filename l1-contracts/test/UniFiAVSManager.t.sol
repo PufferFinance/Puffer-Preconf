@@ -940,6 +940,19 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         avsManager.submitOperatorRewards(submissions);
     }
 
+    function testSetClaimerFor() public {
+        vm.prank(OPERATIONS_MULTISIG);
+        avsManager.setClaimerFor(address(0x1337));
+
+        assertEq(mockRewardsCoordinator.claimerFor(address(avsManager)), address(0x1337));
+    }
+
+    function testSetClaimerFor_Unauthorized() public {
+        vm.prank(operator);
+        vm.expectRevert(); // Unauthorized access
+        avsManager.setClaimerFor(address(0x1337));
+    }
+    
     function test_revertConstructor() public {
         vm.expectRevert(IUniFiAVSManager.InvalidEigenPodManagerAddress.selector);
         new UniFiAVSManager(IEigenPodManager(address(0)), IDelegationManager(address(0)), IAVSDirectory(address(0)), IRewardsCoordinator(address(0)));

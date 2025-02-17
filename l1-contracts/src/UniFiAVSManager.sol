@@ -373,6 +373,10 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
         emit OperatorRewardsSubmitted();
     }
 
+    function setClaimerFor(address claimer) external restricted {
+        EIGEN_REWARDS_COORDINATOR.setClaimerFor(claimer);
+    }
+
     // GETTERS
 
     /**
