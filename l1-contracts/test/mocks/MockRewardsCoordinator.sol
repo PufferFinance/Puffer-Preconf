@@ -174,9 +174,7 @@ contract MockRewardsCoordinator {
         }
     }
 
-    function setClaimerFor(
-        address claimer
-    ) external {
+    function setClaimerFor(address claimer) external {
         address earner = msg.sender;
         _setClaimer(earner, claimer);
     }

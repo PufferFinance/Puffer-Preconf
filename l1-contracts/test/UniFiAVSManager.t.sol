@@ -242,7 +242,8 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         IUniFiAVSManager.ValidatorDataExtended[] memory validators = avsManager.getValidators(blsPubKeyHashes);
         assertEq(validators.length, 2, "should return 2 validators");
 
-        IUniFiAVSManager.ValidatorDataExtended memory validator = avsManager.getValidatorByIndex(uint64(uint256(blsPubKeyHashes[0])));
+        IUniFiAVSManager.ValidatorDataExtended memory validator =
+            avsManager.getValidatorByIndex(uint64(uint256(blsPubKeyHashes[0])));
         assertEq(validator.operator, operator, "should return the correct operator");
     }
 
@@ -531,9 +532,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         assertEq(operatorData.commitment.delegateKey, delegatePubKey, "Delegate key should not change immediately");
         assertEq(operatorData.commitment.chainIds.length, 0, "Chain IDs should not change immediately");
         assertEq(operatorData.pendingCommitment.delegateKey, newDelegateKey, "Pending delegate key should be set");
-        assertEq(
-            operatorData.pendingCommitment.chainIds.length, newChainIds.length, "Pending chain IDs should be set"
-        );
+        assertEq(operatorData.pendingCommitment.chainIds.length, newChainIds.length, "Pending chain IDs should be set");
         for (uint256 i = 0; i < newChainIds.length; i++) {
             assertEq(operatorData.pendingCommitment.chainIds[i], newChainIds[i], "Pending chain ID should be set");
         }
@@ -952,15 +951,35 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.expectRevert(); // Unauthorized access
         avsManager.setClaimerFor(address(0x1337));
     }
-    
+
     function test_revertConstructor() public {
         vm.expectRevert(IUniFiAVSManager.InvalidEigenPodManagerAddress.selector);
-        new UniFiAVSManager(IEigenPodManager(address(0)), IDelegationManager(address(0)), IAVSDirectory(address(0)), IRewardsCoordinator(address(0)));
+        new UniFiAVSManager(
+            IEigenPodManager(address(0)),
+            IDelegationManager(address(0)),
+            IAVSDirectory(address(0)),
+            IRewardsCoordinator(address(0))
+        );
         vm.expectRevert(IUniFiAVSManager.InvalidEigenDelegationManagerAddress.selector);
-        new UniFiAVSManager(IEigenPodManager(address(1)), IDelegationManager(address(0)), IAVSDirectory(address(0)), IRewardsCoordinator(address(0)));
+        new UniFiAVSManager(
+            IEigenPodManager(address(1)),
+            IDelegationManager(address(0)),
+            IAVSDirectory(address(0)),
+            IRewardsCoordinator(address(0))
+        );
         vm.expectRevert(IUniFiAVSManager.InvalidAVSDirectoryAddress.selector);
-        new UniFiAVSManager(IEigenPodManager(address(1)), IDelegationManager(address(1)), IAVSDirectory(address(0)), IRewardsCoordinator(address(0)));
+        new UniFiAVSManager(
+            IEigenPodManager(address(1)),
+            IDelegationManager(address(1)),
+            IAVSDirectory(address(0)),
+            IRewardsCoordinator(address(0))
+        );
         vm.expectRevert(IUniFiAVSManager.InvalidRewardsCoordinatorAddress.selector);
-        new UniFiAVSManager(IEigenPodManager(address(1)), IDelegationManager(address(1)), IAVSDirectory(address(1)), IRewardsCoordinator(address(0)));
+        new UniFiAVSManager(
+            IEigenPodManager(address(1)),
+            IDelegationManager(address(1)),
+            IAVSDirectory(address(1)),
+            IRewardsCoordinator(address(0))
+        );
     }
 }
