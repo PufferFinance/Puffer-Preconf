@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import "forge-std/Script.sol";
+import "./utils/ContractAddressManager.s.sol";
 
 /**
  * @title Base Script
  * @author Puffer Finance
  */
-abstract contract BaseScript is Script {
+abstract contract BaseScript is ContractAddressManager {
     uint256 internal PK = 55358659325830545179143827536745912452716312441367500916455484419538098489698; // makeAddr("pufferDeployer")
 
     // Anvil and `forge test` environment share the same chainId
