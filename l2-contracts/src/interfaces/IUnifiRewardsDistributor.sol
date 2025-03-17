@@ -8,6 +8,26 @@ import { BN254 } from "../library/BN254.sol";
  * @notice Interface for the UnifiRewardsDistributor contract
  */
 interface IUnifiRewardsDistributor {
+    /// @notice Thrown when a zero pubkey is registered
+    error CannotRegisterZeroPubKey();
+    /// @notice Thrown when a bad BLS signature is provided
+    error BadBLSSignature();
+    /// @notice Thrown when a claimer is not set for a validator
+    error ClaimerNotSet();
+    /// @notice Thrown when an invalid proof is provided
+    error InvalidProof();
+    /// @notice Thrown when a validator has no rewards to claim
+    error NothingToClaim();
+    /// @notice Thrown when a zero merkle root is set
+    error MerkleRootCannotBeZero();
+
+    /// @notice Emitted when a claimer is set for a validator
+    event ClaimerSet(bytes32 indexed blsPubkeyHash, address indexed claimer);
+    /// @notice Emitted when the merkle root is set for the new cumulative distribution
+    event MerkleRootSet(bytes32 indexed newMerkleRoot);
+    /// @notice Emitted when rewards are claimed for a validator
+    event RewardsClaimed(bytes32 indexed blsPubkeyHash, uint256 indexed amount);
+
     /**
      * @notice Struct used when registering a new public key
      * @param pubkeyRegistrationSignature is the registration message signed by the private key of the validator

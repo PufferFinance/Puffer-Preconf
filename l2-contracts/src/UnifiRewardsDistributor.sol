@@ -5,26 +5,28 @@ import { IUnifiRewardsDistributor } from "./interfaces/IUnifiRewardsDistributor.
 import { BN254 } from "./library/BN254.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 contract UnifiRewardsDistributor is IUnifiRewardsDistributor, EIP712, Ownable2Step {
+    using Address for address payable;
     using BN254 for BN254.G1Point;
-
-    error CannotRegisterZeroPubKey();
-    error BadBLSSignature();
-
-    event ClaimerSet(bytes32 indexed blsPubkeyHash, address indexed claimer);
-
-    /// @dev the hash of the zero pubkey aka BN254.G1Point(0,0)
-    bytes32 internal constant _ZERO_PK_HASH = hex"ad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5";
-
-    mapping(bytes32 blsPubkeyHash => address claimer) public validatorToClaimer;
-    mapping(bytes32 blsPubkeyHash => uint256 claimedAmount) public validatorToClaimedAmount;
 
     // EIP-712 type definitions
     bytes32 public constant CLAIM_TYPEHASH = keccak256("SetClaimer(bytes32 blsPubkeyHash,address claimer)");
     string public constant DOMAIN_NAME = "UnifiRewardsDistributor";
     string public constant DOMAIN_VERSION = "1";
+
+    /// @dev the hash of the zero pubkey aka BN254.G1Point(0,0)
+    bytes32 internal constant _ZERO_PK_HASH = hex"ad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5";
+
+    /// @dev the mapping of BLS pubkey hash to claimer address
+    mapping(bytes32 blsPubkeyHash => address claimer) public validatorClaimer;
+    /// @dev the mapping of BLS pubkey hash to claimed amount
+    mapping(bytes32 blsPubkeyHash => uint256 claimedAmount) public validatorClaimedAmount;
+    /// @dev The Merkle root of the latest cumulative distribution
+    bytes32 public merkleRoot;
 
     constructor() EIP712(DOMAIN_NAME, DOMAIN_VERSION) Ownable(msg.sender) { }
 
@@ -37,6 +39,40 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, EIP712, Ownable2St
     function getClaimerTypedDataHash(bytes32 blsPubkeyHash, address claimer) public view returns (bytes32) {
         bytes32 structHash = keccak256(abi.encode(CLAIM_TYPEHASH, blsPubkeyHash, claimer));
         return _hashTypedDataV4(structHash);
+    }
+
+    /**
+     * @notice Claim the unclaimed rewards for a validator
+     * @param blsPubkeyHash The hash of the BLS public key
+     * @param amount The total cumulative earned amount
+     * @param proof The proof of the claim
+     */
+    function claimRewards(bytes32 blsPubkeyHash, uint256 amount, bytes32[] calldata proof) external {
+        address claimer = validatorClaimer[blsPubkeyHash];
+        require(claimer != address(0), ClaimerNotSet());
+
+        uint256 claimedSoFar = validatorClaimedAmount[blsPubkeyHash];
+        uint256 amountToClaim = amount - claimedSoFar;
+        require(amountToClaim > 0, NothingToClaim());
+
+        validatorClaimedAmount[blsPubkeyHash] = claimedSoFar + amountToClaim;
+
+        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(blsPubkeyHash, amount))));
+        require(MerkleProof.verifyCalldata(proof, merkleRoot, leaf), InvalidProof());
+
+        emit RewardsClaimed(blsPubkeyHash, amountToClaim);
+
+        payable(claimer).sendValue(amountToClaim);
+    }
+
+    /**
+     * @notice Set the Merkle root of the latest cumulative distribution
+     * @param newMerkleRoot The new Merkle root
+     */
+    function setMerkleRoot(bytes32 newMerkleRoot) external onlyOwner {
+        require(newMerkleRoot != bytes32(0), MerkleRootCannotBeZero());
+        merkleRoot = newMerkleRoot;
+        emit MerkleRootSet(newMerkleRoot);
     }
 
     /**
@@ -81,7 +117,7 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, EIP712, Ownable2St
             BadBLSSignature()
         );
 
-        validatorToClaimer[pubkeyHash] = claimer;
+        validatorClaimer[pubkeyHash] = claimer;
 
         emit ClaimerSet(pubkeyHash, claimer);
     }
@@ -92,7 +128,7 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, EIP712, Ownable2St
      * @return The claimer address
      */
     function getClaimer(bytes32 blsPubkeyHash) external view returns (address) {
-        return validatorToClaimer[blsPubkeyHash];
+        return validatorClaimer[blsPubkeyHash];
     }
 
     /**
