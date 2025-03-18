@@ -13,6 +13,8 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, EIP712, Ownable2St
     using Address for address payable;
     using BN254 for BN254.G1Point;
 
+    /// @dev The delay for the Merkle root to be set
+    uint256 public constant MERKLE_ROOT_DELAY = 1 days;
     // EIP-712 type definitions
     bytes32 public constant CLAIM_TYPEHASH = keccak256("SetClaimer(bytes32 blsPubkeyHash,address claimer)");
     string public constant DOMAIN_NAME = "UnifiRewardsDistributor";
@@ -27,6 +29,10 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, EIP712, Ownable2St
     mapping(bytes32 blsPubkeyHash => uint256 claimedAmount) public validatorClaimedAmount;
     /// @dev The Merkle root of the latest cumulative distribution
     bytes32 public merkleRoot;
+    /// @dev The pending Merkle root. This merkle root will become active after the delay
+    bytes32 public pendingMerkleRoot;
+    /// @dev The timestamp when the pending Merkle root will become active
+    uint256 public pendingMerkleRootActivationTimestamp;
 
     constructor() EIP712(DOMAIN_NAME, DOMAIN_VERSION) Ownable(msg.sender) { }
 
@@ -42,37 +48,67 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, EIP712, Ownable2St
     }
 
     /**
-     * @notice Claim the unclaimed rewards for a validator
-     * @param blsPubkeyHash The hash of the BLS public key
-     * @param amount The total cumulative earned amount
-     * @param proof The proof of the claim
+     * @notice Claim the unclaimed rewards for multiple validators
+     * They all must have the same claimer set.
+     * @param blsPubkeyHashes The hashes of the BLS public keys
+     * @param amounts The total cumulative earned amounts
+     * @param proofs The proofs of the claims
      */
-    function claimRewards(bytes32 blsPubkeyHash, uint256 amount, bytes32[] calldata proof) external {
-        address claimer = validatorClaimer[blsPubkeyHash];
+    function claimRewards(bytes32[] calldata blsPubkeyHashes, uint256[] calldata amounts, bytes32[][] calldata proofs)
+        external
+    {
+        require(blsPubkeyHashes.length == amounts.length && amounts.length == proofs.length, InvalidInput());
+
+        // Get the claimer for the first pubkey hash
+        address claimer = validatorClaimer[blsPubkeyHashes[0]];
         require(claimer != address(0), ClaimerNotSet());
 
-        uint256 claimedSoFar = validatorClaimedAmount[blsPubkeyHash];
-        uint256 amountToClaim = amount - claimedSoFar;
-        require(amountToClaim > 0, NothingToClaim());
+        uint256 totalAmountToClaim = 0;
 
-        validatorClaimedAmount[blsPubkeyHash] = claimedSoFar + amountToClaim;
+        for (uint256 i = 0; i < blsPubkeyHashes.length; ++i) {
+            // All proofs must have the same claimer
+            require(claimer == validatorClaimer[blsPubkeyHashes[i]], InvalidInput());
 
-        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(blsPubkeyHash, amount))));
-        require(MerkleProof.verifyCalldata(proof, merkleRoot, leaf), InvalidProof());
+            uint256 claimedSoFar = validatorClaimedAmount[blsPubkeyHashes[i]];
+            uint256 amountToClaim = amounts[i] - claimedSoFar;
+            require(amountToClaim > 0, NothingToClaim());
 
-        emit RewardsClaimed(blsPubkeyHash, amountToClaim);
+            // Update the claimed amount to the latest amount
+            validatorClaimedAmount[blsPubkeyHashes[i]] = amounts[i];
 
-        payable(claimer).sendValue(amountToClaim);
+            bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(blsPubkeyHashes[i], amounts[i]))));
+            require(MerkleProof.verifyCalldata(proofs[i], getMerkleRoot(), leaf), InvalidProof());
+
+            // Emit the claim event for each validator
+            emit RewardsClaimed(blsPubkeyHashes[i], amountToClaim);
+
+            totalAmountToClaim += amountToClaim;
+        }
+
+        // Send the total amount to the claimer
+        payable(claimer).sendValue(totalAmountToClaim);
     }
 
     /**
      * @notice Set the Merkle root of the latest cumulative distribution
      * @param newMerkleRoot The new Merkle root
      */
-    function setMerkleRoot(bytes32 newMerkleRoot) external onlyOwner {
+    function setNewMerkleRoot(bytes32 newMerkleRoot) external onlyOwner {
         require(newMerkleRoot != bytes32(0), MerkleRootCannotBeZero());
-        merkleRoot = newMerkleRoot;
-        emit MerkleRootSet(newMerkleRoot);
+        pendingMerkleRoot = newMerkleRoot;
+        uint256 activationTimestamp = block.timestamp + MERKLE_ROOT_DELAY;
+        pendingMerkleRootActivationTimestamp = activationTimestamp;
+        emit MerkleRootSet(newMerkleRoot, activationTimestamp);
+    }
+
+    /**
+     * @notice Cancel the pending Merkle root
+     */
+    function cancelPendingMerkleRoot() external onlyOwner {
+        bytes32 merkleRootToCancel = pendingMerkleRoot;
+        pendingMerkleRoot = bytes32(0);
+        pendingMerkleRootActivationTimestamp = 0;
+        emit PendingMerkleRootCancelled(merkleRootToCancel);
     }
 
     /**
@@ -129,6 +165,18 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, EIP712, Ownable2St
      */
     function getClaimer(bytes32 blsPubkeyHash) external view returns (address) {
         return validatorClaimer[blsPubkeyHash];
+    }
+
+    /**
+     * @dev Get the Merkle root
+     * @return The Merkle root
+     */
+    function getMerkleRoot() public view returns (bytes32) {
+        // The pending root is active if the activation timestamp is in the past
+        if (block.timestamp > pendingMerkleRootActivationTimestamp) {
+            return pendingMerkleRoot;
+        }
+        return merkleRoot;
     }
 
     /**

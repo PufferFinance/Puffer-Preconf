@@ -8,6 +8,8 @@ import { BN254 } from "../library/BN254.sol";
  * @notice Interface for the UnifiRewardsDistributor contract
  */
 interface IUnifiRewardsDistributor {
+    /// @notice Thrown when the input is invalid
+    error InvalidInput();
     /// @notice Thrown when a zero pubkey is registered
     error CannotRegisterZeroPubKey();
     /// @notice Thrown when a bad BLS signature is provided
@@ -24,9 +26,11 @@ interface IUnifiRewardsDistributor {
     /// @notice Emitted when a claimer is set for a validator
     event ClaimerSet(bytes32 indexed blsPubkeyHash, address indexed claimer);
     /// @notice Emitted when the merkle root is set for the new cumulative distribution
-    event MerkleRootSet(bytes32 indexed newMerkleRoot);
+    event MerkleRootSet(bytes32 indexed newMerkleRoot, uint256 activationTimestamp);
     /// @notice Emitted when rewards are claimed for a validator
     event RewardsClaimed(bytes32 indexed blsPubkeyHash, uint256 indexed amount);
+    /// @notice Emitted when the pending merkle root is cancelled
+    event PendingMerkleRootCancelled(bytes32 indexed merkleRoot);
 
     /**
      * @notice Struct used when registering a new public key

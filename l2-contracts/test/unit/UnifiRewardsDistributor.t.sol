@@ -27,6 +27,10 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
     bytes32 aliceValidatorPubkeyHash = hex"349f9310273a8c4383749e137887aa02e8f1fada8f181449796da01aec23455a";
     address alice = makeAddr("alice");
 
+    uint256 bobValidatorPrivateKey = 7;
+    bytes32 bobValidatorPubkeyHash = hex"e711030c34f9fc82f04c360494b9c94f17a43fe72a5860f057f098f48d382380";
+    address bob = makeAddr("bob");
+
     function setUp() public override {
         distributor = new UnifiRewardsDistributor();
     }
@@ -104,28 +108,33 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         bytes32 merkleRoot = _buildMerkleProof(merkleProofDatas);
 
         vm.expectEmit(true, true, true, true);
-        emit IUnifiRewardsDistributor.MerkleRootSet(merkleRoot);
-        distributor.setMerkleRoot(merkleRoot);
+        emit IUnifiRewardsDistributor.MerkleRootSet(merkleRoot, block.timestamp + 1 days);
+        distributor.setNewMerkleRoot(merkleRoot);
     }
 
     function test_setMerkleRoot_zeroRoot() public {
         vm.expectRevert(IUnifiRewardsDistributor.MerkleRootCannotBeZero.selector);
-        distributor.setMerkleRoot(bytes32(0));
+        distributor.setNewMerkleRoot(bytes32(0));
     }
 
     function test_ClaimRewards() public {
         // Build a merkle proof
         MerkleProofData[] memory merkleProofDatas = new MerkleProofData[](3);
         merkleProofDatas[0] = MerkleProofData({ blsPubkeyHash: aliceValidatorPubkeyHash, amount: 1 ether });
-        merkleProofDatas[1] = MerkleProofData({ blsPubkeyHash: bytes32("bob"), amount: 2 ether });
+        merkleProofDatas[1] = MerkleProofData({ blsPubkeyHash: bobValidatorPubkeyHash, amount: 2 ether });
         merkleProofDatas[2] = MerkleProofData({ blsPubkeyHash: bytes32("charlie"), amount: 3 ether });
 
         bytes32 merkleRoot = _buildMerkleProof(merkleProofDatas);
 
-        distributor.setMerkleRoot(merkleRoot);
+        distributor.setNewMerkleRoot(merkleRoot);
+
+        // Advance time so that the pending root becomes active
+        vm.warp(block.timestamp + 2 days);
 
         // Set claimer for Alice
         test_registerClaimer();
+
+        _registerClaimer(bobValidatorPrivateKey, bob, alice);
 
         // Deal some ETH to the distributor, so that it has some balance
         vm.deal(address(distributor), 10 ether);
@@ -135,15 +144,25 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
 
         assertEq(alice.balance, 0, "Alice should have 0 balance");
 
-        bytes32[][] memory aliceProofs = new bytes32[][](1);
-        aliceProofs[0] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 0);
+        bytes32[] memory pubkeyHashes = new bytes32[](2);
+        pubkeyHashes[0] = aliceValidatorPubkeyHash;
+        pubkeyHashes[1] = bobValidatorPubkeyHash;
 
-        distributor.claimRewards(aliceValidatorPubkeyHash, 1 ether, aliceProofs[0]);
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 1 ether;
+        amounts[1] = 2 ether;
 
-        assertEq(alice.balance, 1 ether, "Alice should have received 1 ether");
+        bytes32[][] memory proofs = new bytes32[][](2);
+        proofs[0] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 0);
+        proofs[1] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 1);
+
+        distributor.claimRewards(pubkeyHashes, amounts, proofs);
+
+        assertEq(alice.balance, 3 ether, "Alice should have received 3 ether");
+        assertEq(bob.balance, 0 ether, "Bob should have received 0 ether");
 
         vm.expectRevert(IUnifiRewardsDistributor.NothingToClaim.selector);
-        distributor.claimRewards(aliceValidatorPubkeyHash, 1 ether, aliceProofs[0]);
+        distributor.claimRewards(pubkeyHashes, amounts, proofs);
     }
 
     function test_revertClaimerNotSet() public {
@@ -155,13 +174,19 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
 
         bytes32 merkleRoot = _buildMerkleProof(merkleProofDatas);
 
-        distributor.setMerkleRoot(merkleRoot);
+        distributor.setNewMerkleRoot(merkleRoot);
 
         // Empty proof, doesn't matter
         bytes32[][] memory aliceProofs = new bytes32[][](1);
 
+        bytes32[] memory alicePubkeyHashes = new bytes32[](1);
+        alicePubkeyHashes[0] = aliceValidatorPubkeyHash;
+
+        uint256[] memory aliceAmounts = new uint256[](1);
+        aliceAmounts[0] = 1 ether;
+
         vm.expectRevert(IUnifiRewardsDistributor.ClaimerNotSet.selector);
-        distributor.claimRewards(aliceValidatorPubkeyHash, 1 ether, aliceProofs[0]);
+        distributor.claimRewards(alicePubkeyHashes, aliceAmounts, aliceProofs);
     }
 
     function test_revertInvalidProof() public {
@@ -173,16 +198,37 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
 
         bytes32 merkleRoot = _buildMerkleProof(merkleProofDatas);
 
-        distributor.setMerkleRoot(merkleRoot);
+        distributor.setNewMerkleRoot(merkleRoot);
+
+        vm.warp(block.timestamp + 2 days);
 
         // Set claimer for Alice
         test_registerClaimer();
 
         // Empty proof, doesn't matter
         bytes32[][] memory aliceProofs = new bytes32[][](1);
+        bytes32[] memory alicePubkeyHashes = new bytes32[](1);
+        alicePubkeyHashes[0] = aliceValidatorPubkeyHash;
+
+        uint256[] memory aliceAmounts = new uint256[](1);
+        aliceAmounts[0] = 1 ether;
 
         vm.expectRevert(IUnifiRewardsDistributor.InvalidProof.selector);
-        distributor.claimRewards(aliceValidatorPubkeyHash, 1 ether, aliceProofs[0]);
+        distributor.claimRewards(alicePubkeyHashes, aliceAmounts, aliceProofs);
+    }
+
+    function test_cancelPendingMerkleRoot() public {
+        bytes32 newMerkleRoot = keccak256("new merkle root");
+
+        vm.expectEmit(true, true, true, true);
+        emit IUnifiRewardsDistributor.MerkleRootSet(newMerkleRoot, block.timestamp + 1 days);
+        distributor.setNewMerkleRoot(newMerkleRoot);
+
+        assertEq(distributor.getMerkleRoot(), bytes32(0), "Merkle root should be 0");
+
+        vm.expectEmit(true, true, true, true);
+        emit IUnifiRewardsDistributor.PendingMerkleRootCancelled(newMerkleRoot);
+        distributor.cancelPendingMerkleRoot();
     }
 
     function test_registerClaimer() public {
@@ -208,6 +254,31 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
 
         // Verify registration
         assertEq(distributor.getClaimer(pubkeyHash), alice);
+    }
+
+    function _registerClaimer(uint256 blsPrivateKey, address caller, address claimer) internal {
+        // Generate public keys
+        BN254.G1Point memory pubkeyG1 = BN254.generatorG1().scalar_mul(blsPrivateKey);
+        BN254.G2Point memory pubkeyG2 = _mulGo(blsPrivateKey);
+
+        // Create message hash
+        bytes32 pubkeyHash = distributor.getBlsPubkeyHash(pubkeyG1);
+
+        BN254.G1Point memory messageHash = distributor.getClaimerMessageHash(pubkeyHash, claimer);
+
+        // Create signature (H(m) * privateKey)
+        BN254.G1Point memory signature = messageHash.scalar_mul(blsPrivateKey);
+
+        // Build params
+        IUnifiRewardsDistributor.PubkeyRegistrationParams memory params = IUnifiRewardsDistributor
+            .PubkeyRegistrationParams({ pubkeyRegistrationSignature: signature, pubkeyG1: pubkeyG1, pubkeyG2: pubkeyG2 });
+
+        // Execute registration
+        vm.prank(caller);
+        distributor.registerClaimer(claimer, params);
+
+        // Verify registration
+        assertEq(distributor.getClaimer(pubkeyHash), claimer);
     }
 
     function test_revertRegisterClaimer_badSignature() public {
