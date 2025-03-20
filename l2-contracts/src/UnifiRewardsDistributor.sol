@@ -2,6 +2,8 @@
 pragma solidity ^0.8.0;
 
 import { IUnifiRewardsDistributor } from "./interfaces/IUnifiRewardsDistributor.sol";
+
+import { BLS } from "./library/BLS.sol";
 import { BN254 } from "./library/BN254.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";

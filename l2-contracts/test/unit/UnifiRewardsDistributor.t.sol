@@ -3,9 +3,13 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { UnifiRewardsDistributor } from "../../src/UnifiRewardsDistributor.sol";
 import { IUnifiRewardsDistributor } from "../../src/interfaces/IUnifiRewardsDistributor.sol";
+
+import { BLS } from "../../src/library/BLS.sol";
 import { BN254 } from "../../src/library/BN254.sol";
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
+
+import { console } from "forge-std/console.sol";
 import { Merkle } from "murky/Merkle.sol";
 
 contract UnifiRewardsDistributorTest is UnitTestHelper {
@@ -30,6 +34,14 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
     uint256 bobValidatorPrivateKey = 7;
     bytes32 bobValidatorPubkeyHash = hex"e711030c34f9fc82f04c360494b9c94f17a43fe72a5860f057f098f48d382380";
     address bob = makeAddr("bob");
+
+    // Generated using staking-deposit-cli
+    uint256 charlieValidatorPrivateKey = 23024678602024712540067510915809205418841443088598876011398808352199993287749;
+    bytes charlieValidatorPubkey =
+        hex"83e6a728d627638a33a73003ff9a072f0297dbca72ae0c2b9e4dfb1025ce96fcfc4c5322a6d3c35f4373d3974279f84c";
+    bytes32 charlieValidatorPubkeyHash = hex"aab3ff930108a1dba48d8b2dd82024e1772e6fad0f3d73eeac69420520c19de7";
+    // pubkey hash is sha256(abi.encodePacked(hex"85ad844d945152c879efb271abc77be88ca4edd97df69200dc0abfbb6cf0a769311022c7aad809b579944fdb405a62b2", bytes16(0)))
+    address charlie = makeAddr("charlie");
 
     function setUp() public override {
         distributor = new UnifiRewardsDistributor();
@@ -291,5 +303,104 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
 
         vm.expectRevert(IUnifiRewardsDistributor.BadBLSSignature.selector);
         distributor.registerClaimer(alice, params);
+    }
+
+    function test_SignAndVerify() public view {
+        // Obtain the private key as a random scalar.
+        bytes32 privateKey = bytes32(uint256(1));
+
+        // Public key is the generator point multiplied by the private key.
+        BLS.G1Point memory publicKey = _blsg1mul(G1_GENERATOR(), privateKey);
+
+        // Compute the message point by mapping message's keccak256 hash to a point in G2.
+        bytes memory message = "hello world";
+        BLS.G2Point memory messagePoint = BLS.toG2(BLS.Fp2(0, 0, 0, keccak256(message)));
+
+        // Obtain the signature by multiplying the message point by the private key.
+        BLS.G2Point memory signature = _blsg2mul(messagePoint, privateKey);
+
+        // Invoke the pairing check to verify the signature.
+        BLS.G1Point[] memory g1Points = new BLS.G1Point[](2);
+        g1Points[0] = NEGATED_G1_GENERATOR();
+        g1Points[1] = publicKey;
+
+        BLS.G2Point[] memory g2Points = new BLS.G2Point[](2);
+        g2Points[0] = signature;
+        g2Points[1] = messagePoint;
+
+        assertTrue(BLS.pairing(g1Points, g2Points), "valid signature");
+    }
+
+    function test_CharliePubkeyHash() public view {
+        // Step 1: Get the BLS public key
+        BLS.G1Point memory publicKey = _blsg1mul(G1_GENERATOR(), bytes32(charlieValidatorPrivateKey));
+
+        // bytes memory pubkey = abi.encodePacked(publicKey.x_a, publicKey.x_b);
+
+        bytes memory pubkeyString = BLS.g1PointToHex(publicKey);
+
+        console.log(string(pubkeyString));
+
+        // hex"83e6a728d627638a33a73003ff9a072f0297dbca72ae0c2b9e4dfb1025ce96fcfc4c5322a6d3c35f4373d3974279f84c"
+    }
+
+    /// @dev Converts G1Point to hex format (64 bytes)
+    function _g1PointToHex(BLS.G1Point memory point) internal pure returns (bytes memory) {
+        bytes memory result = new bytes(64);
+        assembly {
+            mcopy(add(result, 32), point, 64) // Skip first 32 bytes (length prefix)
+        }
+        return result;
+    }
+
+    /// @dev Derives public key in hex format from a private key
+    function _derivePublicKeyHex(uint256 privateKey) internal view returns (bytes memory) {
+        BLS.G1Point[] memory points = new BLS.G1Point[](1);
+        bytes32[] memory scalars = new bytes32[](1);
+        points[0] = G1_GENERATOR();
+        scalars[0] = bytes32(privateKey);
+        return _g1PointToHex(BLS.msm(points, scalars));
+    }
+
+    function _hashBlsPubkey(bytes calldata pubkey) internal pure returns (bytes32) {
+        return sha256(abi.encodePacked(pubkey, bytes16(0)));
+    }
+
+    function G1_GENERATOR() internal pure returns (BLS.G1Point memory) {
+        return BLS.G1Point(
+            bytes32(uint256(31827880280837800241567138048534752271)),
+            bytes32(uint256(88385725958748408079899006800036250932223001591707578097800747617502997169851)),
+            bytes32(uint256(11568204302792691131076548377920244452)),
+            bytes32(uint256(114417265404584670498511149331300188430316142484413708742216858159411894806497))
+        );
+    }
+
+    function NEGATED_G1_GENERATOR() internal pure returns (BLS.G1Point memory) {
+        return BLS.G1Point(
+            bytes32(uint256(31827880280837800241567138048534752271)),
+            bytes32(uint256(88385725958748408079899006800036250932223001591707578097800747617502997169851)),
+            bytes32(uint256(22997279242622214937712647648895181298)),
+            bytes32(uint256(46816884707101390882112958134453447585552332943769894357249934112654335001290))
+        );
+    }
+
+    function _blsg1mul(BLS.G1Point memory g1, bytes32 scalar) private view returns (BLS.G1Point memory) {
+        BLS.G1Point[] memory points = new BLS.G1Point[](1);
+        bytes32[] memory scalars = new bytes32[](1);
+
+        points[0] = g1;
+        scalars[0] = scalar;
+
+        return BLS.msm(points, scalars);
+    }
+
+    function _blsg2mul(BLS.G2Point memory g2, bytes32 scalar) private view returns (BLS.G2Point memory) {
+        BLS.G2Point[] memory points = new BLS.G2Point[](1);
+        bytes32[] memory scalars = new bytes32[](1);
+
+        points[0] = g2;
+        scalars[0] = scalar;
+
+        return BLS.msm(points, scalars);
     }
 }
