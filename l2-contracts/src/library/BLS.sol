@@ -306,46 +306,4 @@ library BLS {
             }
         }
     }
-
-    // Function to convert the G1 point into a hex public key
-    function g1PointToHex(G1Point memory point) public pure returns (bytes memory) {
-        // Concatenate x and y coordinates
-        bytes memory concatenated = abi.encodePacked(point.x_a, point.x_b);
-
-        // Remove leading zeros from the concatenated bytes before converting to hex
-        bytes memory result = removeLeadingZeros(concatenated);
-
-        // Convert the bytes to a hex string
-        return bytesToHex(result);
-    }
-
-    // Helper function to remove leading zeros from the byte array
-    function removeLeadingZeros(bytes memory data) internal pure returns (bytes memory) {
-        uint256 start = 0;
-
-        // Find the first non-zero byte
-        while (start < data.length && data[start] == 0) {
-            start++;
-        }
-
-        // Return the sub-array starting from the first non-zero byte
-        bytes memory result = new bytes(data.length - start);
-        for (uint256 i = start; i < data.length; i++) {
-            result[i - start] = data[i];
-        }
-        return result;
-    }
-
-    // Helper function to convert bytes to hex string
-    function bytesToHex(bytes memory data) internal pure returns (bytes memory) {
-        bytes16 _HEX = "0123456789abcdef";
-        uint256 length = data.length;
-        bytes memory result = new bytes(length * 2);
-
-        for (uint256 i = 0; i < length; i++) {
-            result[i * 2] = _HEX[uint8(data[i] >> 4)];
-            result[i * 2 + 1] = _HEX[uint8(data[i] & 0x0f)];
-        }
-        return result;
-    }
 }
