@@ -5,7 +5,6 @@ import { UnifiRewardsDistributor } from "../../src/UnifiRewardsDistributor.sol";
 import { IUnifiRewardsDistributor } from "../../src/interfaces/IUnifiRewardsDistributor.sol";
 
 import { BLS } from "../../src/library/BLS.sol";
-import { BN254 } from "../../src/library/BN254.sol";
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 
@@ -18,8 +17,6 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         uint256 amount;
     }
 
-    using BN254 for BN254.G1Point;
-    using BN254 for BN254.G2Point;
     using Strings for uint256;
 
     UnifiRewardsDistributor internal distributor;
@@ -47,41 +44,6 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         distributor = new UnifiRewardsDistributor();
     }
 
-    // TEST HELPERS
-
-    function _generateBlsPubkeyParams(uint256 privKey)
-        internal
-        returns (IUnifiRewardsDistributor.PubkeyRegistrationParams memory)
-    {
-        IUnifiRewardsDistributor.PubkeyRegistrationParams memory pubkey;
-        pubkey.pubkeyG1 = BN254.generatorG1().scalar_mul(privKey);
-        pubkey.pubkeyG2 = _mulGo(privKey);
-        return pubkey;
-    }
-
-    function _mulGo(uint256 x) internal returns (BN254.G2Point memory g2Point) {
-        string[] memory inputs = new string[](3);
-        inputs[0] = "./test/helpers/go2mul-mac"; // lib/eigenlayer-middleware/test/ffi/go/g2mul.go binary
-        // inputs[0] = "./test/helpers/go2mul"; // lib/eigenlayer-middleware/test/ffi/go/g2mul.go binary
-        inputs[1] = x.toString();
-
-        inputs[2] = "1";
-        bytes memory res = vm.ffi(inputs);
-        g2Point.X[1] = abi.decode(res, (uint256));
-
-        inputs[2] = "2";
-        res = vm.ffi(inputs);
-        g2Point.X[0] = abi.decode(res, (uint256));
-
-        inputs[2] = "3";
-        res = vm.ffi(inputs);
-        g2Point.Y[1] = abi.decode(res, (uint256));
-
-        inputs[2] = "4";
-        res = vm.ffi(inputs);
-        g2Point.Y[0] = abi.decode(res, (uint256));
-    }
-
     function _buildMerkleProof(MerkleProofData[] memory merkleProofDatas) internal returns (bytes32 root) {
         rewardsMerkleProof = new Merkle();
 
@@ -98,16 +60,6 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
 
     function test_setup() public view {
         assertEq(distributor.getChainId(), block.chainid, "Chain ID should be correct");
-        assertEq(
-            distributor.getDomainSeparator(),
-            hex"d32f061b01d16855195c8960273642ffce14fcb5b99af48907b633d4a80d61ed",
-            "Domain separator should be correct"
-        );
-        assertEq(
-            distributor.getClaimerTypedDataHash(bytes32(0), address(0)),
-            hex"cddef5d09da988d31f9b9a30a404ea35246ee28c4aaa228ac5ea268d81091fba",
-            "Claimer typed data hash should be correct"
-        );
     }
 
     function test_setMerkleRoot() public {
@@ -130,10 +82,17 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
     }
 
     function test_ClaimRewards() public {
+        BLS.G1Point memory alicePublicKey = _blsg1mul(G1_GENERATOR(), bytes32(aliceValidatorPrivateKey));
+        BLS.G1Point memory bobPublicKey = _blsg1mul(G1_GENERATOR(), bytes32(bobValidatorPrivateKey));
+
+        bytes32[] memory pubkeyHashes = new bytes32[](2);
+        pubkeyHashes[0] = distributor.getBlsPubkeyHash(alicePublicKey);
+        pubkeyHashes[1] = distributor.getBlsPubkeyHash(bobPublicKey);
+
         // Build a merkle proof
         MerkleProofData[] memory merkleProofDatas = new MerkleProofData[](3);
-        merkleProofDatas[0] = MerkleProofData({ blsPubkeyHash: aliceValidatorPubkeyHash, amount: 1 ether });
-        merkleProofDatas[1] = MerkleProofData({ blsPubkeyHash: bobValidatorPubkeyHash, amount: 2 ether });
+        merkleProofDatas[0] = MerkleProofData({ blsPubkeyHash: pubkeyHashes[0], amount: 1 ether });
+        merkleProofDatas[1] = MerkleProofData({ blsPubkeyHash: pubkeyHashes[1], amount: 2 ether });
         merkleProofDatas[2] = MerkleProofData({ blsPubkeyHash: bytes32("charlie"), amount: 3 ether });
 
         bytes32 merkleRoot = _buildMerkleProof(merkleProofDatas);
@@ -155,10 +114,6 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         vm.prank(alice);
 
         assertEq(alice.balance, 0, "Alice should have 0 balance");
-
-        bytes32[] memory pubkeyHashes = new bytes32[](2);
-        pubkeyHashes[0] = aliceValidatorPubkeyHash;
-        pubkeyHashes[1] = bobValidatorPubkeyHash;
 
         uint256[] memory amounts = new uint256[](2);
         amounts[0] = 1 ether;
@@ -202,9 +157,12 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
     }
 
     function test_revertInvalidProof() public {
+        BLS.G1Point memory alicePublicKey = _blsg1mul(G1_GENERATOR(), bytes32(aliceValidatorPrivateKey));
+        bytes32 alicePubkeyHash = distributor.getBlsPubkeyHash(alicePublicKey);
+
         // Build a merkle proof
         MerkleProofData[] memory merkleProofDatas = new MerkleProofData[](3);
-        merkleProofDatas[0] = MerkleProofData({ blsPubkeyHash: aliceValidatorPubkeyHash, amount: 1 ether });
+        merkleProofDatas[0] = MerkleProofData({ blsPubkeyHash: alicePubkeyHash, amount: 1 ether });
         merkleProofDatas[1] = MerkleProofData({ blsPubkeyHash: bytes32("bob"), amount: 2 ether });
         merkleProofDatas[2] = MerkleProofData({ blsPubkeyHash: bytes32("charlie"), amount: 3 ether });
 
@@ -220,7 +178,7 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         // Empty proof, doesn't matter
         bytes32[][] memory aliceProofs = new bytes32[][](1);
         bytes32[] memory alicePubkeyHashes = new bytes32[](1);
-        alicePubkeyHashes[0] = aliceValidatorPubkeyHash;
+        alicePubkeyHashes[0] = alicePubkeyHash;
 
         uint256[] memory aliceAmounts = new uint256[](1);
         aliceAmounts[0] = 1 ether;
@@ -245,20 +203,18 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
 
     function test_registerClaimer() public {
         // Generate public keys
-        BN254.G1Point memory pubkeyG1 = BN254.generatorG1().scalar_mul(aliceValidatorPrivateKey);
-        BN254.G2Point memory pubkeyG2 = _mulGo(aliceValidatorPrivateKey);
+        BLS.G1Point memory publicKey = _blsg1mul(G1_GENERATOR(), bytes32(aliceValidatorPrivateKey));
 
         // Create message hash
-        bytes32 pubkeyHash = distributor.getBlsPubkeyHash(pubkeyG1);
+        bytes32 pubkeyHash = distributor.getBlsPubkeyHash(publicKey);
 
-        BN254.G1Point memory messageHash = distributor.getClaimerMessageHash(pubkeyHash, alice);
-
+        bytes32 message = keccak256(abi.encode(block.chainid, alice));
         // Create signature (H(m) * privateKey)
-        BN254.G1Point memory signature = messageHash.scalar_mul(aliceValidatorPrivateKey);
+        BLS.G2Point memory signature = _blsg2mul(BLS.toG2(BLS.Fp2(0, 0, 0, message)), bytes32(aliceValidatorPrivateKey));
 
         // Build params
-        IUnifiRewardsDistributor.PubkeyRegistrationParams memory params = IUnifiRewardsDistributor
-            .PubkeyRegistrationParams({ pubkeyRegistrationSignature: signature, pubkeyG1: pubkeyG1, pubkeyG2: pubkeyG2 });
+        IUnifiRewardsDistributor.PubkeyRegistrationParams memory params =
+            IUnifiRewardsDistributor.PubkeyRegistrationParams({ signature: signature, publicKey: publicKey });
 
         // Execute registration
         vm.prank(alice);
@@ -270,20 +226,19 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
 
     function _registerClaimer(uint256 blsPrivateKey, address caller, address claimer) internal {
         // Generate public keys
-        BN254.G1Point memory pubkeyG1 = BN254.generatorG1().scalar_mul(blsPrivateKey);
-        BN254.G2Point memory pubkeyG2 = _mulGo(blsPrivateKey);
+        BLS.G1Point memory publicKey = _blsg1mul(G1_GENERATOR(), bytes32(blsPrivateKey));
 
         // Create message hash
-        bytes32 pubkeyHash = distributor.getBlsPubkeyHash(pubkeyG1);
+        bytes32 pubkeyHash = distributor.getBlsPubkeyHash(publicKey);
 
-        BN254.G1Point memory messageHash = distributor.getClaimerMessageHash(pubkeyHash, claimer);
+        bytes32 message = keccak256(abi.encode(block.chainid, claimer));
 
         // Create signature (H(m) * privateKey)
-        BN254.G1Point memory signature = messageHash.scalar_mul(blsPrivateKey);
+        BLS.G2Point memory signature = _blsg2mul(BLS.toG2(BLS.Fp2(0, 0, 0, message)), bytes32(blsPrivateKey));
 
         // Build params
-        IUnifiRewardsDistributor.PubkeyRegistrationParams memory params = IUnifiRewardsDistributor
-            .PubkeyRegistrationParams({ pubkeyRegistrationSignature: signature, pubkeyG1: pubkeyG1, pubkeyG2: pubkeyG2 });
+        IUnifiRewardsDistributor.PubkeyRegistrationParams memory params =
+            IUnifiRewardsDistributor.PubkeyRegistrationParams({ signature: signature, publicKey: publicKey });
 
         // Execute registration
         vm.prank(caller);
@@ -294,76 +249,14 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
     }
 
     function test_revertRegisterClaimer_badSignature() public {
-        BN254.G1Point memory pubkeyG1 = BN254.generatorG1().scalar_mul(aliceValidatorPrivateKey);
-        BN254.G2Point memory pubkeyG2 = _mulGo(aliceValidatorPrivateKey);
-        BN254.G1Point memory signature;
+        BLS.G1Point memory publicKey = _blsg1mul(G1_GENERATOR(), bytes32(aliceValidatorPrivateKey));
+        BLS.G2Point memory signature;
 
-        IUnifiRewardsDistributor.PubkeyRegistrationParams memory params = IUnifiRewardsDistributor
-            .PubkeyRegistrationParams({ pubkeyRegistrationSignature: signature, pubkeyG1: pubkeyG1, pubkeyG2: pubkeyG2 });
+        IUnifiRewardsDistributor.PubkeyRegistrationParams memory params =
+            IUnifiRewardsDistributor.PubkeyRegistrationParams({ signature: signature, publicKey: publicKey });
 
         vm.expectRevert(IUnifiRewardsDistributor.BadBLSSignature.selector);
         distributor.registerClaimer(alice, params);
-    }
-
-    function test_SignAndVerify() public view {
-        // Obtain the private key as a random scalar.
-        bytes32 privateKey = bytes32(uint256(1));
-
-        // Public key is the generator point multiplied by the private key.
-        BLS.G1Point memory publicKey = _blsg1mul(G1_GENERATOR(), privateKey);
-
-        // Compute the message point by mapping message's keccak256 hash to a point in G2.
-        bytes memory message = "hello world";
-        BLS.G2Point memory messagePoint = BLS.toG2(BLS.Fp2(0, 0, 0, keccak256(message)));
-
-        // Obtain the signature by multiplying the message point by the private key.
-        BLS.G2Point memory signature = _blsg2mul(messagePoint, privateKey);
-
-        // Invoke the pairing check to verify the signature.
-        BLS.G1Point[] memory g1Points = new BLS.G1Point[](2);
-        g1Points[0] = NEGATED_G1_GENERATOR();
-        g1Points[1] = publicKey;
-
-        BLS.G2Point[] memory g2Points = new BLS.G2Point[](2);
-        g2Points[0] = signature;
-        g2Points[1] = messagePoint;
-
-        assertTrue(BLS.pairing(g1Points, g2Points), "valid signature");
-    }
-
-    function test_CharliePubkeyHash() public view {
-        // Step 1: Get the BLS public key
-        BLS.G1Point memory publicKey = _blsg1mul(G1_GENERATOR(), bytes32(charlieValidatorPrivateKey));
-
-        // bytes memory pubkey = abi.encodePacked(publicKey.x_a, publicKey.x_b);
-
-        bytes memory pubkeyString = BLS.g1PointToHex(publicKey);
-
-        console.log(string(pubkeyString));
-
-        // hex"83e6a728d627638a33a73003ff9a072f0297dbca72ae0c2b9e4dfb1025ce96fcfc4c5322a6d3c35f4373d3974279f84c"
-    }
-
-    /// @dev Converts G1Point to hex format (64 bytes)
-    function _g1PointToHex(BLS.G1Point memory point) internal pure returns (bytes memory) {
-        bytes memory result = new bytes(64);
-        assembly {
-            mcopy(add(result, 32), point, 64) // Skip first 32 bytes (length prefix)
-        }
-        return result;
-    }
-
-    /// @dev Derives public key in hex format from a private key
-    function _derivePublicKeyHex(uint256 privateKey) internal view returns (bytes memory) {
-        BLS.G1Point[] memory points = new BLS.G1Point[](1);
-        bytes32[] memory scalars = new bytes32[](1);
-        points[0] = G1_GENERATOR();
-        scalars[0] = bytes32(privateKey);
-        return _g1PointToHex(BLS.msm(points, scalars));
-    }
-
-    function _hashBlsPubkey(bytes calldata pubkey) internal pure returns (bytes32) {
-        return sha256(abi.encodePacked(pubkey, bytes16(0)));
     }
 
     function G1_GENERATOR() internal pure returns (BLS.G1Point memory) {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { BN254 } from "../library/BN254.sol";
+import { BLS } from "../library/BLS.sol";
 
 /**
  * @title IUnifiRewardsDistributor
@@ -39,9 +39,8 @@ interface IUnifiRewardsDistributor {
      * @param pubkeyG2 is the corresponding G2 public key of the validator
      */
     struct PubkeyRegistrationParams {
-        BN254.G1Point pubkeyRegistrationSignature;
-        BN254.G1Point pubkeyG1;
-        BN254.G2Point pubkeyG2;
+        BLS.G2Point signature;
+        BLS.G1Point publicKey;
     }
 
     /**
