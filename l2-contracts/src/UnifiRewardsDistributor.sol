@@ -101,9 +101,9 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step {
         // The message that the Validator must sign with their BLS private key
         // chainId is the L2 rollup chainId on which the Claimer will claim the rewards
         // The message is the chainId + address of the claimer
-        bytes32 message = keccak256(abi.encode(block.chainid, claimer));
+        bytes memory message = abi.encodePacked(keccak256(abi.encode(block.chainid, claimer)));
 
-        BLS.G2Point memory messagePoint = BLS.toG2(BLS.Fp2(0, 0, 0, message));
+        BLS.G2Point memory messagePoint = BLS.hashToG2(message);
 
         BLS.G1Point[] memory g1Points = new BLS.G1Point[](2);
         g1Points[0] = NEGATED_G1_GENERATOR();

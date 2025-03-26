@@ -44,6 +44,78 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         distributor = new UnifiRewardsDistributor();
     }
 
+    function test_register_claimer_zero_key() public {
+        // Registers a claimer for zero key
+        vm.expectEmit(true, true, true, true);
+        emit IUnifiRewardsDistributor.ClaimerSet(
+            hex"012893657d8eb2efad4de0a91bcd0e39ad9837745dec3ea923737ea803fc8e3d", alice
+        );
+        distributor.registerClaimer(
+            alice,
+            IUnifiRewardsDistributor.PubkeyRegistrationParams({
+                signature: BLS.G2Point({
+                    x_c0_a: bytes32(0),
+                    x_c0_b: bytes32(0),
+                    x_c1_a: bytes32(0),
+                    x_c1_b: bytes32(0),
+                    y_c0_a: bytes32(0),
+                    y_c0_b: bytes32(0),
+                    y_c1_a: bytes32(0),
+                    y_c1_b: bytes32(0)
+                }),
+                publicKey: BLS.G1Point({ x_a: bytes32(0), x_b: bytes32(0), y_a: bytes32(0), y_b: bytes32(0) })
+            })
+        );
+    }
+
+    function test_register_claimer_charlie_validator() public {
+        distributor.registerClaimer(
+            charlie,
+            IUnifiRewardsDistributor.PubkeyRegistrationParams({
+                signature: BLS.G2Point({
+                    x_c0_a: bytes32(0x000000000000000000000000000000000c9eefa655056b3a50b244083f925b05),
+                    x_c0_b: bytes32(0x3dccbb0e950d8e63eca7dbc4cb4624275c475ebd3cb1145d99870c7b18cf07ff),
+                    x_c1_a: bytes32(0x00000000000000000000000000000000191d6ff6be277435576cecf870b67834),
+                    x_c1_b: bytes32(0x9554e7d1d5edb5ea9e92d5df26dfc49068f5bb049b2d297249e1325a3805e88f),
+                    y_c0_a: bytes32(0x00000000000000000000000000000000005ba9a1a87ddec7193927593620bd5c),
+                    y_c0_b: bytes32(0x07adfca2e8ac4e4a48dcc5a7deccbadec3933b9bcf59a3cf8c0113e35d2e2a5a),
+                    y_c1_a: bytes32(0x0000000000000000000000000000000006532e5d04c15f1efa3b69d661ee801f),
+                    y_c1_b: bytes32(0x2aed5b5ee9568b0e548bf0d0d2fc5081242f3f4821be55c390257fbde6305257)
+                }),
+                publicKey: BLS.G1Point({
+                    x_a: bytes32(0x0000000000000000000000000000000003e6a728d627638a33a73003ff9a072f),
+                    x_b: bytes32(0x0297dbca72ae0c2b9e4dfb1025ce96fcfc4c5322a6d3c35f4373d3974279f84c),
+                    y_a: bytes32(0x000000000000000000000000000000000015ce87d1de408f3de766c379aa0331),
+                    y_b: bytes32(0x449465dba3f66c63eb8c4cbb96ed95e8da093c7b439b01a2e7d13ecf538e50ac)
+                })
+            })
+        );
+    }
+
+    function test_register_claimer_shared_dev_wallet() public {
+        distributor.registerClaimer(
+            0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0,
+            IUnifiRewardsDistributor.PubkeyRegistrationParams({
+                signature: BLS.G2Point({
+                    x_c0_a: bytes32(0x00000000000000000000000000000000110d5a0afb764ce82ca610da5db4ce63),
+                    x_c0_b: bytes32(0x785f3eb1a7baaf6e7a7d350e3fa09d3372daee01c42c5a4463fc6b1b4c4039c8),
+                    x_c1_a: bytes32(0x0000000000000000000000000000000012541f5264f93dfc38b604e73204c2d2),
+                    x_c1_b: bytes32(0x6fb7bac84887ecada1a387bb6db1d0d17e53056b6a49fbecb43f01219738aa62),
+                    y_c0_a: bytes32(0x000000000000000000000000000000000685d41e3ead0ba2a6c3c71c1da6b663),
+                    y_c0_b: bytes32(0x17817a73afb45c95fa37178196fb070b73ef646a092be04019d824462ed0d616),
+                    y_c1_a: bytes32(0x000000000000000000000000000000000fc58f21b5936852e7f25e280695f309),
+                    y_c1_b: bytes32(0x8317a56d159aefc5363ccb2623a89671379714d6adf27834a1ed9b670ec8a89e)
+                }),
+                publicKey: BLS.G1Point({
+                    x_a: bytes32(0x0000000000000000000000000000000003e6a728d627638a33a73003ff9a072f),
+                    x_b: bytes32(0x0297dbca72ae0c2b9e4dfb1025ce96fcfc4c5322a6d3c35f4373d3974279f84c),
+                    y_a: bytes32(0x000000000000000000000000000000000015ce87d1de408f3de766c379aa0331),
+                    y_b: bytes32(0x449465dba3f66c63eb8c4cbb96ed95e8da093c7b439b01a2e7d13ecf538e50ac)
+                })
+            })
+        );
+    }
+
     function _buildMerkleProof(MerkleProofData[] memory merkleProofDatas) internal returns (bytes32 root) {
         rewardsMerkleProof = new Merkle();
 
@@ -208,9 +280,13 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         // Create message hash
         bytes32 pubkeyHash = distributor.getBlsPubkeyHash(publicKey);
 
-        bytes32 message = keccak256(abi.encode(block.chainid, alice));
+        bytes memory message = abi.encodePacked(keccak256(abi.encode(block.chainid, alice)));
+
+        BLS.G2Point memory messagePoint = BLS.hashToG2(message);
+
+        assertEq(block.chainid, 31337, "Chain ID should be 31337");
         // Create signature (H(m) * privateKey)
-        BLS.G2Point memory signature = _blsg2mul(BLS.toG2(BLS.Fp2(0, 0, 0, message)), bytes32(aliceValidatorPrivateKey));
+        BLS.G2Point memory signature = _blsg2mul(messagePoint, bytes32(aliceValidatorPrivateKey));
 
         // Build params
         IUnifiRewardsDistributor.PubkeyRegistrationParams memory params =
@@ -231,10 +307,12 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         // Create message hash
         bytes32 pubkeyHash = distributor.getBlsPubkeyHash(publicKey);
 
-        bytes32 message = keccak256(abi.encode(block.chainid, claimer));
+        bytes memory message = abi.encodePacked(keccak256(abi.encode(block.chainid, claimer)));
+
+        BLS.G2Point memory messagePoint = BLS.hashToG2(message);
 
         // Create signature (H(m) * privateKey)
-        BLS.G2Point memory signature = _blsg2mul(BLS.toG2(BLS.Fp2(0, 0, 0, message)), bytes32(blsPrivateKey));
+        BLS.G2Point memory signature = _blsg2mul(messagePoint, bytes32(blsPrivateKey));
 
         // Build params
         IUnifiRewardsDistributor.PubkeyRegistrationParams memory params =
@@ -260,29 +338,29 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
     }
 
     function G1_GENERATOR() internal pure returns (BLS.G1Point memory) {
-        return BLS.G1Point(
-            bytes32(uint256(31827880280837800241567138048534752271)),
-            bytes32(uint256(88385725958748408079899006800036250932223001591707578097800747617502997169851)),
-            bytes32(uint256(11568204302792691131076548377920244452)),
-            bytes32(uint256(114417265404584670498511149331300188430316142484413708742216858159411894806497))
-        );
+        return BLS.G1Point({
+            x_a: bytes32(uint256(31827880280837800241567138048534752271)),
+            x_b: bytes32(uint256(88385725958748408079899006800036250932223001591707578097800747617502997169851)),
+            y_a: bytes32(uint256(11568204302792691131076548377920244452)),
+            y_b: bytes32(uint256(114417265404584670498511149331300188430316142484413708742216858159411894806497))
+        });
     }
 
     function NEGATED_G1_GENERATOR() internal pure returns (BLS.G1Point memory) {
-        return BLS.G1Point(
-            bytes32(uint256(31827880280837800241567138048534752271)),
-            bytes32(uint256(88385725958748408079899006800036250932223001591707578097800747617502997169851)),
-            bytes32(uint256(22997279242622214937712647648895181298)),
-            bytes32(uint256(46816884707101390882112958134453447585552332943769894357249934112654335001290))
-        );
+        return BLS.G1Point({
+            x_a: bytes32(uint256(31827880280837800241567138048534752271)),
+            x_b: bytes32(uint256(88385725958748408079899006800036250932223001591707578097800747617502997169851)),
+            y_a: bytes32(uint256(22997279242622214937712647648895181298)),
+            y_b: bytes32(uint256(46816884707101390882112958134453447585552332943769894357249934112654335001290))
+        });
     }
 
-    function _blsg1mul(BLS.G1Point memory g1, bytes32 scalar) private view returns (BLS.G1Point memory) {
+    function _blsg1mul(BLS.G1Point memory g1, bytes32 privateKey) private view returns (BLS.G1Point memory) {
         BLS.G1Point[] memory points = new BLS.G1Point[](1);
         bytes32[] memory scalars = new bytes32[](1);
 
         points[0] = g1;
-        scalars[0] = scalar;
+        scalars[0] = privateKey;
 
         return BLS.msm(points, scalars);
     }
