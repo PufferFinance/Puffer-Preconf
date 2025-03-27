@@ -2,15 +2,18 @@
 pragma solidity ^0.8.0;
 
 import { IUnifiRewardsDistributor } from "./interfaces/IUnifiRewardsDistributor.sol";
-
 import { BLS } from "./library/BLS.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
-contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step {
+contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP712 {
     using Address for address payable;
+
+    /// @dev The typehash for the RegisterClaimer function
+    bytes32 public constant REWARDS_DISTRIBUTION_TYPEHASH = keccak256("RegisterClaimer(address claimer,uint256 nonce)");
 
     /// @dev The delay for the Merkle root to be set
     uint256 public constant MERKLE_ROOT_DELAY = 3 days;
@@ -25,8 +28,10 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step {
     bytes32 public pendingMerkleRoot;
     /// @dev The timestamp when the pending Merkle root will become active
     uint256 public pendingMerkleRootActivationTimestamp;
+    /// @dev The mapping of BLS pubkey hash to nonce
+    mapping(bytes32 pubkeyHash => uint256 nonce) public nonces;
 
-    constructor(address initialOwner) Ownable(initialOwner) { }
+    constructor(address initialOwner) Ownable(initialOwner) EIP712("UnifiRewardsDistributor", "1") { }
 
     /**
      * @notice Claim the unclaimed rewards for multiple validators
@@ -98,12 +103,11 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step {
      * @param params contains the G1 & G2 public keys of the claimer, and a signature proving their ownership
      */
     function registerClaimer(address claimer, PubkeyRegistrationParams calldata params) external {
-        // The message that the Validator must sign with their BLS private key
-        // chainId is the L2 rollup chainId on which the Claimer will claim the rewards
-        // The message is the chainId + address of the claimer
-        bytes memory message = abi.encodePacked(keccak256(abi.encode(block.chainid, claimer)));
+        bytes32 pubKeyHash = getBlsPubkeyHash(params.publicKey);
 
-        BLS.G2Point memory messagePoint = BLS.hashToG2(message);
+        bytes32 structHash = keccak256(abi.encode(REWARDS_DISTRIBUTION_TYPEHASH, claimer, _useNonce(pubKeyHash)));
+
+        BLS.G2Point memory messagePoint = BLS.hashToG2(abi.encodePacked(_hashTypedDataV4(structHash)));
 
         BLS.G1Point[] memory g1Points = new BLS.G1Point[](2);
         g1Points[0] = NEGATED_G1_GENERATOR();
@@ -114,9 +118,8 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step {
         g2Points[1] = messagePoint;
 
         bool valid = BLS.pairing(g1Points, g2Points);
+        // This will revert if the signature is invalid / replayed
         require(valid, BadBLSSignature());
-
-        bytes32 pubKeyHash = getBlsPubkeyHash(params.publicKey);
 
         validatorClaimer[pubKeyHash] = claimer;
 
@@ -162,6 +165,17 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step {
     }
 
     /**
+     * @notice A helper function to get the message hash that a validator must sigh with their validator's BLS public key
+     * @param claimer The claimer address
+     * @param pubkeyHash The hash of the BLS public key
+     * @return The message hash
+     */
+    function getMessageHash(address claimer, bytes32 pubkeyHash) external view returns (bytes memory) {
+        bytes32 messageHash = keccak256(abi.encode(REWARDS_DISTRIBUTION_TYPEHASH, claimer, nonces[pubkeyHash]));
+        return abi.encodePacked(_hashTypedDataV4(messageHash));
+    }
+
+    /**
      * @notice Returns the negated G1 generator
      * @return The negated G1 generator
      */
@@ -172,5 +186,14 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step {
             bytes32(uint256(22997279242622214937712647648895181298)),
             bytes32(uint256(46816884707101390882112958134453447585552332943769894357249934112654335001290))
         );
+    }
+
+    function _useNonce(bytes32 pubkeyHash) internal virtual returns (uint256) {
+        // For each account, the nonce has an initial value of 0, can only be incremented by one, and cannot be
+        // decremented or reset. This guarantees that the nonce never overflows.
+        unchecked {
+            // It is important to do x++ and not ++x here.
+            return nonces[pubkeyHash]++;
+        }
     }
 }

@@ -66,49 +66,27 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
     }
 
     function test_register_claimer_charlie_validator() public {
+        BLS.G1Point memory publicKey = BLS.G1Point({
+            x_a: bytes32(0x0000000000000000000000000000000003e6a728d627638a33a73003ff9a072f),
+            x_b: bytes32(0x0297dbca72ae0c2b9e4dfb1025ce96fcfc4c5322a6d3c35f4373d3974279f84c),
+            y_a: bytes32(0x000000000000000000000000000000000015ce87d1de408f3de766c379aa0331),
+            y_b: bytes32(0x449465dba3f66c63eb8c4cbb96ed95e8da093c7b439b01a2e7d13ecf538e50ac)
+        });
+
         distributor.registerClaimer(
             charlie,
             IUnifiRewardsDistributor.PubkeyRegistrationParams({
                 signature: BLS.G2Point({
-                    x_c0_a: bytes32(0x000000000000000000000000000000000c9eefa655056b3a50b244083f925b05),
-                    x_c0_b: bytes32(0x3dccbb0e950d8e63eca7dbc4cb4624275c475ebd3cb1145d99870c7b18cf07ff),
-                    x_c1_a: bytes32(0x00000000000000000000000000000000191d6ff6be277435576cecf870b67834),
-                    x_c1_b: bytes32(0x9554e7d1d5edb5ea9e92d5df26dfc49068f5bb049b2d297249e1325a3805e88f),
-                    y_c0_a: bytes32(0x00000000000000000000000000000000005ba9a1a87ddec7193927593620bd5c),
-                    y_c0_b: bytes32(0x07adfca2e8ac4e4a48dcc5a7deccbadec3933b9bcf59a3cf8c0113e35d2e2a5a),
-                    y_c1_a: bytes32(0x0000000000000000000000000000000006532e5d04c15f1efa3b69d661ee801f),
-                    y_c1_b: bytes32(0x2aed5b5ee9568b0e548bf0d0d2fc5081242f3f4821be55c390257fbde6305257)
+                    x_c0_a: bytes32(0x00000000000000000000000000000000194a8be661cee6a16c2d4989b68f4fd3),
+                    x_c0_b: bytes32(0x49dfbcb508a3e1dbb0ddd58e7cb464e984160f4d8a5acc8ae75e7f41b56068d1),
+                    x_c1_a: bytes32(0x0000000000000000000000000000000001d5ce2d523c1add9ffbf24efe1f6fb5),
+                    x_c1_b: bytes32(0x98ed5344001b520b06c78cf4c842539dacce3319e68119399d3d330d6d05f4b1),
+                    y_c0_a: bytes32(0x000000000000000000000000000000000e6090924e13feaa93b4c149418e7b28),
+                    y_c0_b: bytes32(0x716c191398cb6dd34f04007c38d72e5e327028a7e553d14632da6a5c72a3c63c),
+                    y_c1_a: bytes32(0x0000000000000000000000000000000005f41de8e5a8045a614c64adb240ecf7),
+                    y_c1_b: bytes32(0xd0f95c906880bfd1eb8bc05387f43e4979bd1ee1496f9313bf5c7ff92cd9d386)
                 }),
-                publicKey: BLS.G1Point({
-                    x_a: bytes32(0x0000000000000000000000000000000003e6a728d627638a33a73003ff9a072f),
-                    x_b: bytes32(0x0297dbca72ae0c2b9e4dfb1025ce96fcfc4c5322a6d3c35f4373d3974279f84c),
-                    y_a: bytes32(0x000000000000000000000000000000000015ce87d1de408f3de766c379aa0331),
-                    y_b: bytes32(0x449465dba3f66c63eb8c4cbb96ed95e8da093c7b439b01a2e7d13ecf538e50ac)
-                })
-            })
-        );
-    }
-
-    function test_register_claimer_shared_dev_wallet() public {
-        distributor.registerClaimer(
-            0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0,
-            IUnifiRewardsDistributor.PubkeyRegistrationParams({
-                signature: BLS.G2Point({
-                    x_c0_a: bytes32(0x00000000000000000000000000000000110d5a0afb764ce82ca610da5db4ce63),
-                    x_c0_b: bytes32(0x785f3eb1a7baaf6e7a7d350e3fa09d3372daee01c42c5a4463fc6b1b4c4039c8),
-                    x_c1_a: bytes32(0x0000000000000000000000000000000012541f5264f93dfc38b604e73204c2d2),
-                    x_c1_b: bytes32(0x6fb7bac84887ecada1a387bb6db1d0d17e53056b6a49fbecb43f01219738aa62),
-                    y_c0_a: bytes32(0x000000000000000000000000000000000685d41e3ead0ba2a6c3c71c1da6b663),
-                    y_c0_b: bytes32(0x17817a73afb45c95fa37178196fb070b73ef646a092be04019d824462ed0d616),
-                    y_c1_a: bytes32(0x000000000000000000000000000000000fc58f21b5936852e7f25e280695f309),
-                    y_c1_b: bytes32(0x8317a56d159aefc5363ccb2623a89671379714d6adf27834a1ed9b670ec8a89e)
-                }),
-                publicKey: BLS.G1Point({
-                    x_a: bytes32(0x0000000000000000000000000000000003e6a728d627638a33a73003ff9a072f),
-                    x_b: bytes32(0x0297dbca72ae0c2b9e4dfb1025ce96fcfc4c5322a6d3c35f4373d3974279f84c),
-                    y_a: bytes32(0x000000000000000000000000000000000015ce87d1de408f3de766c379aa0331),
-                    y_b: bytes32(0x449465dba3f66c63eb8c4cbb96ed95e8da093c7b439b01a2e7d13ecf538e50ac)
-                })
+                publicKey: publicKey
             })
         );
     }
@@ -148,6 +126,38 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
     function test_setMerkleRoot_zeroRoot() public {
         vm.expectRevert(IUnifiRewardsDistributor.MerkleRootCannotBeZero.selector);
         distributor.setNewMerkleRoot(bytes32(0));
+    }
+
+    function testRevert_register_claimer_same_nonce() public {
+        // Generate public keys
+        BLS.G1Point memory publicKey = _blsg1mul(G1_GENERATOR(), bytes32(aliceValidatorPrivateKey));
+
+        bytes32 pubkeyHash = distributor.getBlsPubkeyHash(publicKey);
+
+        bytes memory message = distributor.getMessageHash(alice, pubkeyHash);
+
+        BLS.G2Point memory messagePoint = BLS.hashToG2(message);
+
+        assertEq(block.chainid, 31337, "Chain ID should be 31337");
+        // Create signature (H(m) * privateKey)
+        BLS.G2Point memory signature = _blsg2mul(messagePoint, bytes32(aliceValidatorPrivateKey));
+
+        // Build params
+        IUnifiRewardsDistributor.PubkeyRegistrationParams memory params =
+            IUnifiRewardsDistributor.PubkeyRegistrationParams({ signature: signature, publicKey: publicKey });
+
+        // Execute registration
+        vm.prank(alice);
+        distributor.registerClaimer(alice, params);
+
+        // Verify registration
+        assertEq(distributor.getClaimer(pubkeyHash), alice);
+
+        // Try to register again with the same signature (signature replay)
+        // Should revert with BadBLSSignature
+        vm.prank(alice);
+        vm.expectRevert(IUnifiRewardsDistributor.BadBLSSignature.selector);
+        distributor.registerClaimer(alice, params);
     }
 
     function test_ClaimRewards() public {
@@ -274,10 +284,9 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         // Generate public keys
         BLS.G1Point memory publicKey = _blsg1mul(G1_GENERATOR(), bytes32(aliceValidatorPrivateKey));
 
-        // Create message hash
         bytes32 pubkeyHash = distributor.getBlsPubkeyHash(publicKey);
 
-        bytes memory message = abi.encodePacked(keccak256(abi.encode(block.chainid, alice)));
+        bytes memory message = distributor.getMessageHash(alice, pubkeyHash);
 
         BLS.G2Point memory messagePoint = BLS.hashToG2(message);
 
@@ -301,10 +310,9 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         // Generate public keys
         BLS.G1Point memory publicKey = _blsg1mul(G1_GENERATOR(), bytes32(blsPrivateKey));
 
-        // Create message hash
         bytes32 pubkeyHash = distributor.getBlsPubkeyHash(publicKey);
 
-        bytes memory message = abi.encodePacked(keccak256(abi.encode(block.chainid, claimer)));
+        bytes memory message = distributor.getMessageHash(claimer, pubkeyHash);
 
         BLS.G2Point memory messagePoint = BLS.hashToG2(message);
 
