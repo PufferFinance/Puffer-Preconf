@@ -3,12 +3,9 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { UnifiRewardsDistributor } from "../../src/UnifiRewardsDistributor.sol";
 import { IUnifiRewardsDistributor } from "../../src/interfaces/IUnifiRewardsDistributor.sol";
-
 import { BLS } from "../../src/library/BLS.sol";
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
-
-import { console } from "forge-std/console.sol";
 import { Merkle } from "murky/Merkle.sol";
 
 contract UnifiRewardsDistributorTest is UnitTestHelper {
