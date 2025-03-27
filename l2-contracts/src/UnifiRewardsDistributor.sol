@@ -13,7 +13,7 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step {
     using Address for address payable;
 
     /// @dev The delay for the Merkle root to be set
-    uint256 public constant MERKLE_ROOT_DELAY = 1 days;
+    uint256 public constant MERKLE_ROOT_DELAY = 3 days;
 
     /// @dev the mapping of BLS pubkey hash to claimer address
     mapping(bytes32 blsPubkeyHash => address claimer) public validatorClaimer;
@@ -26,7 +26,7 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step {
     /// @dev The timestamp when the pending Merkle root will become active
     uint256 public pendingMerkleRootActivationTimestamp;
 
-    constructor() Ownable(msg.sender) { }
+    constructor(address initialOwner) Ownable(initialOwner) { }
 
     /**
      * @notice Claim the unclaimed rewards for multiple validators

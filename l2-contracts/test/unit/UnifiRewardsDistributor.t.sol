@@ -38,7 +38,7 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
     address charlie = makeAddr("charlie");
 
     function setUp() public override {
-        distributor = new UnifiRewardsDistributor();
+        distributor = new UnifiRewardsDistributor(address(this));
     }
 
     function test_register_claimer_zero_key() public {
@@ -141,7 +141,7 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         bytes32 merkleRoot = _buildMerkleProof(merkleProofDatas);
 
         vm.expectEmit(true, true, true, true);
-        emit IUnifiRewardsDistributor.MerkleRootSet(merkleRoot, block.timestamp + 1 days);
+        emit IUnifiRewardsDistributor.MerkleRootSet(merkleRoot, block.timestamp + 3 days);
         distributor.setNewMerkleRoot(merkleRoot);
     }
 
@@ -169,7 +169,7 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         distributor.setNewMerkleRoot(merkleRoot);
 
         // Advance time so that the pending root becomes active
-        vm.warp(block.timestamp + 2 days);
+        vm.warp(block.timestamp + 4 days);
 
         // Set claimer for Alice
         test_registerClaimer();
@@ -239,7 +239,7 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
 
         distributor.setNewMerkleRoot(merkleRoot);
 
-        vm.warp(block.timestamp + 2 days);
+        vm.warp(block.timestamp + 4 days);
 
         // Set claimer for Alice
         test_registerClaimer();
@@ -260,7 +260,7 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         bytes32 newMerkleRoot = keccak256("new merkle root");
 
         vm.expectEmit(true, true, true, true);
-        emit IUnifiRewardsDistributor.MerkleRootSet(newMerkleRoot, block.timestamp + 1 days);
+        emit IUnifiRewardsDistributor.MerkleRootSet(newMerkleRoot, block.timestamp + 3 days);
         distributor.setNewMerkleRoot(newMerkleRoot);
 
         assertEq(distributor.getMerkleRoot(), bytes32(0), "Merkle root should be 0");
