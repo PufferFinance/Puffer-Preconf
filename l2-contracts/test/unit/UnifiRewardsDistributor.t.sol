@@ -235,6 +235,15 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         distributor.claimRewards(alicePubkeyHashes, aliceAmounts, aliceProofs);
     }
 
+    function testRevert_claimRewards_invalidLengths() public {
+        bytes32[][] memory aliceProofs = new bytes32[][](2);
+        bytes32[] memory alicePubkeyHashes = new bytes32[](1);
+        uint256[] memory aliceAmounts = new uint256[](1);
+
+        vm.expectRevert(IUnifiRewardsDistributor.InvalidInput.selector);
+        distributor.claimRewards(alicePubkeyHashes, aliceAmounts, aliceProofs);
+    }
+
     function test_revertInvalidProof() public {
         BLS.G1Point memory alicePublicKey = _blsg1mul(G1_GENERATOR(), bytes32(aliceValidatorPrivateKey));
         bytes32 alicePubkeyHash = distributor.getBlsPubkeyHash(alicePublicKey);
