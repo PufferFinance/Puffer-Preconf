@@ -70,8 +70,8 @@ contract MockEigenPod is IEigenPod {
         return validators[pubkeyHash];
     }
 
-    function validatorPubkeyToInfo(bytes calldata) external pure returns (ValidatorInfo memory) {
-        return ValidatorInfo(1, 0, 0, VALIDATOR_STATUS.INACTIVE);
+    function validatorPubkeyToInfo(bytes calldata pubKey) external view returns (ValidatorInfo memory) {
+        return validators[_calculateValidatorPubkeyHash(pubKey)];
     }
 
     function validatorStatus(bytes calldata) external pure returns (VALIDATOR_STATUS) {
@@ -143,4 +143,8 @@ contract MockEigenPod is IEigenPod {
         BeaconChainProofs.StateRootProof calldata stateRootProof,
         BeaconChainProofs.ValidatorProof calldata proof
     ) external { }
+
+    function _calculateValidatorPubkeyHash(bytes memory validatorPubkey) internal pure returns (bytes32) {
+        return sha256(abi.encodePacked(validatorPubkey, bytes16(0)));
+    }
 }
