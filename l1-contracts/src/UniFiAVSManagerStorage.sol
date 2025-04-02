@@ -8,7 +8,6 @@ import { IUniFiAVSManager } from "./interfaces/IUniFiAVSManager.sol";
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-
 abstract contract UniFiAVSManagerStorage is IUniFiAVSManager {
     struct UniFiAVSStorage {
         mapping(bytes validatorPubkey => ValidatorData validatorData) validators;

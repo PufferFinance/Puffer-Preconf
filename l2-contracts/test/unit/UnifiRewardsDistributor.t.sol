@@ -22,11 +22,13 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
 
     // Dummy BLS private key (never use in production!)
     uint256 aliceValidatorPrivateKey = 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef;
-    bytes32 aliceValidatorPubkeyHash = hex"349f9310273a8c4383749e137887aa02e8f1fada8f181449796da01aec23455a";
+    bytes alicePubKey =
+        hex"972a59075fca0729b40b2cea5bb9685afdd219e77407e13631664c53b847cdcad45ab174a073aaa4122ad813fa094485";
     address alice = makeAddr("alice");
 
     uint256 bobValidatorPrivateKey = 7;
-    bytes32 bobValidatorPubkeyHash = hex"e711030c34f9fc82f04c360494b9c94f17a43fe72a5860f057f098f48d382380";
+    bytes bobPubKey =
+        hex"b928f3beb93519eecf0145da903b40a4c97dca00b21f12ac0df3be9116ef2ef27b2ae6bcd4c5bc2d54ef5a70627efcb7";
     address bob = makeAddr("bob");
 
     // Generated using staking-deposit-cli
@@ -163,6 +165,7 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
     function test_ClaimRewards() public {
         BLS.G1Point memory alicePublicKey = _blsg1mul(G1_GENERATOR(), bytes32(aliceValidatorPrivateKey));
         BLS.G1Point memory bobPublicKey = _blsg1mul(G1_GENERATOR(), bytes32(bobValidatorPrivateKey));
+        BLS.G1Point memory charliePublicKey = _blsg1mul(G1_GENERATOR(), bytes32(charlieValidatorPrivateKey));
 
         bytes32[] memory pubkeyHashes = new bytes32[](2);
         pubkeyHashes[0] = distributor.getBlsPubkeyHash(alicePublicKey);
@@ -171,8 +174,9 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         // Build a merkle proof
         MerkleProofData[] memory merkleProofDatas = new MerkleProofData[](3);
         merkleProofDatas[0] = MerkleProofData({ blsPubkeyHash: pubkeyHashes[0], amount: 1 ether });
-        merkleProofDatas[1] = MerkleProofData({ blsPubkeyHash: pubkeyHashes[1], amount: 2 ether });
-        merkleProofDatas[2] = MerkleProofData({ blsPubkeyHash: bytes32("charlie"), amount: 3 ether });
+        merkleProofDatas[1] = MerkleProofData({ blsPubkeyHash: pubkeyHashes[1], amount: 1 ether });
+        merkleProofDatas[2] =
+            MerkleProofData({ blsPubkeyHash: distributor.getBlsPubkeyHash(charliePublicKey), amount: 2 ether });
 
         bytes32 merkleRoot = _buildMerkleProof(merkleProofDatas);
 
@@ -196,7 +200,7 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
 
         uint256[] memory amounts = new uint256[](2);
         amounts[0] = 1 ether;
-        amounts[1] = 2 ether;
+        amounts[1] = 1 ether;
 
         bytes32[][] memory proofs = new bytes32[][](2);
         proofs[0] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 0);
@@ -204,7 +208,99 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
 
         distributor.claimRewards(pubkeyHashes, amounts, proofs);
 
-        assertEq(alice.balance, 3 ether, "Alice should have received 3 ether");
+        assertEq(alice.balance, 2 ether, "Alice should have received 2 ether");
+        assertEq(bob.balance, 0 ether, "Bob should have received 0 ether");
+
+        vm.expectRevert(IUnifiRewardsDistributor.NothingToClaim.selector);
+        distributor.claimRewards(pubkeyHashes, amounts, proofs);
+    }
+
+    // Murky & https://github.com/OpenZeppelin/merkle-tree produce a different merkle root, so I wanted to test with the hardcoded values from javascript
+    // Here is an output from the JS:
+    // {
+    //   "format": "standard-v1",
+    //   "leafEncoding": [
+    //     "bytes32",
+    //     "uint256"
+    //   ],
+    //   "tree": [
+    //     "0x16f4adee6ecf2574fead8654ddf1c6a72fb2faa1907ded6d60d40d7861d266c7",
+    //     "0xbb92f1a94650f1a09a011ac5c369cd0aaad100360e77b5fbc71b31b68afb2e48",
+    //     "0xdae365befd9157ed4ac8b243e1c0b904f264f9438a3161cc0bd6d4ad5e32175c",
+    //     "0xc000ebfa4af3045d9465fce72796d2d072b8e8ab5c43b02b170b747f33dde361",
+    //     "0x844c668fdaa1cba3d4d42b2d82d741f73eb8a7190e3b5f9812260485a4b7dce8"
+    //   ],
+    //   "values": [
+    //     {
+    //       "value": [
+    //         "0x6526d16200577a90152ae8c6876fc3a76726233209367b096c4ec5912fac488f",
+    //         "1000000000000000000"
+    //       ],
+    //       "treeIndex": 2
+    //     },
+    //     {
+    //       "value": [
+    //         "0xe45a016fb66918f6e9322c88b3b3ec7b05ccfe0cbb2c21eb3091c474462e611a",
+    //         "1000000000000000000"
+    //       ],
+    //       "treeIndex": 4
+    //     },
+    //     {
+    //       "value": [
+    //         "0x6a917ca51ae46a8ee2dcb5405f214d05ca9ac5a9312d9f7daae28f654e165006",
+    //         "2000000000000000000"
+    //       ],
+    //       "treeIndex": 3
+    //     }
+    //   ]
+    // }
+    // [
+    //   '0xbb92f1a94650f1a09a011ac5c369cd0aaad100360e77b5fbc71b31b68afb2e48'
+    // ] Proof Alice
+    // [
+    //   '0xc000ebfa4af3045d9465fce72796d2d072b8e8ab5c43b02b170b747f33dde361',
+    //   '0xdae365befd9157ed4ac8b243e1c0b904f264f9438a3161cc0bd6d4ad5e32175c'
+    // ] Proof Bob
+    function test_ClaimRewards_hardcoded_values_from_javascript() public {
+        BLS.G1Point memory alicePublicKey = _blsg1mul(G1_GENERATOR(), bytes32(aliceValidatorPrivateKey));
+        BLS.G1Point memory bobPublicKey = _blsg1mul(G1_GENERATOR(), bytes32(bobValidatorPrivateKey));
+
+        bytes32[] memory pubkeyHashes = new bytes32[](2);
+        pubkeyHashes[0] = distributor.getBlsPubkeyHash(alicePublicKey);
+        pubkeyHashes[1] = distributor.getBlsPubkeyHash(bobPublicKey);
+
+        distributor.setNewMerkleRoot(hex"16f4adee6ecf2574fead8654ddf1c6a72fb2faa1907ded6d60d40d7861d266c7");
+
+        // Advance time so that the pending root becomes active
+        vm.warp(block.timestamp + 4 days);
+
+        // Set claimer for Alice
+        test_registerClaimer();
+
+        _registerClaimer(bobValidatorPrivateKey, bob, alice);
+
+        // Deal some ETH to the distributor, so that it has some balance
+        vm.deal(address(distributor), 10 ether);
+
+        // Alice claims the rewards
+        vm.prank(alice);
+
+        assertEq(alice.balance, 0, "Alice should have 0 balance");
+
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 1 ether;
+        amounts[1] = 1 ether;
+
+        bytes32[][] memory proofs = new bytes32[][](2);
+        proofs[0] = new bytes32[](1);
+        proofs[0][0] = hex"bb92f1a94650f1a09a011ac5c369cd0aaad100360e77b5fbc71b31b68afb2e48";
+        proofs[1] = new bytes32[](2);
+        proofs[1][0] = hex"c000ebfa4af3045d9465fce72796d2d072b8e8ab5c43b02b170b747f33dde361";
+        proofs[1][1] = hex"dae365befd9157ed4ac8b243e1c0b904f264f9438a3161cc0bd6d4ad5e32175c";
+
+        distributor.claimRewards(pubkeyHashes, amounts, proofs);
+
+        assertEq(alice.balance, 2 ether, "Alice should have received 2 ether");
         assertEq(bob.balance, 0 ether, "Bob should have received 0 ether");
 
         vm.expectRevert(IUnifiRewardsDistributor.NothingToClaim.selector);
@@ -214,7 +310,7 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
     function test_revertClaimerNotSet() public {
         // Build a merkle proof
         MerkleProofData[] memory merkleProofDatas = new MerkleProofData[](3);
-        merkleProofDatas[0] = MerkleProofData({ blsPubkeyHash: aliceValidatorPubkeyHash, amount: 1 ether });
+        merkleProofDatas[0] = MerkleProofData({ blsPubkeyHash: bytes32("alice"), amount: 1 ether });
         merkleProofDatas[1] = MerkleProofData({ blsPubkeyHash: bytes32("bob"), amount: 2 ether });
         merkleProofDatas[2] = MerkleProofData({ blsPubkeyHash: bytes32("charlie"), amount: 3 ether });
 
@@ -226,7 +322,7 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         bytes32[][] memory aliceProofs = new bytes32[][](1);
 
         bytes32[] memory alicePubkeyHashes = new bytes32[](1);
-        alicePubkeyHashes[0] = aliceValidatorPubkeyHash;
+        alicePubkeyHashes[0] = bytes32("alice");
 
         uint256[] memory aliceAmounts = new uint256[](1);
         aliceAmounts[0] = 1 ether;
