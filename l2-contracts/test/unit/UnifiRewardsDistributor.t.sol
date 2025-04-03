@@ -44,53 +44,53 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
     }
 
     function test_register_claimer_zero_key() public {
+        IUnifiRewardsDistributor.PubkeyRegistrationParams[] memory params =
+            new IUnifiRewardsDistributor.PubkeyRegistrationParams[](1);
+        params[0] = IUnifiRewardsDistributor.PubkeyRegistrationParams({
+            signature: BLS.G2Point({
+                x_c0_a: bytes32(0),
+                x_c0_b: bytes32(0),
+                x_c1_a: bytes32(0),
+                x_c1_b: bytes32(0),
+                y_c0_a: bytes32(0),
+                y_c0_b: bytes32(0),
+                y_c1_a: bytes32(0),
+                y_c1_b: bytes32(0)
+            }),
+            publicKey: BLS.G1Point({ x_a: bytes32(0), x_b: bytes32(0), y_a: bytes32(0), y_b: bytes32(0) })
+        });
+
         // Registers a claimer for zero key
         vm.expectEmit(true, true, true, true);
         emit IUnifiRewardsDistributor.ClaimerSet(
             hex"012893657d8eb2efad4de0a91bcd0e39ad9837745dec3ea923737ea803fc8e3d", alice
         );
-        distributor.registerClaimer(
-            alice,
-            IUnifiRewardsDistributor.PubkeyRegistrationParams({
-                signature: BLS.G2Point({
-                    x_c0_a: bytes32(0),
-                    x_c0_b: bytes32(0),
-                    x_c1_a: bytes32(0),
-                    x_c1_b: bytes32(0),
-                    y_c0_a: bytes32(0),
-                    y_c0_b: bytes32(0),
-                    y_c1_a: bytes32(0),
-                    y_c1_b: bytes32(0)
-                }),
-                publicKey: BLS.G1Point({ x_a: bytes32(0), x_b: bytes32(0), y_a: bytes32(0), y_b: bytes32(0) })
-            })
-        );
+        distributor.registerClaimer(alice, params);
     }
 
     function test_register_claimer_charlie_validator() public {
-        BLS.G1Point memory publicKey = BLS.G1Point({
-            x_a: bytes32(0x0000000000000000000000000000000003e6a728d627638a33a73003ff9a072f),
-            x_b: bytes32(0x0297dbca72ae0c2b9e4dfb1025ce96fcfc4c5322a6d3c35f4373d3974279f84c),
-            y_a: bytes32(0x000000000000000000000000000000000015ce87d1de408f3de766c379aa0331),
-            y_b: bytes32(0x449465dba3f66c63eb8c4cbb96ed95e8da093c7b439b01a2e7d13ecf538e50ac)
+        IUnifiRewardsDistributor.PubkeyRegistrationParams[] memory params =
+            new IUnifiRewardsDistributor.PubkeyRegistrationParams[](1);
+        params[0] = IUnifiRewardsDistributor.PubkeyRegistrationParams({
+            signature: BLS.G2Point({
+                x_c0_a: bytes32(0x00000000000000000000000000000000194a8be661cee6a16c2d4989b68f4fd3),
+                x_c0_b: bytes32(0x49dfbcb508a3e1dbb0ddd58e7cb464e984160f4d8a5acc8ae75e7f41b56068d1),
+                x_c1_a: bytes32(0x0000000000000000000000000000000001d5ce2d523c1add9ffbf24efe1f6fb5),
+                x_c1_b: bytes32(0x98ed5344001b520b06c78cf4c842539dacce3319e68119399d3d330d6d05f4b1),
+                y_c0_a: bytes32(0x000000000000000000000000000000000e6090924e13feaa93b4c149418e7b28),
+                y_c0_b: bytes32(0x716c191398cb6dd34f04007c38d72e5e327028a7e553d14632da6a5c72a3c63c),
+                y_c1_a: bytes32(0x0000000000000000000000000000000005f41de8e5a8045a614c64adb240ecf7),
+                y_c1_b: bytes32(0xd0f95c906880bfd1eb8bc05387f43e4979bd1ee1496f9313bf5c7ff92cd9d386)
+            }),
+            publicKey: BLS.G1Point({
+                x_a: bytes32(0x0000000000000000000000000000000003e6a728d627638a33a73003ff9a072f),
+                x_b: bytes32(0x0297dbca72ae0c2b9e4dfb1025ce96fcfc4c5322a6d3c35f4373d3974279f84c),
+                y_a: bytes32(0x000000000000000000000000000000000015ce87d1de408f3de766c379aa0331),
+                y_b: bytes32(0x449465dba3f66c63eb8c4cbb96ed95e8da093c7b439b01a2e7d13ecf538e50ac)
+            })
         });
 
-        distributor.registerClaimer(
-            charlie,
-            IUnifiRewardsDistributor.PubkeyRegistrationParams({
-                signature: BLS.G2Point({
-                    x_c0_a: bytes32(0x00000000000000000000000000000000194a8be661cee6a16c2d4989b68f4fd3),
-                    x_c0_b: bytes32(0x49dfbcb508a3e1dbb0ddd58e7cb464e984160f4d8a5acc8ae75e7f41b56068d1),
-                    x_c1_a: bytes32(0x0000000000000000000000000000000001d5ce2d523c1add9ffbf24efe1f6fb5),
-                    x_c1_b: bytes32(0x98ed5344001b520b06c78cf4c842539dacce3319e68119399d3d330d6d05f4b1),
-                    y_c0_a: bytes32(0x000000000000000000000000000000000e6090924e13feaa93b4c149418e7b28),
-                    y_c0_b: bytes32(0x716c191398cb6dd34f04007c38d72e5e327028a7e553d14632da6a5c72a3c63c),
-                    y_c1_a: bytes32(0x0000000000000000000000000000000005f41de8e5a8045a614c64adb240ecf7),
-                    y_c1_b: bytes32(0xd0f95c906880bfd1eb8bc05387f43e4979bd1ee1496f9313bf5c7ff92cd9d386)
-                }),
-                publicKey: publicKey
-            })
-        );
+        distributor.registerClaimer(charlie, params);
     }
 
     function _buildMerkleProof(MerkleProofData[] memory merkleProofDatas) internal returns (bytes32 root) {
@@ -141,12 +141,14 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         BLS.G2Point memory messagePoint = BLS.hashToG2(message);
 
         assertEq(block.chainid, 31337, "Chain ID should be 31337");
-        // Create signature (H(m) * privateKey)
-        BLS.G2Point memory signature = _blsg2mul(messagePoint, bytes32(aliceValidatorPrivateKey));
 
         // Build params
-        IUnifiRewardsDistributor.PubkeyRegistrationParams memory params =
-            IUnifiRewardsDistributor.PubkeyRegistrationParams({ signature: signature, publicKey: publicKey });
+        IUnifiRewardsDistributor.PubkeyRegistrationParams[] memory params =
+            new IUnifiRewardsDistributor.PubkeyRegistrationParams[](1);
+        params[0] = IUnifiRewardsDistributor.PubkeyRegistrationParams({
+            signature: _blsg2mul(messagePoint, bytes32(aliceValidatorPrivateKey)),
+            publicKey: publicKey
+        });
 
         // Execute registration
         vm.prank(alice);
@@ -403,9 +405,13 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         IUnifiRewardsDistributor.PubkeyRegistrationParams memory params =
             IUnifiRewardsDistributor.PubkeyRegistrationParams({ signature: signature, publicKey: publicKey });
 
+        IUnifiRewardsDistributor.PubkeyRegistrationParams[] memory paramsArray =
+            new IUnifiRewardsDistributor.PubkeyRegistrationParams[](1);
+        paramsArray[0] = params;
+
         // Execute registration
         vm.prank(alice);
-        distributor.registerClaimer(alice, params);
+        distributor.registerClaimer(alice, paramsArray);
 
         // Verify registration
         assertEq(distributor.getClaimer(pubkeyHash), alice);
@@ -428,9 +434,13 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         IUnifiRewardsDistributor.PubkeyRegistrationParams memory params =
             IUnifiRewardsDistributor.PubkeyRegistrationParams({ signature: signature, publicKey: publicKey });
 
+        IUnifiRewardsDistributor.PubkeyRegistrationParams[] memory paramsArray =
+            new IUnifiRewardsDistributor.PubkeyRegistrationParams[](1);
+        paramsArray[0] = params;
+
         // Execute registration
         vm.prank(caller);
-        distributor.registerClaimer(claimer, params);
+        distributor.registerClaimer(claimer, paramsArray);
 
         // Verify registration
         assertEq(distributor.getClaimer(pubkeyHash), claimer);
@@ -443,8 +453,12 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         IUnifiRewardsDistributor.PubkeyRegistrationParams memory params =
             IUnifiRewardsDistributor.PubkeyRegistrationParams({ signature: signature, publicKey: publicKey });
 
+        IUnifiRewardsDistributor.PubkeyRegistrationParams[] memory paramsArray =
+            new IUnifiRewardsDistributor.PubkeyRegistrationParams[](1);
+        paramsArray[0] = params;
+
         vm.expectRevert(IUnifiRewardsDistributor.BadBLSSignature.selector);
-        distributor.registerClaimer(alice, params);
+        distributor.registerClaimer(alice, paramsArray);
     }
 
     function G1_GENERATOR() internal pure returns (BLS.G1Point memory) {

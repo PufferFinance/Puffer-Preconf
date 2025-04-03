@@ -44,9 +44,9 @@ interface IUnifiRewardsDistributor {
     }
 
     /**
-     * @notice Registers the `claimer`'s address for the validator's BLS public key
+     * @notice Registers the `claimer`'s address for the validator's BLS public keys
      * @param claimer The address of the claimer to register.
-     * @param params contains the G1 & G2 public keys of the validator, and a signature proving their ownership
+     * @param params is an array of structs containing the G1 & G2 public keys of the validator, and a signature proving their ownership
      */
-    function registerClaimer(address claimer, PubkeyRegistrationParams calldata params) external;
+    function registerClaimer(address claimer, PubkeyRegistrationParams[] calldata params) external;
 }

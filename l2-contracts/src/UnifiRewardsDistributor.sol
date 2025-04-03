@@ -98,32 +98,34 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
     }
 
     /**
-     * @notice Called by the RegistryCoordinator register an operator as the owner of a BLS public key.
-     * @param claimer is the claimer for whom the key is being registered
-     * @param params contains the G1 & G2 public keys of the claimer, and a signature proving their ownership
+     * @notice Registers the `claimer`'s address for the validator's BLS public keys
+     * @param claimer The address of the claimer to register.
+     * @param params is an array of structs containing the G1 & G2 public keys of the validator, and a signature proving their ownership
      */
-    function registerClaimer(address claimer, PubkeyRegistrationParams calldata params) external {
-        bytes32 pubKeyHash = getBlsPubkeyHash(params.publicKey);
+    function registerClaimer(address claimer, PubkeyRegistrationParams[] calldata params) external {
+        for (uint256 i = 0; i < params.length; ++i) {
+            bytes32 pubKeyHash = getBlsPubkeyHash(params[i].publicKey);
 
-        bytes32 structHash = keccak256(abi.encode(REWARDS_DISTRIBUTION_TYPEHASH, claimer, _useNonce(pubKeyHash)));
+            bytes32 structHash = keccak256(abi.encode(REWARDS_DISTRIBUTION_TYPEHASH, claimer, _useNonce(pubKeyHash)));
 
-        BLS.G2Point memory messagePoint = BLS.hashToG2(abi.encodePacked(_hashTypedDataV4(structHash)));
+            BLS.G2Point memory messagePoint = BLS.hashToG2(abi.encodePacked(_hashTypedDataV4(structHash)));
 
-        BLS.G1Point[] memory g1Points = new BLS.G1Point[](2);
-        g1Points[0] = NEGATED_G1_GENERATOR();
-        g1Points[1] = params.publicKey;
+            BLS.G1Point[] memory g1Points = new BLS.G1Point[](2);
+            g1Points[0] = NEGATED_G1_GENERATOR();
+            g1Points[1] = params[i].publicKey;
 
-        BLS.G2Point[] memory g2Points = new BLS.G2Point[](2);
-        g2Points[0] = params.signature;
-        g2Points[1] = messagePoint;
+            BLS.G2Point[] memory g2Points = new BLS.G2Point[](2);
+            g2Points[0] = params[i].signature;
+            g2Points[1] = messagePoint;
 
-        bool valid = BLS.pairing(g1Points, g2Points);
-        // This will revert if the signature is invalid / replayed
-        require(valid, BadBLSSignature());
+            bool valid = BLS.pairing(g1Points, g2Points);
+            // This will revert if the signature is invalid / replayed
+            require(valid, BadBLSSignature());
 
-        validatorClaimer[pubKeyHash] = claimer;
+            validatorClaimer[pubKeyHash] = claimer;
 
-        emit ClaimerSet(pubKeyHash, claimer);
+            emit ClaimerSet(pubKeyHash, claimer);
+        }
     }
 
     /**
