@@ -34,26 +34,8 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         hex"8f77ef4427e190559eb6f8f2f4759e88f10deea104da8f8c0925d233192706974c49018abf8310cb8282a93d18fb1c9b"
     );
 
-    bytes32 public activeValidatorPubKeyHash = sha256( // an active validator in the pod
-        abi.encodePacked(
-            abi.encodePacked(
-                hex"8f77ef4427e190559eb6f8f2f4759e88f10deea104da8f8c0925d233192706974c49018abf8310cb8282a93d18fb1c9b"
-            ),
-            bytes16(0)
-        )
-    );
-
     bytes public exitedValidatorPubkey = abi.encodePacked(
         hex"90ba70225a0ab658a629431cfc0bde70eb4dc4022e6ab60ac020dea6d9b3ff14a9d17395bd6bfa90c7d999a184a77b33"
-    );
-
-    bytes32 public exitedValidatorPubKeyHash = sha256( // an exited validator in the pod
-        abi.encodePacked(
-            abi.encodePacked(
-                hex"90ba70225a0ab658a629431cfc0bde70eb4dc4022e6ab60ac020dea6d9b3ff14a9d17395bd6bfa90c7d999a184a77b33"
-            ),
-            bytes16(0)
-        )
     );
 
     address public operatorSigner;
