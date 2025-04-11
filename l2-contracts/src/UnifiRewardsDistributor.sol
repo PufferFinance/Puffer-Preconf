@@ -9,6 +9,11 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
+/**
+ * @title Unifi Rewards Distributor
+ * @author Puffer Finance
+ * @custom:security-contact security@puffer.fi
+ */
 contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP712 {
     using Address for address payable;
 
