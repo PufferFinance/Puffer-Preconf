@@ -2,26 +2,26 @@
 pragma solidity ^0.8.0;
 
 import { IUnifiRewardsDistributor } from "./interfaces/IUnifiRewardsDistributor.sol";
-import { BN254 } from "./library/BN254.sol";
+import { BLS } from "./library/BLS.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
-contract UnifiRewardsDistributor is IUnifiRewardsDistributor, EIP712, Ownable2Step {
+/**
+ * @title Unifi Rewards Distributor
+ * @author Puffer Finance
+ * @custom:security-contact security@puffer.fi
+ */
+contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP712 {
     using Address for address payable;
-    using BN254 for BN254.G1Point;
+
+    /// @dev The typehash for the RegisterClaimer function
+    bytes32 public constant REWARDS_DISTRIBUTION_TYPEHASH = keccak256("RegisterClaimer(address claimer,uint256 nonce)");
 
     /// @dev The delay for the Merkle root to be set
-    uint256 public constant MERKLE_ROOT_DELAY = 1 days;
-    // EIP-712 type definitions
-    bytes32 public constant CLAIM_TYPEHASH = keccak256("SetClaimer(bytes32 blsPubkeyHash,address claimer)");
-    string public constant DOMAIN_NAME = "UnifiRewardsDistributor";
-    string public constant DOMAIN_VERSION = "1";
-
-    /// @dev the hash of the zero pubkey aka BN254.G1Point(0,0)
-    bytes32 internal constant _ZERO_PK_HASH = hex"ad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5";
+    uint256 public constant MERKLE_ROOT_DELAY = 3 days;
 
     /// @dev the mapping of BLS pubkey hash to claimer address
     mapping(bytes32 blsPubkeyHash => address claimer) public validatorClaimer;
@@ -33,19 +33,10 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, EIP712, Ownable2St
     bytes32 public pendingMerkleRoot;
     /// @dev The timestamp when the pending Merkle root will become active
     uint256 public pendingMerkleRootActivationTimestamp;
+    /// @dev The mapping of BLS pubkey hash to nonce
+    mapping(bytes32 pubkeyHash => uint256 nonce) public nonces;
 
-    constructor() EIP712(DOMAIN_NAME, DOMAIN_VERSION) Ownable(msg.sender) { }
-
-    /**
-     * @dev Returns the hash of the fully encoded EIP-712 message for the claim data
-     * @param blsPubkeyHash The hash of the BLS public key
-     * @param claimer The address that will be able to claim rewards
-     * @return The typed data hash
-     */
-    function getClaimerTypedDataHash(bytes32 blsPubkeyHash, address claimer) public view returns (bytes32) {
-        bytes32 structHash = keccak256(abi.encode(CLAIM_TYPEHASH, blsPubkeyHash, claimer));
-        return _hashTypedDataV4(structHash);
-    }
+    constructor(address initialOwner) Ownable(initialOwner) EIP712("UnifiRewardsDistributor", "1") { }
 
     /**
      * @notice Claim the unclaimed rewards for multiple validators
@@ -112,50 +103,34 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, EIP712, Ownable2St
     }
 
     /**
-     * @notice Called by the RegistryCoordinator register an operator as the owner of a BLS public key.
-     * @param claimer is the claimer for whom the key is being registered
-     * @param params contains the G1 & G2 public keys of the claimer, and a signature proving their ownership
+     * @notice Registers the `claimer`'s address for the validator's BLS public keys
+     * @param claimer The address of the claimer to register.
+     * @param params is an array of structs containing the G1 & G2 public keys of the validator, and a signature proving their ownership
      */
-    function registerClaimer(address claimer, PubkeyRegistrationParams calldata params) external {
-        require(
-            params.pubkeyRegistrationSignature.X != 0 && params.pubkeyRegistrationSignature.Y != 0, BadBLSSignature()
-        );
+    function registerClaimer(address claimer, PubkeyRegistrationParams[] calldata params) external {
+        for (uint256 i = 0; i < params.length; ++i) {
+            bytes32 pubKeyHash = getBlsPubkeyHash(params[i].publicKey);
 
-        bytes32 pubkeyHash = BN254.hashG1Point(params.pubkeyG1);
-        require(pubkeyHash != _ZERO_PK_HASH, CannotRegisterZeroPubKey());
+            bytes32 structHash = keccak256(abi.encode(REWARDS_DISTRIBUTION_TYPEHASH, claimer, _useNonce(pubKeyHash)));
 
-        BN254.G1Point memory claimerMessageHash = getClaimerMessageHash(pubkeyHash, claimer);
+            BLS.G2Point memory messagePoint = BLS.hashToG2(abi.encodePacked(_hashTypedDataV4(structHash)));
 
-        // gamma = h(sigma, P, P', H(m))
-        uint256 gamma = uint256(
-            keccak256(
-                abi.encodePacked(
-                    params.pubkeyG1.X,
-                    params.pubkeyG1.Y,
-                    params.pubkeyG2.X[0],
-                    params.pubkeyG2.X[1],
-                    params.pubkeyG2.Y[0],
-                    params.pubkeyG2.Y[1],
-                    claimerMessageHash.X,
-                    claimerMessageHash.Y
-                )
-            )
-        ) % BN254.FR_MODULUS;
+            BLS.G1Point[] memory g1Points = new BLS.G1Point[](2);
+            g1Points[0] = NEGATED_G1_GENERATOR();
+            g1Points[1] = params[i].publicKey;
 
-        // e(sigma + P * gamma, [-1]_2) = e(H(m) + [1]_1 * gamma, P')
-        require(
-            BN254.pairing(
-                params.pubkeyRegistrationSignature.plus(params.pubkeyG1.scalar_mul(gamma)),
-                BN254.negGeneratorG2(),
-                claimerMessageHash.plus(BN254.generatorG1().scalar_mul(gamma)),
-                params.pubkeyG2
-            ),
-            BadBLSSignature()
-        );
+            BLS.G2Point[] memory g2Points = new BLS.G2Point[](2);
+            g2Points[0] = params[i].signature;
+            g2Points[1] = messagePoint;
 
-        validatorClaimer[pubkeyHash] = claimer;
+            bool valid = BLS.pairing(g1Points, g2Points);
+            // This will revert if the signature is invalid / replayed
+            require(valid, BadBLSSignature());
 
-        emit ClaimerSet(pubkeyHash, claimer);
+            validatorClaimer[pubKeyHash] = claimer;
+
+            emit ClaimerSet(pubKeyHash, claimer);
+        }
     }
 
     /**
@@ -180,14 +155,6 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, EIP712, Ownable2St
     }
 
     /**
-     * @dev Returns the domain separator used in the encoding of the signature for EIP712
-     * @return The domain separator
-     */
-    function getDomainSeparator() public view returns (bytes32) {
-        return _domainSeparatorV4();
-    }
-
-    /**
      * @dev Returns the chain ID used in the domain separator
      * @return The chain ID
      */
@@ -196,20 +163,44 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, EIP712, Ownable2St
     }
 
     /**
-     * @notice Returns the message hash that an validator must sign to register their BLS public key.
-     * @param blsPubkeyHash The hash of the BLS public key
-     * @param claimer The address that will be able to claim rewards
-     */
-    function getClaimerMessageHash(bytes32 blsPubkeyHash, address claimer) public view returns (BN254.G1Point memory) {
-        return BN254.hashToG1(_hashTypedDataV4(keccak256(abi.encode(CLAIM_TYPEHASH, blsPubkeyHash, claimer))));
-    }
-
-    /**
      * @notice Get the hash of a BLS public key
      * @param pubkeyG1 The G1 public key
      * @return The hash of the BLS public key
      */
-    function getBlsPubkeyHash(BN254.G1Point memory pubkeyG1) public pure returns (bytes32) {
-        return BN254.hashG1Point(pubkeyG1);
+    function getBlsPubkeyHash(BLS.G1Point memory pubkeyG1) public pure returns (bytes32) {
+        return keccak256(abi.encode(pubkeyG1.x_a, pubkeyG1.x_b, pubkeyG1.y_a, pubkeyG1.y_b));
+    }
+
+    /**
+     * @notice A helper function to get the message hash that a validator must sigh with their validator's BLS public key
+     * @param claimer The claimer address
+     * @param pubkeyHash The hash of the BLS public key
+     * @return The message hash
+     */
+    function getMessageHash(address claimer, bytes32 pubkeyHash) external view returns (bytes memory) {
+        bytes32 messageHash = keccak256(abi.encode(REWARDS_DISTRIBUTION_TYPEHASH, claimer, nonces[pubkeyHash]));
+        return abi.encodePacked(_hashTypedDataV4(messageHash));
+    }
+
+    /**
+     * @notice Returns the negated G1 generator
+     * @return The negated G1 generator
+     */
+    function NEGATED_G1_GENERATOR() public pure returns (BLS.G1Point memory) {
+        return BLS.G1Point(
+            bytes32(uint256(31827880280837800241567138048534752271)),
+            bytes32(uint256(88385725958748408079899006800036250932223001591707578097800747617502997169851)),
+            bytes32(uint256(22997279242622214937712647648895181298)),
+            bytes32(uint256(46816884707101390882112958134453447585552332943769894357249934112654335001290))
+        );
+    }
+
+    function _useNonce(bytes32 pubkeyHash) internal virtual returns (uint256) {
+        // For each account, the nonce has an initial value of 0, can only be incremented by one, and cannot be
+        // decremented or reset. This guarantees that the nonce never overflows.
+        unchecked {
+            // It is important to do x++ and not ++x here.
+            return nonces[pubkeyHash]++;
+        }
     }
 }

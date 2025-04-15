@@ -126,6 +126,7 @@ contract UniFiAVSScripts is Script, DeployerHelper {
         BeaconValidatorData memory beaconData = abi.decode(data, (BeaconValidatorData));
 
         bytes32[] memory pubkeyHashes = new bytes32[](beaconData.data.length);
+        bytes[] memory pubkeys = new bytes[](beaconData.data.length);
         IEigenPod.ValidatorInfo[] memory validators = new IEigenPod.ValidatorInfo[](beaconData.data.length);
 
         // Iterate over the array and extract the required fields
@@ -134,7 +135,8 @@ contract UniFiAVSScripts is Script, DeployerHelper {
             ValidatorData memory validatorData = beaconData.data[i];
             uint256 index = _stringToUint(validatorData.index);
 
-            pubkeyHashes[i] = keccak256(validatorData.validator.pubkey);
+            pubkeyHashes[i] = calculateBlsPubKeyHash(validatorData.validator.pubkey);
+            pubkeys[i] = validatorData.validator.pubkey;
             validators[i] = IEigenPod.ValidatorInfo({
                 validatorIndex: uint64(index),
                 restakedBalanceGwei: 0,
@@ -147,7 +149,7 @@ contract UniFiAVSScripts is Script, DeployerHelper {
             console.log("Added validator with index:", index);
         }
 
-        uniFiAVSManager.registerValidators(podOwner, pubkeyHashes);
+        uniFiAVSManager.registerValidators(podOwner, pubkeys);
         vm.stopBroadcast();
     }
 
@@ -168,7 +170,7 @@ contract UniFiAVSScripts is Script, DeployerHelper {
         IEigenPod.ValidatorInfo[] memory validators = new IEigenPod.ValidatorInfo[](pubkeys.length);
 
         for (uint256 i = 0; i < pubkeys.length; i++) {
-            pubkeyHashes[i] = keccak256(pubkeys[i]);
+            pubkeyHashes[i] = calculateBlsPubKeyHash(pubkeys[i]);
             validators[i] = IEigenPod.ValidatorInfo({
                 validatorIndex: validatorIndices[i],
                 restakedBalanceGwei: 0,
@@ -181,7 +183,7 @@ contract UniFiAVSScripts is Script, DeployerHelper {
             console.log("Added validator with index:", validatorIndices[i]);
         }
 
-        uniFiAVSManager.registerValidators(podOwner, pubkeyHashes);
+        uniFiAVSManager.registerValidators(podOwner, pubkeys);
         vm.stopBroadcast();
     }
 
@@ -296,25 +298,12 @@ contract UniFiAVSScripts is Script, DeployerHelper {
 
     // Common functions for both Helder and non-Helder chains
 
-    /// @notice Registers validators with the UniFiAVSManager using pre-hashed public keys
-    /// @param podOwner The address of the pod owner
-    /// @param blsPubKeyHashes The hashes of the BLS public keys
-    function registerValidatorsToUniFiAVS(address podOwner, bytes32[] memory blsPubKeyHashes) public {
-        vm.startBroadcast();
-        uniFiAVSManager.registerValidators(podOwner, blsPubKeyHashes);
-        vm.stopBroadcast();
-    }
-
     /// @notice Registers validators with the UniFiAVSManager using raw public keys
     /// @param podOwner The address of the pod owner
     /// @param pubkeys The raw public keys of the validators
     function registerValidatorsToUniFiAVS(address podOwner, bytes[] memory pubkeys) public {
         vm.startBroadcast();
-        bytes32[] memory pubkeyHashes = new bytes32[](pubkeys.length);
-        for (uint256 i = 0; i < pubkeys.length; i++) {
-            pubkeyHashes[i] = keccak256(pubkeys[i]);
-        }
-        uniFiAVSManager.registerValidators(podOwner, pubkeyHashes);
+        uniFiAVSManager.registerValidators(podOwner, pubkeys);
         vm.stopBroadcast();
     }
 
@@ -445,5 +434,13 @@ contract UniFiAVSScripts is Script, DeployerHelper {
 
     function getOperator(address operator) public view returns (IUniFiAVSManager.OperatorDataExtended memory) {
         return uniFiAVSManager.getOperator(operator);
+    }
+
+    /**
+     * @dev Internal function to calculate the BLS pubkey hash. It is the same as the one used by EigenLayer.
+     * @param validatorPubkey The BLS pubkey
+     */
+    function calculateBlsPubKeyHash(bytes memory validatorPubkey) public pure returns (bytes32) {
+        return sha256(abi.encodePacked(validatorPubkey, bytes16(0)));
     }
 }
