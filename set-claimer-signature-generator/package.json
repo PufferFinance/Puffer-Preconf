@@ -1,0 +1,31 @@
+{
+  "name": "set-claimer-signature-generator",
+  "description": "",
+  "version": "1.0.0",
+  "type": "module",
+  "author": {
+    "name": "Puffer Finance UniFi",
+    "url": "https://puffer.fi"
+  },
+  "dependencies": {
+    "@chainsafe/bls-keystore": "3.1.0",
+    "ethereum-cryptography": "3.1.0",
+    "ethers": "6.13.5"
+  },
+  "homepage": "https://puffer.fi",
+  "keywords": [
+    "blockchain",
+    "foundry",
+    "smart-contracts",
+    "solidity",
+    "web3",
+    "ethereum",
+    "puffer",
+    "puffer-finance",
+    "L2",
+    "based-rollup"
+  ],
+  "scripts": {
+    "fmt": "forge fmt"
+  }
+}
