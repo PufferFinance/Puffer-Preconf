@@ -16,7 +16,7 @@
 
 ## Overview
 
-UniFi is a based rollup solution designed to enhance Ethereum's scalability while maintaining its core principles.
+Puffer Preconf is a based rollup solution designed to enhance Ethereum's scalability while maintaining its core principles.
 
 A based rollup is an L1-sequenced rollup that leverages Ethereum's existing validator set for block production, offering improved liveness guarantees and simplified architecture compared to traditional rollups.
 
