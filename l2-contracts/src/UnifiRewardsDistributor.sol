@@ -21,7 +21,7 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
     bytes32 public constant REWARDS_DISTRIBUTION_TYPEHASH = keccak256("RegisterClaimer(address claimer,uint256 nonce)");
 
     /// @dev The delay for the Merkle root to be set
-    uint256 public constant MERKLE_ROOT_DELAY = 3 days;
+    uint256 public constant MERKLE_ROOT_DELAY = 5 minutes; //TODO: bring back 3 days
 
     /// @dev the mapping of BLS pubkey hash to claimer address
     mapping(bytes32 blsPubkeyHash => address claimer) public validatorClaimer;
@@ -202,5 +202,31 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
             // It is important to do x++ and not ++x here.
             return nonces[pubkeyHash]++;
         }
+    }
+
+    /**
+     * @notice Fallback function to make the contract payable
+     * @dev This allows the contract to receive ETH
+     */
+    receive() external payable {}
+
+    /**
+     * @notice Fallback function to make the contract payable
+     * @dev This allows the contract to receive ETH when calldata is provided
+     */
+    fallback() external payable {}
+
+    /**
+     * @notice Allows the admin to rescue any remaining ETH from the contract
+     * @param recipient The address to send the rescued funds to
+     * @param amount The amount of ETH to rescue
+     * @dev Only callable by the admin
+     */
+    function rescueFunds(address payable recipient, uint256 amount) external onlyOwner {
+        if (recipient == address(0)) revert InvalidInput();
+        if (amount == 0 || amount > address(this).balance) revert InvalidInput();
+        
+        (bool success, ) = recipient.call{value: amount}("");
+        require(success, "ETH transfer failed");
     }
 }
