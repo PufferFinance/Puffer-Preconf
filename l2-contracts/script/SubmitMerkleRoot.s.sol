@@ -24,11 +24,11 @@ contract SubmitMerkleRoot is Script {
         bytes32 merkleRoot = MerkleProofGenerator.generateMerkleRoot(blsPubkeys, amounts);
         require(merkleRoot != bytes32(0), "Merkle root cannot be zero");
 
-        // Start the script execution
-        vm.startBroadcast();
-
         // Get the UnifiRewardsDistributor contract
         UnifiRewardsDistributor distributor = UnifiRewardsDistributor(payable(distributorAddress));
+
+        // Start the script execution
+        vm.startBroadcast();
 
         // Set the new Merkle root
         distributor.setNewMerkleRoot(merkleRoot);
