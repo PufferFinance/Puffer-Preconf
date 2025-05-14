@@ -2,7 +2,7 @@
 // solhint-disable max-line-length
 pragma solidity ^0.8.24;
 
-import {BLS} from "../src/library/BLS.sol";
+import { BLS } from "../../src/library/BLS.sol";
 
 /// @title BLSG1Decompressor
 /// @notice Utility functions for turning the 48-byte compressed form that
@@ -77,7 +77,7 @@ library BLSG1Decompressor {
         // 5. ─── Pack into BLS.G1Point struct ---------------------------------
         (bytes32 xa, bytes32 xb) = _split64(_pad64(x));
         (bytes32 ya, bytes32 yb) = _split64(y);
-        return BLS.G1Point({x_a: xa, x_b: xb, y_a: ya, y_b: yb});
+        return BLS.G1Point({ x_a: xa, x_b: xb, y_a: ya, y_b: yb });
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -133,35 +133,18 @@ library BLSG1Decompressor {
             // copy base | exp | mod into the buffer ----------------------------------
             calldatacopy(0, 0, 0) // NO-OP just to silence compiler warnings on calldata
             // base
-            for { let i := 0 } lt(i, blen) { i := add(i, 32) } {
-                mstore(add(offset, i), mload(add(base, add(32, i))))
-            }
+            for { let i := 0 } lt(i, blen) { i := add(i, 32) } { mstore(add(offset, i), mload(add(base, add(32, i)))) }
             offset := add(offset, blen)
             // exp
-            for { let i := 0 } lt(i, elen) { i := add(i, 32) } {
-                mstore(add(offset, i), mload(add(e, add(32, i))))
-            }
+            for { let i := 0 } lt(i, elen) { i := add(i, 32) } { mstore(add(offset, i), mload(add(e, add(32, i)))) }
             offset := add(offset, elen)
             // mod
-            for { let i := 0 } lt(i, mlen) { i := add(i, 32) } {
-                mstore(add(offset, i), mload(add(modn, add(32, i))))
-            }
+            for { let i := 0 } lt(i, mlen) { i := add(i, 32) } { mstore(add(offset, i), mload(add(modn, add(32, i)))) }
             // allocate pointer for return buffer in-place
             ret := add(input, 32)
             // staticcall to precompile 0x05 ------------------------------------------------
             let insize := add(add(96, blen), add(elen, mlen))
-            if iszero(
-                staticcall(
-                    gas(),
-                    MODEXP_PRECOMPILE,
-                    ptr,
-                    insize,
-                    add(base, 32),
-                    mlen
-                )
-            ) {
-                revert(0, 0)
-            }
+            if iszero(staticcall(gas(), MODEXP_PRECOMPILE, ptr, insize, add(base, 32), mlen)) { revert(0, 0) }
             // The precompile overwrote `base` buffer with the result; expose it
             ret := base
         }
@@ -207,7 +190,11 @@ library BLSG1Decompressor {
         }
     }
 
-    function _subWords(uint256 hiA, uint256 loA, uint256 hiB, uint256 loB) private pure returns (uint256 hi, uint256 lo) {
+    function _subWords(uint256 hiA, uint256 loA, uint256 hiB, uint256 loB)
+        private
+        pure
+        returns (uint256 hi, uint256 lo)
+    {
         unchecked {
             if (loA >= loB) {
                 lo = loA - loB;
