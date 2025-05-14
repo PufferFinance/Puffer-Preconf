@@ -21,7 +21,7 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
     bytes32 public constant REWARDS_DISTRIBUTION_TYPEHASH = keccak256("RegisterClaimer(address claimer,uint256 nonce)");
 
     /// @dev The delay for the Merkle root to be set
-    uint256 public constant MERKLE_ROOT_DELAY = 5 minutes; //TODO: bring back 3 days
+    uint256 public constant MERKLE_ROOT_DELAY = 3 days;
 
     /// @dev the mapping of BLS pubkey hash to claimer address
     mapping(bytes32 blsPubkeyHash => address claimer) public validatorClaimer;
@@ -86,6 +86,9 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
      */
     function setNewMerkleRoot(bytes32 newMerkleRoot) external onlyOwner {
         require(newMerkleRoot != bytes32(0), MerkleRootCannotBeZero());
+        if (pendingMerkleRoot != bytes32(0) && block.timestamp >= pendingMerkleRootActivationTimestamp) {
+            merkleRoot = pendingMerkleRoot;
+        }
         pendingMerkleRoot = newMerkleRoot;
         uint256 activationTimestamp = block.timestamp + MERKLE_ROOT_DELAY;
         pendingMerkleRootActivationTimestamp = activationTimestamp;
@@ -96,10 +99,14 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
      * @notice Cancel the pending Merkle root
      */
     function cancelPendingMerkleRoot() external onlyOwner {
-        bytes32 merkleRootToCancel = pendingMerkleRoot;
-        pendingMerkleRoot = bytes32(0);
-        pendingMerkleRootActivationTimestamp = 0;
-        emit PendingMerkleRootCancelled(merkleRootToCancel);
+        if (block.timestamp < pendingMerkleRootActivationTimestamp) {
+            bytes32 merkleRootToCancel = pendingMerkleRoot;
+            pendingMerkleRoot = bytes32(0);
+            pendingMerkleRootActivationTimestamp = 0;
+            emit PendingMerkleRootCancelled(merkleRootToCancel);
+        } else {
+            revert NoPendingMerkleRoot();
+        }
     }
 
     /**
@@ -148,7 +155,7 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
      */
     function getMerkleRoot() public view returns (bytes32) {
         // The pending root is active if the activation timestamp is in the past
-        if (block.timestamp > pendingMerkleRootActivationTimestamp) {
+        if (block.timestamp >= pendingMerkleRootActivationTimestamp) {
             return pendingMerkleRoot;
         }
         return merkleRoot;
@@ -208,13 +215,13 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
      * @notice Fallback function to make the contract payable
      * @dev This allows the contract to receive ETH
      */
-    receive() external payable {}
+    receive() external payable { }
 
     /**
      * @notice Fallback function to make the contract payable
      * @dev This allows the contract to receive ETH when calldata is provided
      */
-    fallback() external payable {}
+    fallback() external payable { }
 
     /**
      * @notice Allows the admin to rescue any remaining ETH from the contract
@@ -225,8 +232,8 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
     function rescueFunds(address payable recipient, uint256 amount) external onlyOwner {
         if (recipient == address(0)) revert InvalidInput();
         if (amount == 0 || amount > address(this).balance) revert InvalidInput();
-        
-        (bool success, ) = recipient.call{value: amount}("");
+
+        (bool success,) = recipient.call{ value: amount }("");
         require(success, "ETH transfer failed");
     }
 }
