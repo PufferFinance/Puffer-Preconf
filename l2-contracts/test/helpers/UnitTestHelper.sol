@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { BaseScript } from "../../script/BaseScript.s.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { Test } from "forge-std/Test.sol";
 
-contract UnitTestHelper is Test, BaseScript {
+contract UnitTestHelper is Test {
     address public constant ADDRESS_ZERO = address(0);
     address public constant ADDRESS_ONE = address(1);
     address public constant ADDRESS_CHEATS = 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D;

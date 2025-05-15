@@ -86,6 +86,9 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
      */
     function setNewMerkleRoot(bytes32 newMerkleRoot) external onlyOwner {
         require(newMerkleRoot != bytes32(0), MerkleRootCannotBeZero());
+        if (pendingMerkleRoot != bytes32(0) && block.timestamp >= pendingMerkleRootActivationTimestamp) {
+            merkleRoot = pendingMerkleRoot;
+        }
         pendingMerkleRoot = newMerkleRoot;
         uint256 activationTimestamp = block.timestamp + MERKLE_ROOT_DELAY;
         pendingMerkleRootActivationTimestamp = activationTimestamp;
@@ -96,10 +99,14 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
      * @notice Cancel the pending Merkle root
      */
     function cancelPendingMerkleRoot() external onlyOwner {
-        bytes32 merkleRootToCancel = pendingMerkleRoot;
-        pendingMerkleRoot = bytes32(0);
-        pendingMerkleRootActivationTimestamp = 0;
-        emit PendingMerkleRootCancelled(merkleRootToCancel);
+        if (block.timestamp < pendingMerkleRootActivationTimestamp) {
+            bytes32 merkleRootToCancel = pendingMerkleRoot;
+            pendingMerkleRoot = bytes32(0);
+            pendingMerkleRootActivationTimestamp = 0;
+            emit PendingMerkleRootCancelled(merkleRootToCancel);
+        } else {
+            revert NoPendingMerkleRoot();
+        }
     }
 
     /**
@@ -148,7 +155,7 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
      */
     function getMerkleRoot() public view returns (bytes32) {
         // The pending root is active if the activation timestamp is in the past
-        if (block.timestamp > pendingMerkleRootActivationTimestamp) {
+        if (block.timestamp >= pendingMerkleRootActivationTimestamp) {
             return pendingMerkleRoot;
         }
         return merkleRoot;
@@ -202,5 +209,31 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
             // It is important to do x++ and not ++x here.
             return nonces[pubkeyHash]++;
         }
+    }
+
+    /**
+     * @notice Fallback function to make the contract payable
+     * @dev This allows the contract to receive ETH
+     */
+    receive() external payable { }
+
+    /**
+     * @notice Fallback function to make the contract payable
+     * @dev This allows the contract to receive ETH when calldata is provided
+     */
+    fallback() external payable { }
+
+    /**
+     * @notice Allows the admin to rescue any remaining ETH from the contract
+     * @param recipient The address to send the rescued funds to
+     * @param amount The amount of ETH to rescue
+     * @dev Only callable by the admin
+     */
+    function rescueFunds(address payable recipient, uint256 amount) external onlyOwner {
+        if (recipient == address(0)) revert InvalidInput();
+        if (amount == 0 || amount > address(this).balance) revert InvalidInput();
+
+        (bool success,) = recipient.call{ value: amount }("");
+        require(success, "ETH transfer failed");
     }
 }
