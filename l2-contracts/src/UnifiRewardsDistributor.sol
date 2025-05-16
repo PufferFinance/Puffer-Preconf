@@ -5,6 +5,9 @@ import { IUnifiRewardsDistributor } from "./interfaces/IUnifiRewardsDistributor.
 import { BLS } from "./library/BLS.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
+
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
@@ -16,6 +19,7 @@ import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerklePr
  */
 contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP712 {
     using Address for address payable;
+    using SafeERC20 for IERC20;
 
     /// @dev The typehash for the RegisterClaimer function
     bytes32 public constant REWARDS_DISTRIBUTION_TYPEHASH = keccak256("RegisterClaimer(address claimer,uint256 nonce)");
@@ -23,10 +27,15 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
     /// @dev The delay for the Merkle root to be set
     uint256 public constant MERKLE_ROOT_DELAY = 3 days;
 
+    /// @dev Constant address to represent native ETH token
+    address public constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
     /// @dev the mapping of BLS pubkey hash to claimer address
     mapping(bytes32 blsPubkeyHash => address claimer) public validatorClaimer;
-    /// @dev the mapping of BLS pubkey hash to claimed amount
-    mapping(bytes32 blsPubkeyHash => uint256 claimedAmount) public validatorClaimedAmount;
+
+    /// @dev the mapping of token address to BLS pubkey hash to claimed amount
+    mapping(address token => mapping(bytes32 blsPubkeyHash => uint256 claimedAmount)) public validatorClaimedAmount;
+
     /// @dev The Merkle root of the latest cumulative distribution
     bytes32 public merkleRoot;
     /// @dev The pending Merkle root. This merkle root will become active after the delay
@@ -41,14 +50,19 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
     /**
      * @notice Claim the unclaimed rewards for multiple validators
      * They all must have the same claimer set.
+     * @param token The token address to claim (use NATIVE_TOKEN for ETH)
      * @param blsPubkeyHashes The hashes of the BLS public keys
      * @param amounts The total cumulative earned amounts
      * @param proofs The proofs of the claims
      */
-    function claimRewards(bytes32[] calldata blsPubkeyHashes, uint256[] calldata amounts, bytes32[][] calldata proofs)
-        external
-    {
+    function claimRewards(
+        address token,
+        bytes32[] calldata blsPubkeyHashes,
+        uint256[] calldata amounts,
+        bytes32[][] calldata proofs
+    ) external {
         require(blsPubkeyHashes.length == amounts.length && amounts.length == proofs.length, InvalidInput());
+        require(token != address(0), InvalidInput());
 
         // Get the claimer for the first pubkey hash
         address claimer = validatorClaimer[blsPubkeyHashes[0]];
@@ -60,24 +74,32 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
             // All proofs must have the same claimer
             require(claimer == validatorClaimer[blsPubkeyHashes[i]], InvalidInput());
 
-            uint256 claimedSoFar = validatorClaimedAmount[blsPubkeyHashes[i]];
+            uint256 claimedSoFar = validatorClaimedAmount[token][blsPubkeyHashes[i]];
             uint256 amountToClaim = amounts[i] - claimedSoFar;
             require(amountToClaim > 0, NothingToClaim());
 
             // Update the claimed amount to the latest amount
-            validatorClaimedAmount[blsPubkeyHashes[i]] = amounts[i];
+            validatorClaimedAmount[token][blsPubkeyHashes[i]] = amounts[i];
 
-            bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(blsPubkeyHashes[i], amounts[i]))));
+            bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(blsPubkeyHashes[i], token, amounts[i]))));
             require(MerkleProof.verifyCalldata(proofs[i], getMerkleRoot(), leaf), InvalidProof());
 
-            // Emit the claim event for each validator
-            emit RewardsClaimed(blsPubkeyHashes[i], amountToClaim);
+            // Emit the appropriate event
+            if (token == NATIVE_TOKEN) {
+                emit RewardsClaimed(blsPubkeyHashes[i], amountToClaim);
+            } else {
+                emit TokenRewardsClaimed(blsPubkeyHashes[i], token, amountToClaim);
+            }
 
             totalAmountToClaim += amountToClaim;
         }
 
         // Send the total amount to the claimer
-        payable(claimer).sendValue(totalAmountToClaim);
+        if (token == NATIVE_TOKEN) {
+            payable(claimer).sendValue(totalAmountToClaim);
+        } else {
+            IERC20(token).safeTransfer(claimer, totalAmountToClaim);
+        }
     }
 
     /**
@@ -112,7 +134,8 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
     /**
      * @notice Registers the `claimer`'s address for the validator's BLS public keys
      * @param claimer The address of the claimer to register.
-     * @param params is an array of structs containing the G1 & G2 public keys of the validator, and a signature proving their ownership
+     * @param params is an array of structs containing the G1 & G2 public keys of the validator, and a signature
+     * proving their ownership
      */
     function registerClaimer(address claimer, PubkeyRegistrationParams[] calldata params) external {
         for (uint256 i = 0; i < params.length; ++i) {
@@ -179,7 +202,8 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
     }
 
     /**
-     * @notice A helper function to get the message hash that a validator must sigh with their validator's BLS public key
+     * @notice A helper function to get the message hash that a validator must sigh with their validator's BLS
+     * public key
      * @param claimer The claimer address
      * @param pubkeyHash The hash of the BLS public key
      * @return The message hash
@@ -224,16 +248,26 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
     fallback() external payable { }
 
     /**
-     * @notice Allows the admin to rescue any remaining ETH from the contract
+     * @notice Allows the admin to rescue any funds from the contract
+     * @param token The token address to rescue (use NATIVE_TOKEN for ETH)
      * @param recipient The address to send the rescued funds to
-     * @param amount The amount of ETH to rescue
+     * @param amount The amount to rescue
      * @dev Only callable by the admin
      */
-    function rescueFunds(address payable recipient, uint256 amount) external onlyOwner {
+    function rescueFunds(address token, address recipient, uint256 amount) external onlyOwner {
         if (recipient == address(0)) revert InvalidInput();
-        if (amount == 0 || amount > address(this).balance) revert InvalidInput();
+        if (amount == 0) revert InvalidInput();
 
-        (bool success,) = recipient.call{ value: amount }("");
-        require(success, "ETH transfer failed");
+        if (token == NATIVE_TOKEN) {
+            if (amount > address(this).balance) revert InvalidInput();
+
+            (bool success,) = recipient.call{ value: amount }("");
+            require(success, "ETH transfer failed");
+        } else {
+            if (token == address(0)) revert InvalidInput();
+            if (amount > IERC20(token).balanceOf(address(this))) revert InvalidInput();
+
+            IERC20(token).safeTransfer(recipient, amount);
+        }
     }
 }

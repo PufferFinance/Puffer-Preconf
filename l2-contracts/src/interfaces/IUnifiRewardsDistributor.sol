@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { BLS } from "../library/BLS.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title IUnifiRewardsDistributor
@@ -29,8 +30,10 @@ interface IUnifiRewardsDistributor {
     event ClaimerSet(bytes32 indexed blsPubkeyHash, address indexed claimer);
     /// @notice Emitted when the merkle root is set for the new cumulative distribution
     event MerkleRootSet(bytes32 indexed newMerkleRoot, uint256 activationTimestamp);
-    /// @notice Emitted when rewards are claimed for a validator
+    /// @notice Emitted when native token rewards are claimed for a validator
     event RewardsClaimed(bytes32 indexed blsPubkeyHash, uint256 indexed amount);
+    /// @notice Emitted when ERC20 token rewards are claimed for a validator
+    event TokenRewardsClaimed(bytes32 indexed blsPubkeyHash, address indexed token, uint256 amount);
     /// @notice Emitted when the pending merkle root is cancelled
     event PendingMerkleRootCancelled(bytes32 indexed merkleRoot);
 
@@ -48,7 +51,56 @@ interface IUnifiRewardsDistributor {
     /**
      * @notice Registers the `claimer`'s address for the validator's BLS public keys
      * @param claimer The address of the claimer to register.
-     * @param params is an array of structs containing the G1 & G2 public keys of the validator, and a signature proving their ownership
+     * @param params is an array of structs containing the G1 & G2 public keys of the validator, and a signature
+     * proving their ownership
      */
     function registerClaimer(address claimer, PubkeyRegistrationParams[] calldata params) external;
+
+    /**
+     * @notice Claim the unclaimed rewards for multiple validators
+     * They all must have the same claimer set.
+     * @param token The token address to claim (use NATIVE_TOKEN for ETH)
+     * @param blsPubkeyHashes The hashes of the BLS public keys
+     * @param amounts The total cumulative earned amounts
+     * @param proofs The proofs of the claims
+     */
+    function claimRewards(
+        address token,
+        bytes32[] calldata blsPubkeyHashes,
+        uint256[] calldata amounts,
+        bytes32[][] calldata proofs
+    ) external;
+
+    /**
+     * @notice Set the Merkle root of the latest cumulative distribution
+     * @param newMerkleRoot The new Merkle root
+     */
+    function setNewMerkleRoot(bytes32 newMerkleRoot) external;
+
+    /**
+     * @notice Cancel the pending Merkle root
+     */
+    function cancelPendingMerkleRoot() external;
+
+    /**
+     * @notice Get the claimer address for a validator
+     * @param blsPubkeyHash The hash of the BLS public key
+     * @return The claimer address
+     */
+    function getClaimer(bytes32 blsPubkeyHash) external view returns (address);
+
+    /**
+     * @notice Get the Merkle root
+     * @return The Merkle root
+     */
+    function getMerkleRoot() external view returns (bytes32);
+
+    /**
+     * @notice Allows the admin to rescue any funds from the contract
+     * @param token The token address to rescue (use NATIVE_TOKEN for ETH)
+     * @param recipient The address to send the rescued funds to
+     * @param amount The amount to rescue
+     * @dev Only callable by the admin
+     */
+    function rescueFunds(address token, address recipient, uint256 amount) external;
 }

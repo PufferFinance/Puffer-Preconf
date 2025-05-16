@@ -12,16 +12,17 @@ contract SubmitMerkleRoot is Script {
     string constant CSV_FILE_PATH = "script/bls_keys.csv";
 
     /**
-     * @notice Reads BLS keys and amounts from a CSV file, generates a Merkle root,
+     * @notice Reads BLS keys, token addresses, and amounts from a CSV file, generates a Merkle root,
      * and sets it on the UnifiRewardsDistributor contract
      * @param distributorAddress The address of the UnifiRewardsDistributor contract
      */
     function run(address distributorAddress) external {
-        // Load BLS keys and amounts from CSV file
-        (bytes[] memory blsPubkeys, uint256[] memory amounts) = CSVParser.loadBlsKeysAndAmounts(vm, CSV_FILE_PATH);
+        // Load BLS keys, token addresses, and amounts from CSV file
+        (bytes[] memory blsPubkeys, address[] memory tokenAddresses, uint256[] memory amounts) =
+            CSVParser.loadBlsKeysAndAmounts(vm, CSV_FILE_PATH);
 
         // Generate the Merkle root
-        bytes32 merkleRoot = MerkleProofGenerator.generateMerkleRoot(blsPubkeys, amounts);
+        bytes32 merkleRoot = MerkleProofGenerator.generateMerkleRoot(blsPubkeys, tokenAddresses, amounts);
         require(merkleRoot != bytes32(0), "Merkle root cannot be zero");
 
         // Get the UnifiRewardsDistributor contract
@@ -51,6 +52,7 @@ contract SubmitMerkleRoot is Script {
         for (uint256 i = 0; i < blsPubkeys.length; i++) {
             console.log("Validator", i);
             console.logBytes(blsPubkeys[i]);
+            console.log("Token:", tokenAddresses[i]);
             console.log("Amount:", amounts[i]);
         }
     }
