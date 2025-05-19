@@ -283,8 +283,7 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
         if (token == NATIVE_TOKEN) {
             if (amount > address(this).balance) revert InvalidInput();
 
-            (bool success,) = recipient.call{ value: amount }("");
-            if (!success) revert EthTransferFailed();
+            payable(recipient).sendValue(amount);
         } else {
             if (token == address(0)) revert InvalidInput();
             if (amount > IERC20(token).balanceOf(address(this))) revert InvalidInput();
