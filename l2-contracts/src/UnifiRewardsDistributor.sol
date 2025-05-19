@@ -243,12 +243,6 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
     receive() external payable { }
 
     /**
-     * @notice Fallback function to make the contract payable
-     * @dev This allows the contract to receive ETH when calldata is provided
-     */
-    fallback() external payable { }
-
-    /**
      * @notice Allows the admin to rescue any funds from the contract
      * @param token The token address to rescue (use NATIVE_TOKEN for ETH)
      * @param recipient The address to send the rescued funds to

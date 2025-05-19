@@ -41,12 +41,13 @@ Notes:
 The script reads validator data from `script/bls_keys.csv` with the following format:
 
 ```
-0x93ed1a759289118d6f0f71545574f622769860089bb5e0d5989fa148a38484c780bb4df010677cc12495641a4c6d7d23,1000000000000000000
-0xa06ed93c03bdea0f7d6747be3feff5c5ced92b76a576c1712c3b0d049a4eb16a58437ae31f4831a217ff0b34b769a8b2,2000000000000000000
+0x93ed1a759289118d6f0f71545574f622769860089bb5e0d5989fa148a38484c780bb4df010677cc12495641a4c6d7d23,0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE,2000000000000000000
+0xa06ed93c03bdea0f7d6747be3feff5c5ced92b76a576c1712c3b0d049a4eb16a58437ae31f4831a217ff0b34b769a8b2,0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE,3000000000000000000
 ```
 
 Each line contains:
 - BLS public key (hex format)
+- Token address (use `0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE` for native ETH)
 - Token amount (in wei)
 
 ## Registering a Claimer
