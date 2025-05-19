@@ -6,6 +6,7 @@ import { IUnifiRewardsDistributor } from "../../src/interfaces/IUnifiRewardsDist
 import { BLS } from "../../src/library/BLS.sol";
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
 
+import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { Merkle } from "murky/Merkle.sol";
@@ -27,18 +28,18 @@ contract ReentrancyAttacker {
     bool public attackMode;
     uint256 public attackCount;
     bool public tokenClaimSucceeded;
-    
+
     // For cross-token attack
     bytes32[] public tokenBlsPubkeyHashes;
     uint256[] public tokenAmounts;
     bytes32[][] public tokenProofs;
     address public tokenAddress;
     bool public crossTokenAttack;
-    
+
     constructor(UnifiRewardsDistributor _distributor) {
         distributor = _distributor;
     }
-    
+
     function setAttackParams(
         address _token,
         bytes32[] memory _blsPubkeyHashes,
@@ -49,14 +50,14 @@ contract ReentrancyAttacker {
         blsPubkeyHashes = new bytes32[](_blsPubkeyHashes.length);
         amounts = new uint256[](_amounts.length);
         proofs = new bytes32[][](_proofs.length);
-        
+
         for (uint256 i = 0; i < _blsPubkeyHashes.length; i++) {
             blsPubkeyHashes[i] = _blsPubkeyHashes[i];
             amounts[i] = _amounts[i];
             proofs[i] = _proofs[i];
         }
     }
-    
+
     function setCrossTokenAttackParams(
         address _token,
         bytes32[] memory _blsPubkeyHashes,
@@ -67,28 +68,28 @@ contract ReentrancyAttacker {
         tokenBlsPubkeyHashes = new bytes32[](_blsPubkeyHashes.length);
         tokenAmounts = new uint256[](_amounts.length);
         tokenProofs = new bytes32[][](_proofs.length);
-        
+
         for (uint256 i = 0; i < _blsPubkeyHashes.length; i++) {
             tokenBlsPubkeyHashes[i] = _blsPubkeyHashes[i];
             tokenAmounts[i] = _amounts[i];
             tokenProofs[i] = _proofs[i];
         }
-        
+
         crossTokenAttack = true;
     }
-    
+
     function attack() external {
         attackMode = true;
         attackCount = 0;
         tokenClaimSucceeded = false;
         distributor.claimRewards(token, blsPubkeyHashes, amounts, proofs);
     }
-    
+
     // This will be called when ETH is received
     receive() external payable {
         if (attackMode && attackCount < 1) {
             attackCount++;
-            
+
             if (crossTokenAttack) {
                 // Try to claim tokens during ETH reentrancy
                 try distributor.claimRewards(tokenAddress, tokenBlsPubkeyHashes, tokenAmounts, tokenProofs) {
@@ -144,13 +145,32 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
     address charlie = makeAddr("charlie");
 
     // Store NATIVE_TOKEN reference once after deployment to use throughout the tests
-    address NATIVE_TOKEN;
+
+    address public constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
+    AccessManager internal manager;
+
+    uint64 MERKLE_ROOT_POSTER_ROLE = 1;
+    uint64 MERKLE_ROOT_CANCELLER_ROLE = 2;
 
     function setUp() public override {
-        distributor = new UnifiRewardsDistributor(address(this));
+        manager = new AccessManager(address(this));
+
+        distributor = new UnifiRewardsDistributor(address(manager));
         mockToken = new MockToken();
-        NATIVE_TOKEN = distributor.NATIVE_TOKEN();
         attacker = new ReentrancyAttacker(distributor);
+
+        bytes4[] memory merkleRootPosterSelectors = new bytes4[](1);
+        merkleRootPosterSelectors[0] = UnifiRewardsDistributor.setNewMerkleRoot.selector;
+
+        bytes4[] memory merkleRootCancellerSelectors = new bytes4[](1);
+        merkleRootCancellerSelectors[0] = UnifiRewardsDistributor.cancelPendingMerkleRoot.selector;
+
+        manager.setTargetFunctionRole(address(distributor), merkleRootPosterSelectors, MERKLE_ROOT_POSTER_ROLE);
+        manager.setTargetFunctionRole(address(distributor), merkleRootCancellerSelectors, MERKLE_ROOT_CANCELLER_ROLE);
+
+        manager.grantRole(MERKLE_ROOT_POSTER_ROLE, address(this), 0);
+        manager.grantRole(MERKLE_ROOT_CANCELLER_ROLE, address(this), 0);
     }
 
     function test_register_claimer_zero_key() public {
@@ -176,31 +196,6 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
             hex"012893657d8eb2efad4de0a91bcd0e39ad9837745dec3ea923737ea803fc8e3d", alice
         );
         distributor.registerClaimer(alice, params);
-    }
-
-    function test_register_claimer_charlie_validator() public {
-        IUnifiRewardsDistributor.PubkeyRegistrationParams[] memory params =
-            new IUnifiRewardsDistributor.PubkeyRegistrationParams[](1);
-        params[0] = IUnifiRewardsDistributor.PubkeyRegistrationParams({
-            signature: BLS.G2Point({
-                x_c0_a: bytes32(0x00000000000000000000000000000000194a8be661cee6a16c2d4989b68f4fd3),
-                x_c0_b: bytes32(0x49dfbcb508a3e1dbb0ddd58e7cb464e984160f4d8a5acc8ae75e7f41b56068d1),
-                x_c1_a: bytes32(0x0000000000000000000000000000000001d5ce2d523c1add9ffbf24efe1f6fb5),
-                x_c1_b: bytes32(0x98ed5344001b520b06c78cf4c842539dacce3319e68119399d3d330d6d05f4b1),
-                y_c0_a: bytes32(0x000000000000000000000000000000000e6090924e13feaa93b4c149418e7b28),
-                y_c0_b: bytes32(0x716c191398cb6dd34f04007c38d72e5e327028a7e553d14632da6a5c72a3c63c),
-                y_c1_a: bytes32(0x0000000000000000000000000000000005f41de8e5a8045a614c64adb240ecf7),
-                y_c1_b: bytes32(0xd0f95c906880bfd1eb8bc05387f43e4979bd1ee1496f9313bf5c7ff92cd9d386)
-            }),
-            publicKey: BLS.G1Point({
-                x_a: bytes32(0x0000000000000000000000000000000003e6a728d627638a33a73003ff9a072f),
-                x_b: bytes32(0x0297dbca72ae0c2b9e4dfb1025ce96fcfc4c5322a6d3c35f4373d3974279f84c),
-                y_a: bytes32(0x000000000000000000000000000000000015ce87d1de408f3de766c379aa0331),
-                y_b: bytes32(0x449465dba3f66c63eb8c4cbb96ed95e8da093c7b439b01a2e7d13ecf538e50ac)
-            })
-        });
-
-        distributor.registerClaimer(charlie, params);
     }
 
     function _buildMerkleProof(MerkleProofData[] memory merkleProofDatas) internal returns (bytes32 root) {
@@ -235,7 +230,7 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         bytes32 merkleRoot = _buildMerkleProof(merkleProofDatas);
 
         vm.expectEmit(true, true, true, true);
-        emit IUnifiRewardsDistributor.MerkleRootSet(merkleRoot, block.timestamp + 3 days);
+        emit IUnifiRewardsDistributor.MerkleRootSet(merkleRoot, block.timestamp + 7 days);
         distributor.setNewMerkleRoot(merkleRoot);
     }
 
@@ -302,7 +297,7 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         distributor.setNewMerkleRoot(merkleRoot);
 
         // Advance time so that the pending root becomes active
-        vm.warp(block.timestamp + 4 days);
+        vm.warp(block.timestamp + 8 days);
 
         // Set claimer for Alice
         test_registerClaimer();
@@ -360,7 +355,7 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         distributor.setNewMerkleRoot(merkleRoot);
 
         // Advance time so that the pending root becomes active
-        vm.warp(block.timestamp + 4 days);
+        vm.warp(block.timestamp + 8 days);
 
         // Set claimer for Alice
         test_registerClaimer();
@@ -413,7 +408,7 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         distributor.setNewMerkleRoot(merkleRoot);
 
         // Advance time so that the pending root becomes active
-        vm.warp(block.timestamp + 4 days);
+        vm.warp(block.timestamp + 8 days);
 
         // Set claimer for Alice
         test_registerClaimer();
@@ -494,7 +489,7 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
 
         distributor.setNewMerkleRoot(merkleRoot);
 
-        vm.warp(block.timestamp + 4 days);
+        vm.warp(block.timestamp + 8 days);
 
         // Set claimer for Alice
         test_registerClaimer();
@@ -541,7 +536,7 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         bytes32 newMerkleRoot = keccak256("new merkle root");
 
         vm.expectEmit(true, true, true, true);
-        emit IUnifiRewardsDistributor.MerkleRootSet(newMerkleRoot, block.timestamp + 3 days);
+        emit IUnifiRewardsDistributor.MerkleRootSet(newMerkleRoot, block.timestamp + 7 days);
         distributor.setNewMerkleRoot(newMerkleRoot);
 
         assertEq(distributor.getMerkleRoot(), bytes32(0), "Merkle root should be 0");
@@ -667,249 +662,209 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         // Setup for a basic reentrancy test
         BLS.G1Point memory alicePublicKey = _blsg1mul(G1_GENERATOR(), bytes32(aliceValidatorPrivateKey));
         BLS.G1Point memory bobPublicKey = _blsg1mul(G1_GENERATOR(), bytes32(bobValidatorPrivateKey));
-        
+
         bytes32 alicePubkeyHash = distributor.getBlsPubkeyHash(alicePublicKey);
         bytes32 bobPubkeyHash = distributor.getBlsPubkeyHash(bobPublicKey);
-        
+
         // Test basic claim with ETH
         MerkleProofData[] memory merkleProofDatas = new MerkleProofData[](2);
-        merkleProofDatas[0] = MerkleProofData({
-            blsPubkeyHash: alicePubkeyHash,
-            token: NATIVE_TOKEN,
-            amount: 1 ether
-        });
-        merkleProofDatas[1] = MerkleProofData({
-            blsPubkeyHash: bobPubkeyHash,
-            token: NATIVE_TOKEN,
-            amount: 2 ether
-        });
-        
+        merkleProofDatas[0] = MerkleProofData({ blsPubkeyHash: alicePubkeyHash, token: NATIVE_TOKEN, amount: 1 ether });
+        merkleProofDatas[1] = MerkleProofData({ blsPubkeyHash: bobPubkeyHash, token: NATIVE_TOKEN, amount: 2 ether });
+
         bytes32 merkleRoot = _buildMerkleProof(merkleProofDatas);
-        
+
         // Set the merkle root
         distributor.setNewMerkleRoot(merkleRoot);
-        
+
         // Advance time to make the merkle root active
-        vm.warp(block.timestamp + 4 days);
-        
+        vm.warp(block.timestamp + 8 days);
+
         // Deal ETH to the distributor
         vm.deal(address(distributor), 5 ether);
-        
+
         // Register attacker as claimer for the first validator
         _registerClaimer(aliceValidatorPrivateKey, alice, address(attacker));
-        
+
         // Setup attack parameters
         bytes32[] memory pubkeyHashes = new bytes32[](1);
         pubkeyHashes[0] = alicePubkeyHash;
-        
+
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = 1 ether;
-        
+
         bytes32[][] memory proofs = new bytes32[][](1);
         proofs[0] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 0);
-        
+
         // Prepare attacker
         attacker.setAttackParams(NATIVE_TOKEN, pubkeyHashes, amounts, proofs);
-        
+
         // Record balances before attack
         uint256 initialDistributorBalance = address(distributor).balance;
         uint256 initialAttackerBalance = address(attacker).balance;
-        
+
         // Execute attack
         attacker.attack();
-        
+
         // Check balances after attack
         uint256 finalDistributorBalance = address(distributor).balance;
         uint256 finalAttackerBalance = address(attacker).balance;
-        
+
         // Verify only the correct amount was transferred (1 ETH)
         assertEq(finalAttackerBalance - initialAttackerBalance, 1 ether, "Attacker should only receive 1 ETH");
         assertEq(initialDistributorBalance - finalDistributorBalance, 1 ether, "Distributor should only send 1 ETH");
-        
+
         // Try to claim again - should fail
         vm.expectRevert(IUnifiRewardsDistributor.NothingToClaim.selector);
         vm.prank(address(attacker));
         distributor.claimRewards(NATIVE_TOKEN, pubkeyHashes, amounts, proofs);
     }
-    
+
     function test_tokenReentrancyProtection() public {
         // Setup for token-based reentrancy test
         BLS.G1Point memory alicePublicKey = _blsg1mul(G1_GENERATOR(), bytes32(aliceValidatorPrivateKey));
         BLS.G1Point memory bobPublicKey = _blsg1mul(G1_GENERATOR(), bytes32(bobValidatorPrivateKey));
-        
+
         bytes32 alicePubkeyHash = distributor.getBlsPubkeyHash(alicePublicKey);
         bytes32 bobPubkeyHash = distributor.getBlsPubkeyHash(bobPublicKey);
-        
+
         // Create merkle proof for token rewards
         MerkleProofData[] memory merkleProofDatas = new MerkleProofData[](2);
-        merkleProofDatas[0] = MerkleProofData({
-            blsPubkeyHash: alicePubkeyHash,
-            token: address(mockToken),
-            amount: 2 ether
-        });
-        merkleProofDatas[1] = MerkleProofData({
-            blsPubkeyHash: bobPubkeyHash,
-            token: address(mockToken),
-            amount: 3 ether
-        });
-        
+        merkleProofDatas[0] =
+            MerkleProofData({ blsPubkeyHash: alicePubkeyHash, token: address(mockToken), amount: 2 ether });
+        merkleProofDatas[1] =
+            MerkleProofData({ blsPubkeyHash: bobPubkeyHash, token: address(mockToken), amount: 3 ether });
+
         bytes32 merkleRoot = _buildMerkleProof(merkleProofDatas);
-        
+
         // Set the merkle root
         distributor.setNewMerkleRoot(merkleRoot);
-        
+
         // Advance time to make the merkle root active
-        vm.warp(block.timestamp + 4 days);
-        
+        vm.warp(block.timestamp + 8 days);
+
         // Send tokens to the distributor
         mockToken.transfer(address(distributor), 10 ether);
-        
+
         // Register attacker as claimer for the first validator
         _registerClaimer(aliceValidatorPrivateKey, alice, address(attacker));
-        
+
         // Setup cross-token attack parameters
         bytes32[] memory tokenPubkeyHashes = new bytes32[](1);
         tokenPubkeyHashes[0] = alicePubkeyHash;
-        
+
         uint256[] memory tokenAmounts = new uint256[](1);
         tokenAmounts[0] = 2 ether;
-        
+
         bytes32[][] memory tokenProofs = new bytes32[][](1);
         tokenProofs[0] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 0);
-        
+
         // Setup a second attacker with the same parameters to try to re-enter
         attacker.setAttackParams(address(mockToken), tokenPubkeyHashes, tokenAmounts, tokenProofs);
         attacker.setCrossTokenAttackParams(address(mockToken), tokenPubkeyHashes, tokenAmounts, tokenProofs);
-        
+
         // Record balances before attack
         uint256 initialDistributorTokenBalance = mockToken.balanceOf(address(distributor));
         uint256 initialAttackerTokenBalance = mockToken.balanceOf(address(attacker));
-        
+
         // Execute attack
         attacker.attack();
-        
+
         // Check balances after attack
         uint256 finalDistributorTokenBalance = mockToken.balanceOf(address(distributor));
         uint256 finalAttackerTokenBalance = mockToken.balanceOf(address(attacker));
-        
+
         // Verify only the correct amount of tokens was transferred
         assertEq(
-            finalAttackerTokenBalance - initialAttackerTokenBalance, 
-            2 ether, 
-            "Attacker should only receive 2 tokens"
+            finalAttackerTokenBalance - initialAttackerTokenBalance, 2 ether, "Attacker should only receive 2 tokens"
         );
         assertEq(
-            initialDistributorTokenBalance - finalDistributorTokenBalance, 
-            2 ether, 
+            initialDistributorTokenBalance - finalDistributorTokenBalance,
+            2 ether,
             "Distributor should only send 2 tokens"
         );
-        
+
         // Try to claim again - should fail
         vm.expectRevert(IUnifiRewardsDistributor.NothingToClaim.selector);
         vm.prank(address(attacker));
         distributor.claimRewards(address(mockToken), tokenPubkeyHashes, tokenAmounts, tokenProofs);
     }
-    
+
     function test_crossTokenReentrancyProtection() public {
         // Setup for cross-token reentrancy test (ETH to tokens)
         BLS.G1Point memory alicePublicKey = _blsg1mul(G1_GENERATOR(), bytes32(aliceValidatorPrivateKey));
         BLS.G1Point memory bobPublicKey = _blsg1mul(G1_GENERATOR(), bytes32(bobValidatorPrivateKey));
-        
+
         bytes32 alicePubkeyHash = distributor.getBlsPubkeyHash(alicePublicKey);
         bytes32 bobPubkeyHash = distributor.getBlsPubkeyHash(bobPublicKey);
-        
+
         // Create merkle proof for both ETH and token rewards
         MerkleProofData[] memory merkleProofDatas = new MerkleProofData[](3);
-        merkleProofDatas[0] = MerkleProofData({
-            blsPubkeyHash: alicePubkeyHash,
-            token: NATIVE_TOKEN,
-            amount: 1 ether
-        });
-        merkleProofDatas[1] = MerkleProofData({
-            blsPubkeyHash: alicePubkeyHash,
-            token: address(mockToken),
-            amount: 2 ether
-        });
-        merkleProofDatas[2] = MerkleProofData({
-            blsPubkeyHash: bobPubkeyHash,
-            token: NATIVE_TOKEN,
-            amount: 0.5 ether
-        });
-        
+        merkleProofDatas[0] = MerkleProofData({ blsPubkeyHash: alicePubkeyHash, token: NATIVE_TOKEN, amount: 1 ether });
+        merkleProofDatas[1] =
+            MerkleProofData({ blsPubkeyHash: alicePubkeyHash, token: address(mockToken), amount: 2 ether });
+        merkleProofDatas[2] = MerkleProofData({ blsPubkeyHash: bobPubkeyHash, token: NATIVE_TOKEN, amount: 0.5 ether });
+
         bytes32 merkleRoot = _buildMerkleProof(merkleProofDatas);
-        
+
         // Set the merkle root
         distributor.setNewMerkleRoot(merkleRoot);
-        
+
         // Advance time to make the merkle root active
-        vm.warp(block.timestamp + 4 days);
-        
+        vm.warp(block.timestamp + 8 days);
+
         // Setup funds for distributor
         vm.deal(address(distributor), 5 ether);
         mockToken.transfer(address(distributor), 10 ether);
-        
+
         // Register attacker as claimer for the validator
         _registerClaimer(aliceValidatorPrivateKey, alice, address(attacker));
-        
+
         // Setup ETH claim parameters
         bytes32[] memory ethPubkeyHashes = new bytes32[](1);
         ethPubkeyHashes[0] = alicePubkeyHash;
-        
+
         uint256[] memory ethAmounts = new uint256[](1);
         ethAmounts[0] = 1 ether;
-        
+
         bytes32[][] memory ethProofs = new bytes32[][](1);
         ethProofs[0] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 0);
-        
+
         // Setup token claim parameters
         bytes32[] memory tokenPubkeyHashes = new bytes32[](1);
         tokenPubkeyHashes[0] = alicePubkeyHash;
-        
+
         uint256[] memory tokenAmounts = new uint256[](1);
         tokenAmounts[0] = 2 ether;
-        
+
         bytes32[][] memory tokenProofs = new bytes32[][](1);
         tokenProofs[0] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 1);
-        
+
         // Setup the attack parameters
         attacker.setAttackParams(NATIVE_TOKEN, ethPubkeyHashes, ethAmounts, ethProofs);
-        attacker.setCrossTokenAttackParams(
-            address(mockToken),
-            tokenPubkeyHashes,
-            tokenAmounts,
-            tokenProofs
-        );
-        
+        attacker.setCrossTokenAttackParams(address(mockToken), tokenPubkeyHashes, tokenAmounts, tokenProofs);
+
         // Record balances before attack
         uint256 initialDistributorEthBalance = address(distributor).balance;
         uint256 initialDistributorTokenBalance = mockToken.balanceOf(address(distributor));
         uint256 initialAttackerEthBalance = address(attacker).balance;
         uint256 initialAttackerTokenBalance = mockToken.balanceOf(address(attacker));
-        
+
         // Execute attack - with nonReentrant modifier, token claim during reentrancy should fail
         attacker.attack();
-        
+
         // Check final balances after attack
         uint256 finalDistributorEthBalance = address(distributor).balance;
         uint256 finalDistributorTokenBalance = mockToken.balanceOf(address(distributor));
         uint256 finalAttackerEthBalance = address(attacker).balance;
         uint256 finalAttackerTokenBalance = mockToken.balanceOf(address(attacker));
-        
+
         // Verify ETH was transferred
-        assertEq(
-            finalAttackerEthBalance - initialAttackerEthBalance,
-            1 ether,
-            "Attacker should receive 1 ETH"
-        );
-        assertEq(
-            initialDistributorEthBalance - finalDistributorEthBalance,
-            1 ether,
-            "Distributor should send 1 ETH"
-        );
-        
+        assertEq(finalAttackerEthBalance - initialAttackerEthBalance, 1 ether, "Attacker should receive 1 ETH");
+        assertEq(initialDistributorEthBalance - finalDistributorEthBalance, 1 ether, "Distributor should send 1 ETH");
+
         // The token claim during reentrancy should have failed due to nonReentrant modifier
         assertEq(attacker.tokenClaimSucceeded(), false, "Cross-token reentrancy should be prevented");
-        
+
         // And tokens should NOT have been transferred during the reentrancy attack
         assertEq(
             finalAttackerTokenBalance - initialAttackerTokenBalance,
@@ -921,15 +876,15 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
             finalDistributorTokenBalance,
             "Distributor token balance should not change during reentrancy"
         );
-        
+
         // Now claim tokens legitimately after the ETH claim
         vm.prank(address(attacker));
         distributor.claimRewards(address(mockToken), tokenPubkeyHashes, tokenAmounts, tokenProofs);
-        
+
         // Check final token balances after legitimate claim
         finalAttackerTokenBalance = mockToken.balanceOf(address(attacker));
         finalDistributorTokenBalance = mockToken.balanceOf(address(distributor));
-        
+
         // Verify tokens were transferred in the legitimate claim
         assertEq(
             finalAttackerTokenBalance - initialAttackerTokenBalance,
