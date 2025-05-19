@@ -62,28 +62,60 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
         uint256[] calldata amounts,
         bytes32[][] calldata proofs
     ) external nonReentrant {
-        require(blsPubkeyHashes.length == amounts.length && amounts.length == proofs.length, InvalidInput());
-        require(token != address(0), InvalidInput());
+        if (blsPubkeyHashes.length != amounts.length || amounts.length != proofs.length) revert InvalidInput();
+        if (token == address(0)) revert InvalidInput();
 
         // Get the claimer for the first pubkey hash
         address claimer = validatorClaimer[blsPubkeyHashes[0]];
-        require(claimer != address(0), ClaimerNotSet());
+        if (claimer == address(0)) revert ClaimerNotSet();
 
-        uint256 totalAmountToClaim = 0;
+        uint256 totalAmountToClaim = _processClaims({
+            token: token,
+            blsPubkeyHashes: blsPubkeyHashes,
+            amounts: amounts,
+            proofs: proofs,
+            claimer: claimer
+        });
+
+        // Send the total amount to the claimer
+        if (token == NATIVE_TOKEN) {
+            payable(claimer).sendValue(totalAmountToClaim);
+        } else {
+            IERC20(token).safeTransfer(claimer, totalAmountToClaim);
+        }
+    }
+
+    /**
+     * @dev Processes claims for multiple validators and returns the total claim amount
+     * @param token The token address to claim
+     * @param blsPubkeyHashes The hashes of the BLS public keys
+     * @param amounts The total cumulative earned amounts
+     * @param proofs The proofs of the claims
+     * @param claimer The claimer address that must be set for all validators
+     * @return totalAmountToClaim The total amount to claim
+     */
+    function _processClaims(
+        address token,
+        bytes32[] calldata blsPubkeyHashes,
+        uint256[] calldata amounts,
+        bytes32[][] calldata proofs,
+        address claimer
+    ) private returns (uint256 totalAmountToClaim) {
+        totalAmountToClaim = 0;
 
         for (uint256 i = 0; i < blsPubkeyHashes.length; ++i) {
             // All proofs must have the same claimer
-            require(claimer == validatorClaimer[blsPubkeyHashes[i]], InvalidInput());
+            if (claimer != validatorClaimer[blsPubkeyHashes[i]]) revert InvalidInput();
 
             uint256 claimedSoFar = validatorClaimedAmount[token][blsPubkeyHashes[i]];
             uint256 amountToClaim = amounts[i] - claimedSoFar;
-            require(amountToClaim > 0, NothingToClaim());
+            if (amountToClaim <= 0) revert NothingToClaim();
 
             // Update the claimed amount to the latest amount
             validatorClaimedAmount[token][blsPubkeyHashes[i]] = amounts[i];
 
             bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(blsPubkeyHashes[i], token, amounts[i]))));
-            require(MerkleProof.verifyCalldata(proofs[i], getMerkleRoot(), leaf), InvalidProof());
+            if (!MerkleProof.verifyCalldata(proofs[i], getMerkleRoot(), leaf)) revert InvalidProof();
 
             // Emit the appropriate event
             if (token == NATIVE_TOKEN) {
@@ -95,12 +127,7 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
             totalAmountToClaim += amountToClaim;
         }
 
-        // Send the total amount to the claimer
-        if (token == NATIVE_TOKEN) {
-            payable(claimer).sendValue(totalAmountToClaim);
-        } else {
-            IERC20(token).safeTransfer(claimer, totalAmountToClaim);
-        }
+        return totalAmountToClaim;
     }
 
     /**
@@ -108,7 +135,7 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
      * @param newMerkleRoot The new Merkle root
      */
     function setNewMerkleRoot(bytes32 newMerkleRoot) external onlyOwner {
-        require(newMerkleRoot != bytes32(0), MerkleRootCannotBeZero());
+        if (newMerkleRoot == bytes32(0)) revert MerkleRootCannotBeZero();
         if (pendingMerkleRoot != bytes32(0) && block.timestamp >= pendingMerkleRootActivationTimestamp) {
             merkleRoot = pendingMerkleRoot;
         }
@@ -156,7 +183,7 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
 
             bool valid = BLS.pairing(g1Points, g2Points);
             // This will revert if the signature is invalid / replayed
-            require(valid, BadBLSSignature());
+            if (!valid) revert BadBLSSignature();
 
             validatorClaimer[pubKeyHash] = claimer;
 
@@ -257,7 +284,7 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
             if (amount > address(this).balance) revert InvalidInput();
 
             (bool success,) = recipient.call{ value: amount }("");
-            require(success, "ETH transfer failed");
+            if (!success) revert EthTransferFailed();
         } else {
             if (token == address(0)) revert InvalidInput();
             if (amount > IERC20(token).balanceOf(address(this))) revert InvalidInput();

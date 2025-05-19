@@ -25,6 +25,8 @@ interface IUnifiRewardsDistributor {
     error MerkleRootCannotBeZero();
     /// @notice Thrown when a pending merkle root is not set
     error NoPendingMerkleRoot();
+    /// @notice Thrown when ETH transfer fails
+    error EthTransferFailed();
 
     /// @notice Emitted when a claimer is set for a validator
     event ClaimerSet(bytes32 indexed blsPubkeyHash, address indexed claimer);
