@@ -11,12 +11,12 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+
 /**
  * @title Unifi Rewards Distributor
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-
 contract UnifiRewardsDistributor is IUnifiRewardsDistributor, AccessManaged, EIP712, ReentrancyGuard {
     using Address for address payable;
     using SafeERC20 for IERC20;
@@ -126,6 +126,7 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, AccessManaged, EIP
 
     /**
      * @notice Set the Merkle root of the latest cumulative distribution
+     * @dev This function will be callable by the backend service
      * @param newMerkleRoot The new Merkle root
      */
     function setNewMerkleRoot(bytes32 newMerkleRoot) external restricted {
@@ -141,6 +142,7 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, AccessManaged, EIP
 
     /**
      * @notice Cancel the pending Merkle root
+     * @dev Multiple accounts `watchers` will be double checking the newly posted Merkle root, and cancel the pending if it is incorrect
      */
     function cancelPendingMerkleRoot() external restricted {
         if (block.timestamp < pendingMerkleRootActivationTimestamp) {

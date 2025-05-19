@@ -897,4 +897,181 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
             "Distributor should send 2 tokens after legitimate claim"
         );
     }
+
+    function test_revertClaimRewards_zeroToken() public {
+        bytes32[] memory pubkeyHashes = new bytes32[](1);
+        uint256[] memory amounts = new uint256[](1);
+        bytes32[][] memory proofs = new bytes32[][](1);
+
+        vm.expectRevert(IUnifiRewardsDistributor.InvalidInput.selector);
+        distributor.claimRewards(address(0), pubkeyHashes, amounts, proofs);
+    }
+
+    function test_revertClaimRewards_differentClaimers() public {
+        BLS.G1Point memory alicePublicKey = _blsg1mul(G1_GENERATOR(), bytes32(aliceValidatorPrivateKey));
+        BLS.G1Point memory bobPublicKey = _blsg1mul(G1_GENERATOR(), bytes32(bobValidatorPrivateKey));
+
+        bytes32[] memory pubkeyHashes = new bytes32[](2);
+        pubkeyHashes[0] = distributor.getBlsPubkeyHash(alicePublicKey);
+        pubkeyHashes[1] = distributor.getBlsPubkeyHash(bobPublicKey);
+
+        // Register different claimers for each validator
+        _registerClaimer(aliceValidatorPrivateKey, alice, alice);
+        _registerClaimer(bobValidatorPrivateKey, bob, bob);
+
+        // Build merkle proof
+        MerkleProofData[] memory merkleProofDatas = new MerkleProofData[](2);
+        merkleProofDatas[0] = MerkleProofData({ blsPubkeyHash: pubkeyHashes[0], token: NATIVE_TOKEN, amount: 1 ether });
+        merkleProofDatas[1] = MerkleProofData({ blsPubkeyHash: pubkeyHashes[1], token: NATIVE_TOKEN, amount: 1 ether });
+
+        bytes32 merkleRoot = _buildMerkleProof(merkleProofDatas);
+        distributor.setNewMerkleRoot(merkleRoot);
+        vm.warp(block.timestamp + 8 days);
+
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 1 ether;
+        amounts[1] = 1 ether;
+
+        bytes32[][] memory proofs = new bytes32[][](2);
+        proofs[0] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 0);
+        proofs[1] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 1);
+
+        vm.expectRevert(IUnifiRewardsDistributor.InvalidInput.selector);
+        distributor.claimRewards(NATIVE_TOKEN, pubkeyHashes, amounts, proofs);
+    }
+
+    function test_setNewMerkleRoot_activatePending() public {
+        bytes32 firstRoot = keccak256("first root");
+        bytes32 secondRoot = keccak256("second root");
+
+        // Set first root
+        distributor.setNewMerkleRoot(firstRoot);
+
+        // Advance time past activation
+        vm.warp(block.timestamp + 8 days);
+
+        // Set second root - this should activate the first root
+        distributor.setNewMerkleRoot(secondRoot);
+
+        assertEq(distributor.getMerkleRoot(), firstRoot, "First root should be active");
+    }
+
+    function test_cancelPendingMerkleRoot_noPending() public {
+        vm.expectRevert(IUnifiRewardsDistributor.NoPendingMerkleRoot.selector);
+        distributor.cancelPendingMerkleRoot();
+    }
+
+    function test_registerClaimer_multipleValidators() public {
+        // Generate public keys for two validators
+        BLS.G1Point memory alicePublicKey = _blsg1mul(G1_GENERATOR(), bytes32(aliceValidatorPrivateKey));
+        BLS.G1Point memory bobPublicKey = _blsg1mul(G1_GENERATOR(), bytes32(bobValidatorPrivateKey));
+
+        bytes32 alicePubkeyHash = distributor.getBlsPubkeyHash(alicePublicKey);
+        bytes32 bobPubkeyHash = distributor.getBlsPubkeyHash(bobPublicKey);
+
+        // Create message hashes
+        bytes memory aliceMessage = distributor.getMessageHash(alice, alicePubkeyHash);
+        bytes memory bobMessage = distributor.getMessageHash(alice, bobPubkeyHash);
+
+        BLS.G2Point memory aliceMessagePoint = BLS.hashToG2(aliceMessage);
+        BLS.G2Point memory bobMessagePoint = BLS.hashToG2(bobMessage);
+
+        // Create signatures
+        BLS.G2Point memory aliceSignature = _blsg2mul(aliceMessagePoint, bytes32(aliceValidatorPrivateKey));
+        BLS.G2Point memory bobSignature = _blsg2mul(bobMessagePoint, bytes32(bobValidatorPrivateKey));
+
+        // Build params array
+        IUnifiRewardsDistributor.PubkeyRegistrationParams[] memory params =
+            new IUnifiRewardsDistributor.PubkeyRegistrationParams[](2);
+
+        params[0] =
+            IUnifiRewardsDistributor.PubkeyRegistrationParams({ signature: aliceSignature, publicKey: alicePublicKey });
+
+        params[1] =
+            IUnifiRewardsDistributor.PubkeyRegistrationParams({ signature: bobSignature, publicKey: bobPublicKey });
+
+        // Register both validators
+        vm.prank(alice);
+        distributor.registerClaimer(alice, params);
+
+        // Verify both registrations
+        assertEq(distributor.getClaimer(alicePubkeyHash), alice, "Alice's validator should be registered");
+        assertEq(distributor.getClaimer(bobPubkeyHash), alice, "Bob's validator should be registered");
+    }
+
+    function test_rescueFunds_zeroAmount() public {
+        address recipient = makeAddr("recipient");
+        vm.expectRevert(IUnifiRewardsDistributor.InvalidInput.selector);
+        distributor.rescueFunds(NATIVE_TOKEN, recipient, 0);
+    }
+
+    function test_rescueFunds_zeroRecipient() public {
+        vm.expectRevert(IUnifiRewardsDistributor.InvalidInput.selector);
+        distributor.rescueFunds(NATIVE_TOKEN, address(0), 1 ether);
+    }
+
+    // Some Lib Tests
+
+    function test_BLS_add() public view {
+        // Test G1 point addition
+        BLS.G1Point memory point1 = G1_GENERATOR();
+        BLS.G1Point memory point2 = G1_GENERATOR();
+        BLS.G1Point memory result = BLS.add(point1, point2);
+
+        // Verify result is not zero
+        assertTrue(
+            result.x_a != bytes32(0) || result.x_b != bytes32(0) || result.y_a != bytes32(0) || result.y_b != bytes32(0),
+            "Result should not be zero point"
+        );
+
+        // Test G2 point addition using hashToG2 to get valid G2 points
+        bytes memory message1 = "test message 1";
+        bytes memory message2 = "test message 2";
+
+        BLS.G2Point memory g2Point1 = BLS.hashToG2(message1);
+        BLS.G2Point memory g2Point2 = BLS.hashToG2(message2);
+
+        BLS.G2Point memory g2Result = BLS.add(g2Point1, g2Point2);
+
+        // Verify result is not zero
+        assertTrue(
+            g2Result.x_c0_a != bytes32(0) || g2Result.x_c0_b != bytes32(0) || g2Result.x_c1_a != bytes32(0)
+                || g2Result.x_c1_b != bytes32(0) || g2Result.y_c0_a != bytes32(0) || g2Result.y_c0_b != bytes32(0)
+                || g2Result.y_c1_a != bytes32(0) || g2Result.y_c1_b != bytes32(0),
+            "G2 result should not be zero point"
+        );
+    }
+
+    function test_BLS_toG1() public view {
+        // Test converting a field element to G1
+        BLS.Fp memory element = BLS.Fp({ a: bytes32(uint256(1)), b: bytes32(uint256(2)) });
+
+        BLS.G1Point memory result = BLS.toG1(element);
+
+        // Verify result is not zero
+        assertTrue(
+            result.x_a != bytes32(0) || result.x_b != bytes32(0) || result.y_a != bytes32(0) || result.y_b != bytes32(0),
+            "Result should not be zero point"
+        );
+    }
+
+    function test_BLS_toG2() public view {
+        // Test converting a field element to G2
+        BLS.Fp2 memory element = BLS.Fp2({
+            c0_a: bytes32(uint256(1)),
+            c0_b: bytes32(uint256(2)),
+            c1_a: bytes32(uint256(3)),
+            c1_b: bytes32(uint256(4))
+        });
+
+        BLS.G2Point memory result = BLS.toG2(element);
+
+        // Verify result is not zero
+        assertTrue(
+            result.x_c0_a != bytes32(0) || result.x_c0_b != bytes32(0) || result.x_c1_a != bytes32(0)
+                || result.x_c1_b != bytes32(0) || result.y_c0_a != bytes32(0) || result.y_c0_b != bytes32(0)
+                || result.y_c1_a != bytes32(0) || result.y_c1_b != bytes32(0),
+            "Result should not be zero point"
+        );
+    }
 }
