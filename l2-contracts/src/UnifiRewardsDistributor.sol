@@ -5,6 +5,7 @@ import { IUnifiRewardsDistributor } from "./interfaces/IUnifiRewardsDistributor.
 import { BLS } from "./library/BLS.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -17,7 +18,7 @@ import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerklePr
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP712 {
+contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP712, ReentrancyGuard {
     using Address for address payable;
     using SafeERC20 for IERC20;
 
@@ -60,7 +61,7 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
         bytes32[] calldata blsPubkeyHashes,
         uint256[] calldata amounts,
         bytes32[][] calldata proofs
-    ) external {
+    ) external nonReentrant {
         require(blsPubkeyHashes.length == amounts.length && amounts.length == proofs.length, InvalidInput());
         require(token != address(0), InvalidInput());
 

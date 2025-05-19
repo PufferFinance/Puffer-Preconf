@@ -72,17 +72,6 @@ interface IUnifiRewardsDistributor {
     ) external;
 
     /**
-     * @notice Set the Merkle root of the latest cumulative distribution
-     * @param newMerkleRoot The new Merkle root
-     */
-    function setNewMerkleRoot(bytes32 newMerkleRoot) external;
-
-    /**
-     * @notice Cancel the pending Merkle root
-     */
-    function cancelPendingMerkleRoot() external;
-
-    /**
      * @notice Get the claimer address for a validator
      * @param blsPubkeyHash The hash of the BLS public key
      * @return The claimer address
@@ -94,13 +83,4 @@ interface IUnifiRewardsDistributor {
      * @return The Merkle root
      */
     function getMerkleRoot() external view returns (bytes32);
-
-    /**
-     * @notice Allows the admin to rescue any funds from the contract
-     * @param token The token address to rescue (use NATIVE_TOKEN for ETH)
-     * @param recipient The address to send the rescued funds to
-     * @param amount The amount to rescue
-     * @dev Only callable by the admin
-     */
-    function rescueFunds(address token, address recipient, uint256 amount) external;
 }
