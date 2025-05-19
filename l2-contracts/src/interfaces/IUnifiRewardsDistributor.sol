@@ -2,7 +2,6 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { BLS } from "../library/BLS.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title IUnifiRewardsDistributor
@@ -11,8 +10,6 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 interface IUnifiRewardsDistributor {
     /// @notice Thrown when the input is invalid
     error InvalidInput();
-    /// @notice Thrown when a zero pubkey is registered
-    error CannotRegisterZeroPubKey();
     /// @notice Thrown when a bad BLS signature is provided
     error BadBLSSignature();
     /// @notice Thrown when a claimer is not set for a validator
@@ -30,10 +27,8 @@ interface IUnifiRewardsDistributor {
     event ClaimerSet(bytes32 indexed blsPubkeyHash, address indexed claimer);
     /// @notice Emitted when the merkle root is set for the new cumulative distribution
     event MerkleRootSet(bytes32 indexed newMerkleRoot, uint256 activationTimestamp);
-    /// @notice Emitted when native token rewards are claimed for a validator
-    event RewardsClaimed(bytes32 indexed blsPubkeyHash, uint256 indexed amount);
-    /// @notice Emitted when ERC20 token rewards are claimed for a validator
-    event TokenRewardsClaimed(bytes32 indexed blsPubkeyHash, address indexed token, uint256 amount);
+    /// @notice Emitted when token rewards are claimed for a validator
+    event RewardsClaimed(bytes32 indexed blsPubkeyHash, address indexed token, uint256 indexed amount);
     /// @notice Emitted when the pending merkle root is cancelled
     event PendingMerkleRootCancelled(bytes32 indexed merkleRoot);
 
