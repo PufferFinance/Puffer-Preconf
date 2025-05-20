@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-// solhint-disable max-line-length
 pragma solidity ^0.8.24;
 
 import { BLS } from "../../src/library/BLS.sol";
