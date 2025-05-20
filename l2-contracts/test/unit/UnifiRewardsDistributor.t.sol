@@ -513,6 +513,8 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         assertEq(address(recipient).balance, 0, "Recipient should have 0 balance");
         assertEq(address(distributor).balance, 5 ether, "Distributor should have 5 ETH");
 
+        vm.expectEmit(true, true, true, true);
+        emit IUnifiRewardsDistributor.RescuedFunds(NATIVE_TOKEN, recipient, 3 ether);
         distributor.rescueFunds(NATIVE_TOKEN, recipient, 3 ether);
 
         assertEq(address(recipient).balance, 3 ether, "Recipient should have received 3 ETH");
@@ -526,6 +528,8 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         assertEq(mockToken.balanceOf(recipient), 0, "Recipient should have 0 token balance");
         assertEq(mockToken.balanceOf(address(distributor)), 5 ether, "Distributor should have 5 tokens");
 
+        vm.expectEmit(true, true, true, true);
+        emit IUnifiRewardsDistributor.RescuedFunds(address(mockToken), recipient, 3 ether);
         distributor.rescueFunds(address(mockToken), recipient, 3 ether);
 
         assertEq(mockToken.balanceOf(recipient), 3 ether, "Recipient should have received 3 tokens");

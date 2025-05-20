@@ -281,5 +281,7 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, AccessManaged, EIP
         } else {
             IERC20(token).safeTransfer(recipient, amount);
         }
+
+        emit RescuedFunds(token, recipient, amount);
     }
 }

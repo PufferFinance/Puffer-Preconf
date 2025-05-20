@@ -29,6 +29,8 @@ interface IUnifiRewardsDistributor {
     event MerkleRootSet(bytes32 indexed newMerkleRoot, uint256 activationTimestamp);
     /// @notice Emitted when token rewards are claimed for a validator
     event RewardsClaimed(bytes32 indexed blsPubkeyHash, address indexed token, uint256 indexed amount);
+    /// @notice Emitted when funds are rescued from the contract
+    event RescuedFunds(address indexed token, address indexed recipient, uint256 amount);
     /// @notice Emitted when the pending merkle root is cancelled
     event PendingMerkleRootCancelled(bytes32 indexed merkleRoot);
 
