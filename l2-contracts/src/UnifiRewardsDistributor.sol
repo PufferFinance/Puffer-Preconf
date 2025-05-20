@@ -3,10 +3,9 @@ pragma solidity ^0.8.0;
 
 import { IUnifiRewardsDistributor } from "./interfaces/IUnifiRewardsDistributor.sol";
 import { BLS } from "./library/BLS.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+import { AccessManaged } from "@openzeppelin/contracts/access/manager/AccessManaged.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
@@ -18,7 +17,7 @@ import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerklePr
  * @author Puffer Finance
  * @custom:security-contact security@puffer.fi
  */
-contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP712, ReentrancyGuard {
+contract UnifiRewardsDistributor is IUnifiRewardsDistributor, AccessManaged, EIP712, ReentrancyGuard {
     using Address for address payable;
     using SafeERC20 for IERC20;
 
@@ -26,7 +25,7 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
     bytes32 public constant REWARDS_DISTRIBUTION_TYPEHASH = keccak256("RegisterClaimer(address claimer,uint256 nonce)");
 
     /// @dev The delay for the Merkle root to be set
-    uint256 public constant MERKLE_ROOT_DELAY = 3 days;
+    uint256 public constant MERKLE_ROOT_DELAY = 7 days;
 
     /// @dev Constant address to represent native ETH token
     address public constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -46,7 +45,7 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
     /// @dev The mapping of BLS pubkey hash to nonce
     mapping(bytes32 pubkeyHash => uint256 nonce) public nonces;
 
-    constructor(address initialOwner) Ownable(initialOwner) EIP712("UnifiRewardsDistributor", "1") { }
+    constructor(address accessManager) AccessManaged(accessManager) EIP712("UnifiRewardsDistributor", "1") { }
 
     /**
      * @notice Claim the unclaimed rewards for multiple validators
@@ -117,12 +116,7 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
             bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(blsPubkeyHashes[i], token, amounts[i]))));
             if (!MerkleProof.verifyCalldata(proofs[i], getMerkleRoot(), leaf)) revert InvalidProof();
 
-            // Emit the appropriate event
-            if (token == NATIVE_TOKEN) {
-                emit RewardsClaimed(blsPubkeyHashes[i], amountToClaim);
-            } else {
-                emit TokenRewardsClaimed(blsPubkeyHashes[i], token, amountToClaim);
-            }
+            emit RewardsClaimed(blsPubkeyHashes[i], token, amountToClaim);
 
             totalAmountToClaim += amountToClaim;
         }
@@ -132,9 +126,10 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
 
     /**
      * @notice Set the Merkle root of the latest cumulative distribution
+     * @dev This function will be callable by the backend service
      * @param newMerkleRoot The new Merkle root
      */
-    function setNewMerkleRoot(bytes32 newMerkleRoot) external onlyOwner {
+    function setNewMerkleRoot(bytes32 newMerkleRoot) external restricted {
         if (newMerkleRoot == bytes32(0)) revert MerkleRootCannotBeZero();
         if (pendingMerkleRoot != bytes32(0) && block.timestamp >= pendingMerkleRootActivationTimestamp) {
             merkleRoot = pendingMerkleRoot;
@@ -147,8 +142,9 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
 
     /**
      * @notice Cancel the pending Merkle root
+     * @dev Multiple accounts `watchers` will be double checking the newly posted Merkle root, and cancel the pending if it is incorrect
      */
-    function cancelPendingMerkleRoot() external onlyOwner {
+    function cancelPendingMerkleRoot() external restricted {
         if (block.timestamp < pendingMerkleRootActivationTimestamp) {
             bytes32 merkleRootToCancel = pendingMerkleRoot;
             pendingMerkleRoot = bytes32(0);
@@ -276,19 +272,16 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, Ownable2Step, EIP7
      * @param amount The amount to rescue
      * @dev Only callable by the admin
      */
-    function rescueFunds(address token, address recipient, uint256 amount) external onlyOwner {
+    function rescueFunds(address token, address recipient, uint256 amount) external restricted {
         if (recipient == address(0)) revert InvalidInput();
         if (amount == 0) revert InvalidInput();
 
         if (token == NATIVE_TOKEN) {
-            if (amount > address(this).balance) revert InvalidInput();
-
             payable(recipient).sendValue(amount);
         } else {
-            if (token == address(0)) revert InvalidInput();
-            if (amount > IERC20(token).balanceOf(address(this))) revert InvalidInput();
-
             IERC20(token).safeTransfer(recipient, amount);
         }
+
+        emit RescuedFunds(token, recipient, amount);
     }
 }

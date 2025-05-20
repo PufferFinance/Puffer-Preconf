@@ -19,10 +19,11 @@ library MerkleProofGenerator {
      * @param amounts Array of amounts corresponding to each BLS public key
      * @return root The Merkle root
      */
-    function generateMerkleRoot(bytes[] memory blsPubkeys, address[] memory tokenAddresses, uint256[] memory amounts)
-        public
-        returns (bytes32 root)
-    {
+    function generateMerkleRoot(
+        bytes[] calldata blsPubkeys,
+        address[] calldata tokenAddresses,
+        uint256[] calldata amounts
+    ) public returns (bytes32 root) {
         require(
             blsPubkeys.length == tokenAddresses.length && tokenAddresses.length == amounts.length,
             "Input arrays must have same length"
@@ -45,7 +46,7 @@ library MerkleProofGenerator {
      * @param amounts Array of amounts corresponding to each BLS public key
      * @return proofs Array of proofs for each validator
      */
-    function generateProofs(bytes[] memory blsPubkeys, address[] memory tokenAddresses, uint256[] memory amounts)
+    function generateProofs(bytes[] calldata blsPubkeys, address[] calldata tokenAddresses, uint256[] calldata amounts)
         public
         returns (bytes32[][] memory proofs)
     {
@@ -69,7 +70,7 @@ library MerkleProofGenerator {
         return proofs;
     }
 
-    function calculateBlsPubKeyHash(bytes memory validatorPubkey) public view returns (bytes32) {
+    function calculateBlsPubKeyHash(bytes calldata validatorPubkey) public view returns (bytes32) {
         BLS.G1Point memory decompressedPoint = BLSG1Decompressor.decompressG1(validatorPubkey);
         return keccak256(
             abi.encodePacked(decompressedPoint.x_a, decompressedPoint.x_b, decompressedPoint.y_a, decompressedPoint.y_b)

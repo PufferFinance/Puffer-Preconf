@@ -32,7 +32,7 @@ library BLSG1Decompressor {
     /// @dev Decompress a 48-byte BLS12-381 G1 point.
     /// @param compressed 48-byte, beacon-chain-style compressed public key
     /// @return point     Uncompressed point arranged for BLS.sol
-    function decompressG1(bytes memory compressed) internal view returns (BLS.G1Point memory point) {
+    function decompressG1(bytes calldata compressed) internal view returns (BLS.G1Point memory) {
         require(compressed.length == 48, "BLS: invalid length");
 
         // 1. ─── Pull flags ---------------------------------------------------
@@ -49,8 +49,7 @@ library BLSG1Decompressor {
         x[0] = bytes1(indicator & 0x1f);
 
         // 3. ─── Compute rhs = x³ + 4 (mod p) ---------------------------------
-        bytes memory xCubed = _modexp(_pad64(x), abi.encodePacked(uint8(3)), _prime());
-        bytes memory rhs = _addModConst(xCubed, 4);
+        bytes memory rhs = _computeRhs(x);
 
         // 4. ─── Square-root rhs via rhs^{(p+1)/4} ---------------------------
         bytes memory y = _modexp(rhs, _exp(), _prime());
@@ -83,6 +82,12 @@ library BLSG1Decompressor {
     // Internal helpers (minimal and not constant-time — use off-chain whenever
     // possible). All operate on 64-byte big-endian byte arrays lying in memory.
     // ──────────────────────────────────────────────────────────────────────────
+
+    function _computeRhs(bytes memory x) private view returns (bytes memory) {
+        bytes memory xCubed = _modexp(_pad64(x), abi.encodePacked(uint8(3)), _prime());
+        bytes memory rhs = _addModConst(xCubed, 4);
+        return rhs;
+    }
 
     function _pad64(bytes memory b48) private pure returns (bytes memory out) {
         // Left-pad 16 zero bytes so length becomes 64
