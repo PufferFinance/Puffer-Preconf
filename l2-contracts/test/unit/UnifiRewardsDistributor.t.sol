@@ -322,6 +322,17 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
 
         distributor.claimRewards(NATIVE_TOKEN, pubkeyHashes, amounts, proofs);
 
+        assertEq(
+            distributor.validatorClaimedAmount(NATIVE_TOKEN, pubkeyHashes[0]),
+            1 ether,
+            "claimed amount should be 1 ether"
+        );
+        assertEq(
+            distributor.validatorClaimedAmount(NATIVE_TOKEN, pubkeyHashes[1]),
+            1 ether,
+            "claimed amount should be 1 ether"
+        );
+
         assertEq(alice.balance, 2 ether, "Alice should have received 2 ether");
         assertEq(bob.balance, 0 ether, "Bob should have received 0 ether");
 
@@ -387,9 +398,7 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         distributor.claimRewards(address(mockToken), pubkeyHashes, amounts, proofs);
     }
 
-    // This test now needs updated hardcoded values for the new Merkle tree format
-    // that includes token addresses
-    function test_ClaimRewards_hardcoded_values_from_javascript() public {
+    function test_ClaimRewards_cummulative() public {
         BLS.G1Point memory alicePublicKey = _blsg1mul(G1_GENERATOR(), bytes32(aliceValidatorPrivateKey));
         BLS.G1Point memory bobPublicKey = _blsg1mul(G1_GENERATOR(), bytes32(bobValidatorPrivateKey));
 
@@ -416,10 +425,7 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
         _registerClaimer(bobValidatorPrivateKey, bob, alice);
 
         // Deal some ETH to the distributor, so that it has some balance
-        vm.deal(address(distributor), 10 ether);
-
-        // Alice claims the rewards
-        vm.prank(alice);
+        vm.deal(address(distributor), 100 ether);
 
         assertEq(alice.balance, 0, "Alice should have 0 balance");
 
@@ -433,11 +439,58 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
 
         distributor.claimRewards(NATIVE_TOKEN, pubkeyHashes, amounts, proofs);
 
+        assertEq(
+            distributor.validatorClaimedAmount(NATIVE_TOKEN, pubkeyHashes[0]),
+            1 ether,
+            "claimed amount should be 1 ether for validator 1"
+        );
+        assertEq(
+            distributor.validatorClaimedAmount(NATIVE_TOKEN, pubkeyHashes[1]),
+            1 ether,
+            "claimed amount should be 1 ether for validator 2"
+        );
+
         assertEq(alice.balance, 2 ether, "Alice should have received 2 ether");
         assertEq(bob.balance, 0 ether, "Bob should have received 0 ether");
 
-        vm.expectRevert(IUnifiRewardsDistributor.NothingToClaim.selector);
-        distributor.claimRewards(NATIVE_TOKEN, pubkeyHashes, amounts, proofs);
+        // New Merkle root contains the cumulative rewards for the validators
+        MerkleProofData[] memory newMerkleProofDatas = new MerkleProofData[](2);
+        // Now we create a new merkle root with more rewards, 5 eth for the first validator and 10 eth for the second validator
+        newMerkleProofDatas[0] =
+            MerkleProofData({ blsPubkeyHash: pubkeyHashes[0], token: NATIVE_TOKEN, amount: 5 ether });
+        newMerkleProofDatas[1] =
+            MerkleProofData({ blsPubkeyHash: pubkeyHashes[1], token: NATIVE_TOKEN, amount: 10 ether });
+
+        merkleRoot = _buildMerkleProof(newMerkleProofDatas);
+        distributor.setNewMerkleRoot(merkleRoot);
+
+        // Advance time so that the pending root becomes active
+        vm.warp(block.timestamp + 8 days);
+
+        uint256[] memory newAmounts = new uint256[](2);
+        newAmounts[0] = 5 ether;
+        newAmounts[1] = 10 ether;
+
+        bytes32[][] memory newProofs = new bytes32[][](2);
+        newProofs[0] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 0);
+        newProofs[1] = rewardsMerkleProof.getProof(rewardsMerkleProofData, 1);
+
+        distributor.claimRewards(NATIVE_TOKEN, pubkeyHashes, newAmounts, newProofs);
+
+        assertEq(
+            distributor.validatorClaimedAmount(NATIVE_TOKEN, pubkeyHashes[0]),
+            5 ether,
+            "claimed amount should be 5 ether for validator 1"
+        );
+        assertEq(
+            distributor.validatorClaimedAmount(NATIVE_TOKEN, pubkeyHashes[1]),
+            10 ether,
+            "claimed amount should be 10 ether for validator 2"
+        );
+
+        // In the first claiming interval Alice claimed 2(1 + 1) ETH, and in the second one, she claimed (4 + 9), thats a total of 15 ether
+        assertEq(alice.balance, 15 ether, "Alice should have received 15 ether");
+        assertEq(bob.balance, 0 ether, "Bob should have received 0 ether");
     }
 
     function test_revertClaimerNotSet() public {
