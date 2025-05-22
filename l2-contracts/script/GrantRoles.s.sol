@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-import { Script } from "forge-std/Script.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
+import { Script } from "forge-std/Script.sol";
 import { console } from "forge-std/console.sol";
 
 /**
@@ -29,7 +29,7 @@ contract GrantRoles is Script {
 
         AccessManager manager = AccessManager(accessManager);
         manager.grantRole(MERKLE_ROOT_POSTER_ROLE, posterAddress, 0);
-        
+
         console.log("Granted MERKLE_ROOT_POSTER_ROLE to:", posterAddress);
 
         vm.stopBroadcast();
@@ -49,7 +49,7 @@ contract GrantRoles is Script {
 
         AccessManager manager = AccessManager(accessManager);
         manager.grantRole(MERKLE_ROOT_CANCELLER_ROLE, cancellerAddress, 0);
-        
+
         console.log("Granted MERKLE_ROOT_CANCELLER_ROLE to:", cancellerAddress);
 
         vm.stopBroadcast();
@@ -69,7 +69,7 @@ contract GrantRoles is Script {
 
         AccessManager manager = AccessManager(accessManager);
         manager.grantRole(FUNDS_RESCUER_ROLE, rescuerAddress, 0);
-        
+
         console.log("Granted FUNDS_RESCUER_ROLE to:", rescuerAddress);
 
         vm.stopBroadcast();
@@ -105,11 +105,11 @@ contract GrantRoles is Script {
         manager.grantRole(MERKLE_ROOT_POSTER_ROLE, posterAddress, 0);
         manager.grantRole(MERKLE_ROOT_CANCELLER_ROLE, cancellerAddress, 0);
         manager.grantRole(FUNDS_RESCUER_ROLE, rescuerAddress, 0);
-        
+
         console.log("Granted MERKLE_ROOT_POSTER_ROLE to:", posterAddress);
         console.log("Granted MERKLE_ROOT_CANCELLER_ROLE to:", cancellerAddress);
         console.log("Granted FUNDS_RESCUER_ROLE to:", rescuerAddress);
 
         vm.stopBroadcast();
     }
-} 
+}

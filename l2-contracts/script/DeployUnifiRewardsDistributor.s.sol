@@ -2,8 +2,9 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { UnifiRewardsDistributor } from "../src/UnifiRewardsDistributor.sol";
-import { Script } from "forge-std/Script.sol";
+
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
+import { Script } from "forge-std/Script.sol";
 import { console } from "forge-std/console.sol";
 
 /**
@@ -15,7 +16,7 @@ contract DeployUnifiRewardsDistributor is Script {
     uint64 constant MERKLE_ROOT_POSTER_ROLE = 1;
     uint64 constant MERKLE_ROOT_CANCELLER_ROLE = 2;
     uint64 constant FUNDS_RESCUER_ROLE = 3;
-    
+
     // Events for logging deployments
     event AccessManagerDeployed(address indexed accessManager);
     event RewardsDistributorDeployed(address indexed rewardsDistributor);
@@ -29,7 +30,7 @@ contract DeployUnifiRewardsDistributor is Script {
 
         // Deploy the AccessManager with the owner as admin
         AccessManager accessManager = new AccessManager(owner);
-        
+
         // Deploy the UnifiRewardsDistributor with AccessManager
         UnifiRewardsDistributor rewardsDistributor = new UnifiRewardsDistributor(address(accessManager));
 
@@ -45,31 +46,23 @@ contract DeployUnifiRewardsDistributor is Script {
 
         // Configure role permissions
         accessManager.setTargetFunctionRole(
-            address(rewardsDistributor), 
-            merkleRootPosterSelectors, 
-            MERKLE_ROOT_POSTER_ROLE
-        );
-        
-        accessManager.setTargetFunctionRole(
-            address(rewardsDistributor), 
-            merkleRootCancellerSelectors, 
-            MERKLE_ROOT_CANCELLER_ROLE
+            address(rewardsDistributor), merkleRootPosterSelectors, MERKLE_ROOT_POSTER_ROLE
         );
 
         accessManager.setTargetFunctionRole(
-            address(rewardsDistributor),
-            fundsRescuerSelectors,
-            FUNDS_RESCUER_ROLE
+            address(rewardsDistributor), merkleRootCancellerSelectors, MERKLE_ROOT_CANCELLER_ROLE
         );
+
+        accessManager.setTargetFunctionRole(address(rewardsDistributor), fundsRescuerSelectors, FUNDS_RESCUER_ROLE);
 
         // Log the deployment
         emit AccessManagerDeployed(address(accessManager));
         emit RewardsDistributorDeployed(address(rewardsDistributor));
-        
+
         console.log("AccessManager deployed at:", address(accessManager));
         console.log("UnifiRewardsDistributor deployed at:", address(rewardsDistributor));
         console.log("Note: Use the grant-roles command to assign roles to addresses");
-        
+
         // Label the addresses for better tracing
         vm.label(address(accessManager), "AccessManager");
         vm.label(address(rewardsDistributor), "UnifiRewardsDistributor");
