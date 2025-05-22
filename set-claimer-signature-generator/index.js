@@ -45,7 +45,7 @@ async function main() {
 
   //@todo Update the contract address (UNIFI L2)
   const UnifiRewardsDistributor = new Contract(
-    "0x914d193ad0974253bf9E1B1B7Ba7F7DD84E744d5",
+    "0xe2c4e3742F3b312CE5d2B9E3eADaDcD771562682",
     UnifiRewardsDistributorAbi,
     signer
   );
