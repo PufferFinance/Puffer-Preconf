@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { UnifiRewardsDistributor } from "../src/UnifiRewardsDistributor.sol";
+import { Roles } from "./library/Roles.sol";
 
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { Script } from "forge-std/Script.sol";
@@ -12,21 +13,15 @@ import { console } from "forge-std/console.sol";
  * @author Puffer Finance
  */
 contract DeployUnifiRewardsDistributor is Script {
-    // Role IDs
-    uint64 constant MERKLE_ROOT_POSTER_ROLE = 1;
-    uint64 constant MERKLE_ROOT_CANCELLER_ROLE = 2;
-    uint64 constant FUNDS_RESCUER_ROLE = 3;
-
     // Events for logging deployments
     event AccessManagerDeployed(address indexed accessManager);
     event RewardsDistributorDeployed(address indexed rewardsDistributor);
 
     function run() external {
-        // Read the deployer private key from environment variable
-        uint256 deployerPk = vm.envUint("PK");
-        address owner = vm.addr(deployerPk);
+        // Get the deployer address from the broadcast account
+        address owner = msg.sender;
 
-        vm.startBroadcast(deployerPk);
+        vm.startBroadcast();
 
         // Deploy the AccessManager with the owner as admin
         AccessManager accessManager = new AccessManager(owner);
@@ -46,14 +41,16 @@ contract DeployUnifiRewardsDistributor is Script {
 
         // Configure role permissions
         accessManager.setTargetFunctionRole(
-            address(rewardsDistributor), merkleRootPosterSelectors, MERKLE_ROOT_POSTER_ROLE
+            address(rewardsDistributor), merkleRootPosterSelectors, Roles.MERKLE_ROOT_POSTER_ROLE
         );
 
         accessManager.setTargetFunctionRole(
-            address(rewardsDistributor), merkleRootCancellerSelectors, MERKLE_ROOT_CANCELLER_ROLE
+            address(rewardsDistributor), merkleRootCancellerSelectors, Roles.MERKLE_ROOT_CANCELLER_ROLE
         );
 
-        accessManager.setTargetFunctionRole(address(rewardsDistributor), fundsRescuerSelectors, FUNDS_RESCUER_ROLE);
+        accessManager.setTargetFunctionRole(
+            address(rewardsDistributor), fundsRescuerSelectors, Roles.FUNDS_RESCUER_ROLE
+        );
 
         // Log the deployment
         emit AccessManagerDeployed(address(accessManager));

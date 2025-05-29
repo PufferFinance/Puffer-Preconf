@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
+import { Roles } from "./library/Roles.sol";
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { Script } from "forge-std/Script.sol";
 import { console } from "forge-std/console.sol";
@@ -10,11 +11,6 @@ import { console } from "forge-std/console.sol";
  * @author Puffer Finance
  */
 contract GrantRoles is Script {
-    // Role IDs
-    uint64 constant MERKLE_ROOT_POSTER_ROLE = 1;
-    uint64 constant MERKLE_ROOT_CANCELLER_ROLE = 2;
-    uint64 constant FUNDS_RESCUER_ROLE = 3;
-
     function grantMerkleRootPosterRole(address accessManager) external {
         // Read from .env or command line arguments
         address posterAddress;
@@ -24,11 +20,10 @@ contract GrantRoles is Script {
             posterAddress = msg.sender;
         }
 
-        uint256 deployerPk = vm.envUint("PK");
-        vm.startBroadcast(deployerPk);
+        vm.startBroadcast();
 
         AccessManager manager = AccessManager(accessManager);
-        manager.grantRole(MERKLE_ROOT_POSTER_ROLE, posterAddress, 0);
+        manager.grantRole(Roles.MERKLE_ROOT_POSTER_ROLE, posterAddress, 0);
 
         console.log("Granted MERKLE_ROOT_POSTER_ROLE to:", posterAddress);
 
@@ -44,11 +39,10 @@ contract GrantRoles is Script {
             cancellerAddress = msg.sender;
         }
 
-        uint256 deployerPk = vm.envUint("PK");
-        vm.startBroadcast(deployerPk);
+        vm.startBroadcast();
 
         AccessManager manager = AccessManager(accessManager);
-        manager.grantRole(MERKLE_ROOT_CANCELLER_ROLE, cancellerAddress, 0);
+        manager.grantRole(Roles.MERKLE_ROOT_CANCELLER_ROLE, cancellerAddress, 0);
 
         console.log("Granted MERKLE_ROOT_CANCELLER_ROLE to:", cancellerAddress);
 
@@ -64,11 +58,10 @@ contract GrantRoles is Script {
             rescuerAddress = msg.sender;
         }
 
-        uint256 deployerPk = vm.envUint("PK");
-        vm.startBroadcast(deployerPk);
+        vm.startBroadcast();
 
         AccessManager manager = AccessManager(accessManager);
-        manager.grantRole(FUNDS_RESCUER_ROLE, rescuerAddress, 0);
+        manager.grantRole(Roles.FUNDS_RESCUER_ROLE, rescuerAddress, 0);
 
         console.log("Granted FUNDS_RESCUER_ROLE to:", rescuerAddress);
 
@@ -98,13 +91,12 @@ contract GrantRoles is Script {
             rescuerAddress = msg.sender;
         }
 
-        uint256 deployerPk = vm.envUint("PK");
-        vm.startBroadcast(deployerPk);
+        vm.startBroadcast();
 
         AccessManager manager = AccessManager(accessManager);
-        manager.grantRole(MERKLE_ROOT_POSTER_ROLE, posterAddress, 0);
-        manager.grantRole(MERKLE_ROOT_CANCELLER_ROLE, cancellerAddress, 0);
-        manager.grantRole(FUNDS_RESCUER_ROLE, rescuerAddress, 0);
+        manager.grantRole(Roles.MERKLE_ROOT_POSTER_ROLE, posterAddress, 0);
+        manager.grantRole(Roles.MERKLE_ROOT_CANCELLER_ROLE, cancellerAddress, 0);
+        manager.grantRole(Roles.FUNDS_RESCUER_ROLE, rescuerAddress, 0);
 
         console.log("Granted MERKLE_ROOT_POSTER_ROLE to:", posterAddress);
         console.log("Granted MERKLE_ROOT_CANCELLER_ROLE to:", cancellerAddress);
