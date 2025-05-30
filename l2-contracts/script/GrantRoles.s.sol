@@ -104,4 +104,23 @@ contract GrantRoles is Script {
 
         vm.stopBroadcast();
     }
+
+    /**
+     * @notice Labels all roles on-chain with human-readable names
+     * @param accessManager The AccessManager contract address
+     */
+    function labelAllRoles(address accessManager) external {
+        vm.startBroadcast();
+
+        AccessManager manager = AccessManager(accessManager);
+        manager.labelRole(Roles.MERKLE_ROOT_POSTER_ROLE, "Merkle Root Poster");
+        manager.labelRole(Roles.MERKLE_ROOT_CANCELLER_ROLE, "Merkle Root Canceller");
+        manager.labelRole(Roles.FUNDS_RESCUER_ROLE, "Funds Rescuer");
+
+        console.log("Labeled MERKLE_ROOT_POSTER_ROLE as: Merkle Root Poster");
+        console.log("Labeled MERKLE_ROOT_CANCELLER_ROLE as: Merkle Root Canceller");
+        console.log("Labeled FUNDS_RESCUER_ROLE as: Funds Rescuer");
+
+        vm.stopBroadcast();
+    }
 }

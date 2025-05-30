@@ -122,6 +122,15 @@ grant-all-roles: build check-private-key
 	--private-key $(PRIVATE_KEY) \
 	$(BROADCAST_FLAG)
 
+# Label All Roles Command
+label-all-roles: build check-private-key
+	@forge script script/GrantRoles.s.sol:GrantRoles \
+	--sig "labelAllRoles(address)" $(ACCESS_MANAGER) \
+	--via-ir \
+	--rpc-url $(RPC) \
+	--private-key $(PRIVATE_KEY) \
+	$(BROADCAST_FLAG)
+
 # Help command
 help:
 	@echo "UniFi Rewards Distributor Commands:"
@@ -137,11 +146,13 @@ help:
 	@echo "  make grant-canceller-role PRIVATE_KEY=0x123... [BROADCAST=true]"
 	@echo "  make grant-rescuer-role PRIVATE_KEY=0x123... [BROADCAST=true]"
 	@echo "  make grant-all-roles PRIVATE_KEY=0x123... [BROADCAST=true]"
+	@echo "  make label-all-roles PRIVATE_KEY=0x123... [BROADCAST=true]"
 	@echo "  make build                                - Build contracts with --via-ir optimization"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make deploy-distributor PRIVATE_KEY=0x1234567890abcdef... BROADCAST=true"
 	@echo "  make grant-all-roles PRIVATE_KEY=0x1234567890abcdef... BROADCAST=true"
+	@echo "  make label-all-roles PRIVATE_KEY=0x1234567890abcdef... BROADCAST=true"
 	@echo "  make submit-merkle-root PRIVATE_KEY=0x1234567890abcdef... BROADCAST=true"
 	@echo ""
 	@echo "Environment Variables (.env file):"

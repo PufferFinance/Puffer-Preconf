@@ -64,6 +64,7 @@ The project includes a Makefile with the following commands (all require PRIVATE
 | `make grant-canceller-role PRIVATE_KEY=0x123... [BROADCAST=true]` | Grant Merkle root canceller role |
 | `make grant-rescuer-role PRIVATE_KEY=0x123... [BROADCAST=true]` | Grant funds rescuer role |
 | `make grant-all-roles PRIVATE_KEY=0x123... [BROADCAST=true]` | Grant all roles (poster, canceller, rescuer) |
+| `make label-all-roles PRIVATE_KEY=0x123... [BROADCAST=true]` | Label all roles on-chain with human-readable names |
 | `make submit-merkle-root PRIVATE_KEY=0x123... [BROADCAST=true]` | Generate and submit a Merkle root from the CSV file |
 | `make cancel-merkle-root PRIVATE_KEY=0x123... [BROADCAST=true]` | Cancel a pending Merkle root |
 | `make check-merkle-root-status` | Check the status of current and pending Merkle roots |
@@ -72,6 +73,7 @@ The project includes a Makefile with the following commands (all require PRIVATE
 **Usage Notes:**
 - All commands except `help`, `build`, and `check-merkle-root-status` require `PRIVATE_KEY=0x123...`
 - Add `BROADCAST=true` to broadcast transactions to the network
+- Role granting and role labeling are separate functions for flexibility
 - You can override the distributor address with `DISTRIBUTOR=0x...`
 - You can override the access manager address with `ACCESS_MANAGER=0x...`
 
@@ -120,9 +122,20 @@ make grant-poster-role PRIVATE_KEY=0x1234567890abcdef... BROADCAST=true
 make grant-canceller-role PRIVATE_KEY=0x1234567890abcdef... BROADCAST=true
 make grant-rescuer-role PRIVATE_KEY=0x1234567890abcdef... BROADCAST=true
 
+# Label all roles on-chain with human-readable names for better transparency
+make label-all-roles PRIVATE_KEY=0x1234567890abcdef... BROADCAST=true
+
 # Using forge directly with explicit private key
 forge script script/GrantRoles.s.sol:GrantRoles \
   --sig "grantAllRoles(address)" $ACCESS_MANAGER_ADDRESS \
+  --via-ir \
+  --rpc-url $RPC_URL \
+  --private-key 0x1234567890abcdef... \
+  --broadcast
+
+# Label roles using forge directly
+forge script script/GrantRoles.s.sol:GrantRoles \
+  --sig "labelAllRoles(address)" $ACCESS_MANAGER_ADDRESS \
   --via-ir \
   --rpc-url $RPC_URL \
   --private-key 0x1234567890abcdef... \
@@ -133,6 +146,11 @@ You can specify the addresses in the .env file or override them on the command l
 ```bash
 make grant-all-roles PRIVATE_KEY=0x1234567890abcdef... ACCESS_MANAGER=0x... MERKLE_ROOT_POSTER=0x... MERKLE_ROOT_CANCELLER=0x... FUNDS_RESCUER=0x...
 ```
+
+**Role Labeling Benefits:**
+- Roles are labeled on-chain with descriptive names for better transparency
+- Makes it easier to identify role purposes when viewing transactions or using block explorers
+- Improves the overall user experience for role management
 
 ### 3. Registering a Claimer
 
@@ -276,6 +294,12 @@ This script allows the owner to grant specific roles to different addresses:
 - `grantMerkleRootCancellerRole`: Grants the ability to cancel pending Merkle roots
 - `grantFundsRescuerRole`: Grants the ability to rescue funds from the contract
 - `grantAllRoles`: Grants all three roles in a single transaction
+- `labelAllRoles`: Labels all roles on-chain with human-readable names for better transparency
+
+**Role Labels:**
+- `MERKLE_ROOT_POSTER_ROLE` → "Merkle Root Poster"
+- `MERKLE_ROOT_CANCELLER_ROLE` → "Merkle Root Canceller"
+- `FUNDS_RESCUER_ROLE` → "Funds Rescuer"
 
 ### SubmitMerkleRoot Script
 
