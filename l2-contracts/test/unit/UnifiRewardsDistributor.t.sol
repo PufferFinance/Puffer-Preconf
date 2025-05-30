@@ -5,6 +5,7 @@ import { UnifiRewardsDistributor } from "../../src/UnifiRewardsDistributor.sol";
 import { IUnifiRewardsDistributor } from "../../src/interfaces/IUnifiRewardsDistributor.sol";
 import { BLS } from "../../src/library/BLS.sol";
 import { UnitTestHelper } from "../helpers/UnitTestHelper.sol";
+import { Roles } from "../../script/library/Roles.sol";
 
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -150,8 +151,9 @@ contract UnifiRewardsDistributorTest is UnitTestHelper {
 
     AccessManager internal manager;
 
-    uint64 MERKLE_ROOT_POSTER_ROLE = 1;
-    uint64 MERKLE_ROOT_CANCELLER_ROLE = 2;
+    uint64 MERKLE_ROOT_POSTER_ROLE = Roles.MERKLE_ROOT_POSTER_ROLE;
+    uint64 MERKLE_ROOT_CANCELLER_ROLE = Roles.MERKLE_ROOT_CANCELLER_ROLE;
+    uint64 FUNDS_RESCUER_ROLE = Roles.FUNDS_RESCUER_ROLE;
 
     function setUp() public override {
         manager = new AccessManager(address(this));
