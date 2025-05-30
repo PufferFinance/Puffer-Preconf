@@ -5,16 +5,17 @@ import { Vm } from "forge-std/Vm.sol";
 
 library CSVParser {
     /**
-     * @notice Loads BLS public keys and amounts from a CSV file
+     * @notice Loads BLS public keys, token addresses, and amounts from a CSV file
      * @param vm The Forge VM instance
      * @param csvFilePath Path to the CSV file
      * @return blsPubkeys Array of BLS public keys
+     * @return tokenAddresses Array of token addresses
      * @return amounts Array of amounts
      */
     function loadBlsKeysAndAmounts(Vm vm, string memory csvFilePath)
         internal
         view
-        returns (bytes[] memory blsPubkeys, uint256[] memory amounts)
+        returns (bytes[] memory blsPubkeys, address[] memory tokenAddresses, uint256[] memory amounts)
     {
         // Read the CSV file
         string memory csvContent = vm.readFile(csvFilePath);
@@ -24,6 +25,7 @@ library CSVParser {
 
         // Initialize arrays with the appropriate size
         blsPubkeys = new bytes[](lineCount);
+        tokenAddresses = new address[](lineCount);
         amounts = new uint256[](lineCount);
 
         // Parse each line of the CSV
@@ -38,11 +40,14 @@ library CSVParser {
             // Extract the line
             string memory line = substring(csvContent, startIndex, endIndex - startIndex);
 
-            // Parse the line into BLS key and amount
-            (string memory blsPubkeyStr, string memory amountStr) = parseCsvLine(line);
+            // Parse the line into BLS key, token address, and amount
+            (string memory blsPubkeyStr, string memory tokenAddressStr, string memory amountStr) = parseCsvLine(line);
 
             // Convert the BLS key from hex string to bytes
             blsPubkeys[i] = vm.parseBytes(blsPubkeyStr);
+
+            // Convert the token address from string to address
+            tokenAddresses[i] = vm.parseAddress(tokenAddressStr);
 
             // Convert the amount from string to uint256
             amounts[i] = vm.parseUint(amountStr);
@@ -51,7 +56,7 @@ library CSVParser {
             startIndex = endIndex + 1;
         }
 
-        return (blsPubkeys, amounts);
+        return (blsPubkeys, tokenAddresses, amounts);
     }
 
     /**
@@ -115,29 +120,42 @@ library CSVParser {
     }
 
     /**
-     * @notice Parses a CSV line into BLS key and amount
+     * @notice Parses a CSV line into BLS key, token address, and amount
      * @param line The CSV line to parse
      * @return The BLS public key as a string
+     * @return The token address as a string
      * @return The amount as a string
      */
-    function parseCsvLine(string memory line) internal pure returns (string memory, string memory) {
+    function parseCsvLine(string memory line) internal pure returns (string memory, string memory, string memory) {
         bytes memory lineBytes = bytes(line);
-        uint256 commaIndex = 0;
+        uint256 firstCommaIndex = 0;
+        uint256 secondCommaIndex = 0;
 
-        // Find the comma
+        // Find the first comma
         for (uint256 i = 0; i < lineBytes.length; i++) {
             if (lineBytes[i] == bytes1(",")) {
-                commaIndex = i;
+                firstCommaIndex = i;
                 break;
             }
         }
 
-        require(commaIndex > 0, "Invalid CSV format: missing comma");
+        require(firstCommaIndex > 0, "Invalid CSV format: missing first comma");
 
-        // Extract BLS key and amount
-        string memory blsPubkeyStr = substring(line, 0, commaIndex);
-        string memory amountStr = substring(line, commaIndex + 1, lineBytes.length - commaIndex - 1);
+        // Find the second comma
+        for (uint256 i = firstCommaIndex + 1; i < lineBytes.length; i++) {
+            if (lineBytes[i] == bytes1(",")) {
+                secondCommaIndex = i;
+                break;
+            }
+        }
 
-        return (blsPubkeyStr, amountStr);
+        require(secondCommaIndex > 0, "Invalid CSV format: missing second comma");
+
+        // Extract BLS key, token address, and amount
+        string memory blsPubkeyStr = substring(line, 0, firstCommaIndex);
+        string memory tokenAddressStr = substring(line, firstCommaIndex + 1, secondCommaIndex - firstCommaIndex - 1);
+        string memory amountStr = substring(line, secondCommaIndex + 1, lineBytes.length - secondCommaIndex - 1);
+
+        return (blsPubkeyStr, tokenAddressStr, amountStr);
     }
 }

@@ -19,10 +19,11 @@ import path from "path";
  * Claimer address: The address of the claimer that will be registered
  * RPC URL: The RPC URL of the network to use (UNIFI L2)
  * Unifi private key: The private key of the Unifi account that will be used to broadcast the transaction (it must have ETH to pay for the gas)
+ * Contract address: The address of the UnifiRewardsDistributor contract
  * Keystore path: The path to the keystore file of the claimer
  * Keystore password: The password of the keystore file. https://github.com/ethereum/staking-deposit-cli was used to create the keystore files. Feel free to use any other tool that is compatible with the spec.
  *
- * `node index.js --claimer <claimer-address> --rpc-url <rpc-url> --unifi-private-key <unifi-private-key> --keystore-path <keystore-path> --password <keystore-password>`
+ * `node index.js --claimer <claimer-address> --rpc-url <rpc-url> --unifi-private-key <unifi-private-key> --contract-address <contract-address> --keystore-path <keystore-path> --password <keystore-password>`
  */
 async function main() {
   const args = process.argv.slice(2);
@@ -30,6 +31,7 @@ async function main() {
   const claimer = getArg(args, "--claimer");
   const rpcUrl = getArg(args, "--rpc-url");
   const unifiPrivateKey = getArg(args, "--unifi-private-key");
+  const contractAddress = getArg(args, "--contract-address");
   const keystorePath = getArg(args, "--keystore-path");
   const password = getArg(args, "--password");
 
@@ -43,9 +45,8 @@ async function main() {
   const provider = new JsonRpcProvider(rpcUrl);
   const signer = new Wallet(unifiPrivateKey, provider);
 
-  //@todo Update the contract address (UNIFI L2)
   const UnifiRewardsDistributor = new Contract(
-    "0x97B954474C220f58Cb99A56d7D9A70368CB4e900",
+    contractAddress,
     UnifiRewardsDistributorAbi,
     signer
   );
