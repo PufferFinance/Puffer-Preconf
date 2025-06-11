@@ -36,7 +36,7 @@ The UniFi AVS is the core component of our based rollup solution. It's an Eigenl
 - Slashing mechanism to ensure accountability
 - Rewards distribution for distributing validator rewards
 
-To learn more about the UniFi AVS components and how to interact with the AVS contracts, check the [documentation here](l1-contracts/docs/readme.md).
+To learn more about the UniFi AVS components and how to interact with the AVS contracts, check the [documentation here](avs-manager/docs/readme.md).
 
 ### Commit-Boost
 
@@ -58,7 +58,7 @@ For detailed information on deployments (Mainnet, Testnet, etc.) and ABIs, pleas
 
 1. Clone this repository
 2. Install dependencies: `yarn install`
-3. Run tests: `cd l1-contracts/ && forge test`
+3. Run tests: `cd avs-manager/ && forge test`
 
 
 ## Neutrality

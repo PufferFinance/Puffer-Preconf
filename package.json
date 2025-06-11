@@ -24,8 +24,8 @@
   "private": true,
   "workspaces": {
     "packages": [
-      "l1-contracts",
-      "l2-contracts"
+      "avs-manager",
+      "rewards-distributor"
     ],
     "nohoist": [
       "**/*"
