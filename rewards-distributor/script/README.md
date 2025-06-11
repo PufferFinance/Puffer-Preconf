@@ -6,7 +6,7 @@ This directory contains scripts for managing rewards in the UniFi protocol.
 
 ### Environment File
 
-Create a `.env` file in the `l2-contracts` directory with the following variables:
+Create a `.env` file in the `rewards-distributor` directory with the following variables:
 
 ```
 RPC_URL=your_rpc_endpoint

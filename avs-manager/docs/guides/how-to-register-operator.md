@@ -34,9 +34,9 @@ This guide provides simple steps for operators to register with UniFi AVS.
    yarn install
    ```
 
-5. Navigate to the l1-contracts directory:
+5. Navigate to the avs-manager directory:
    ```
-   cd l1-contracts
+   cd avs-manager
    ```
 
 6. Install Foundry dependencies:
