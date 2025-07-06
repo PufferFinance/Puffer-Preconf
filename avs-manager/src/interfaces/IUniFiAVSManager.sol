@@ -160,6 +160,9 @@ interface IUniFiAVSManager {
     /// @notice Thrown when an invalid RewardsCoordinator address is provided
     error InvalidRewardsCoordinatorAddress();
 
+    /// @notice Thrown when an operator is in the deregistration process and attempts to perform restricted actions
+    error OperatorInDeregistrationProcess();
+
     /**
      * @notice Emitted when a new operator is registered in the UniFi AVS.
      * @param operator The address of the registered operator.
