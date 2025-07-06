@@ -284,11 +284,10 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
             revert DeregistrationDelayNotElapsed();
         }
 
-        AVS_DIRECTORY.deregisterOperatorFromAVS(msg.sender);
-
         delete $.operators[msg.sender];
-
         emit OperatorDeregistered(msg.sender);
+
+        AVS_DIRECTORY.deregisterOperatorFromAVS(msg.sender);
     }
 
     /**
