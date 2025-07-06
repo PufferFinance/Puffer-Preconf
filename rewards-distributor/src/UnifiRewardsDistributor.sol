@@ -142,7 +142,8 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, AccessManaged, EIP
 
     /**
      * @notice Cancel the pending Merkle root
-     * @dev Multiple accounts `watchers` will be double checking the newly posted Merkle root, and cancel the pending if it is incorrect
+     * @dev Multiple accounts `watchers` will be double checking the newly posted Merkle root, 
+     * and cancel the pending if it is incorrect
      */
     function cancelPendingMerkleRoot() external restricted {
         if (block.timestamp < pendingMerkleRootActivationTimestamp) {
@@ -201,8 +202,8 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, AccessManaged, EIP
      * @return The Merkle root
      */
     function getMerkleRoot() public view returns (bytes32) {
-        // The pending root is active if the activation timestamp is in the past
-        if (block.timestamp >= pendingMerkleRootActivationTimestamp) {
+        // The pending root is active if the activation timestamp is in the past and pendingMerkleRoot is not zero
+        if (block.timestamp >= pendingMerkleRootActivationTimestamp && pendingMerkleRoot != bytes32(0)) {
             return pendingMerkleRoot;
         }
         return merkleRoot;
