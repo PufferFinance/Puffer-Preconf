@@ -185,7 +185,8 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
                 revert ValidatorNotActive();
             }
 
-            if ($.validators[validatorPubkeys[i]].index != 0) {
+            ValidatorData storage existingValidator = $.validators[validatorPubkeys[i]];
+            if (existingValidator.index != 0 && block.number < existingValidator.registeredUntil) {
                 revert ValidatorAlreadyRegistered();
             }
 
