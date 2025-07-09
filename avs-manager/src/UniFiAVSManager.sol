@@ -163,6 +163,11 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
     {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
 
+        // Check if the operator is in the deregistration process
+        if ($.operators[msg.sender].startDeregisterOperatorBlock != 0) {
+            revert OperatorInDeregistrationProcess();
+        }
+
         bytes memory delegateKey = _getActiveCommitment($.operators[msg.sender]).delegateKey;
 
         if (delegateKey.length == 0) {
@@ -180,7 +185,8 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
                 revert ValidatorNotActive();
             }
 
-            if ($.validators[validatorPubkeys[i]].index != 0) {
+            ValidatorData storage existingValidator = $.validators[validatorPubkeys[i]];
+            if (existingValidator.index != 0 && block.number < existingValidator.registeredUntil) {
                 revert ValidatorAlreadyRegistered();
             }
 
@@ -279,11 +285,10 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
             revert DeregistrationDelayNotElapsed();
         }
 
-        AVS_DIRECTORY.deregisterOperatorFromAVS(msg.sender);
-
         delete $.operators[msg.sender];
-
         emit OperatorDeregistered(msg.sender);
+
+        AVS_DIRECTORY.deregisterOperatorFromAVS(msg.sender);
     }
 
     /**
@@ -297,6 +302,11 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
     {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
         OperatorData storage operator = $.operators[msg.sender];
+
+        // Check if the operator is in the deregistration process
+        if (operator.startDeregisterOperatorBlock != 0) {
+            revert OperatorInDeregistrationProcess();
+        }
 
         if (operator.commitmentValidAfter != 0 && block.number >= operator.commitmentValidAfter) {
             operator.commitment = operator.pendingCommitment;
