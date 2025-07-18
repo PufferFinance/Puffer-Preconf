@@ -106,8 +106,8 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
         }
         EIGEN_POD_MANAGER = eigenPodManagerAddress;
         EIGEN_DELEGATION_MANAGER = eigenDelegationManagerAddress;
-        AVS_DIRECTORY = IAVSDirectory(address(avsDirectoryAddress));
-        EIGEN_REWARDS_COORDINATOR = IRewardsCoordinator(address(rewardsCoordinatorAddress));
+        AVS_DIRECTORY = avsDirectoryAddress;
+        EIGEN_REWARDS_COORDINATOR = rewardsCoordinatorAddress;
         _disableInitializers();
     }
 
