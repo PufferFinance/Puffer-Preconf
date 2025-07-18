@@ -107,7 +107,7 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, AccessManaged, EIP
             if (claimer != validatorClaimer[blsPubkeyHashes[i]]) revert InvalidInput();
 
             uint256 claimedSoFar = validatorClaimedAmount[token][blsPubkeyHashes[i]];
-            uint256 amountToClaim = amounts[i] - claimedSoFar;
+            uint256 amountToClaim = amounts[i] > claimedSoFar ? amounts[i] - claimedSoFar : 0;
             if (amountToClaim == 0) revert NothingToClaim();
 
             // Update the claimed amount to the latest amount
