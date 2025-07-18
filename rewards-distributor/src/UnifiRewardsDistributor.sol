@@ -164,18 +164,25 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, AccessManaged, EIP
      * proving their ownership
      */
     function registerClaimer(address claimer, PubkeyRegistrationParams[] calldata params) external {
-        for (uint256 i = 0; i < params.length; ++i) {
+        if (claimer == address(0)) revert InvalidInput();
+        if (params.length == 0) revert InvalidInput();
+
+        BLS.G1Point memory negatedG1Generator = NEGATED_G1_GENERATOR();
+
+        BLS.G1Point[] memory g1Points = new BLS.G1Point[](2);
+        BLS.G2Point[] memory g2Points = new BLS.G2Point[](2);
+        
+        g1Points[0] = negatedG1Generator;
+
+        uint256 paramsLength = params.length;
+        for (uint256 i = 0; i < paramsLength; ++i) {
             bytes32 pubKeyHash = getBlsPubkeyHash(params[i].publicKey);
 
             bytes32 structHash = keccak256(abi.encode(REWARDS_DISTRIBUTION_TYPEHASH, claimer, _useNonce(pubKeyHash)));
 
             BLS.G2Point memory messagePoint = BLS.hashToG2(abi.encodePacked(_hashTypedDataV4(structHash)));
 
-            BLS.G1Point[] memory g1Points = new BLS.G1Point[](2);
-            g1Points[0] = NEGATED_G1_GENERATOR();
             g1Points[1] = params[i].publicKey;
-
-            BLS.G2Point[] memory g2Points = new BLS.G2Point[](2);
             g2Points[0] = params[i].signature;
             g2Points[1] = messagePoint;
 
