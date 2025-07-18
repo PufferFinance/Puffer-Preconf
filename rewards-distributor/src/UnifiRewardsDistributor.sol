@@ -131,6 +131,7 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, AccessManaged, EIP
      */
     function setNewMerkleRoot(bytes32 newMerkleRoot) external restricted {
         if (newMerkleRoot == bytes32(0)) revert MerkleRootCannotBeZero();
+        if (newMerkleRoot == pendingMerkleRoot) revert MerkleRootCannotBeSame();
         if (pendingMerkleRoot != bytes32(0) && block.timestamp >= pendingMerkleRootActivationTimestamp) {
             merkleRoot = pendingMerkleRoot;
         }
