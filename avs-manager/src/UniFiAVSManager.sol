@@ -113,6 +113,8 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
 
     function initialize(address accessManager, uint64 initialDeregistrationDelay) public initializer {
         __AccessManaged_init(accessManager);
+        __Context_init();
+        __UUPSUpgradeable_init();
         _setDeregistrationDelay(initialDeregistrationDelay);
 
         // Initialize BEACON_CHAIN_STRATEGY as an allowed restaking strategy
