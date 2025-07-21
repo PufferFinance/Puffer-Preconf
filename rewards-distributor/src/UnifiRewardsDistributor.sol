@@ -102,7 +102,8 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, AccessManaged, EIP
     ) private returns (uint256 totalAmountToClaim) {
         totalAmountToClaim = 0;
 
-        for (uint256 i = 0; i < blsPubkeyHashes.length; ++i) {
+        uint256 blsPubkeyHashesLength = blsPubkeyHashes.length;
+        for (uint256 i = 0; i < blsPubkeyHashesLength; ++i) {
             // All proofs must have the same claimer
             if (claimer != validatorClaimer[blsPubkeyHashes[i]]) revert InvalidInput();
 

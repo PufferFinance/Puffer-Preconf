@@ -180,19 +180,20 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         uint256 newValidatorCount = validatorPubkeys.length;
 
         for (uint256 i = 0; i < newValidatorCount; i++) {
-            IEigenPod.ValidatorInfo memory validatorInfo = eigenPod.validatorPubkeyToInfo(validatorPubkeys[i]);
+            bytes memory validatorPubkey = validatorPubkeys[i];
+            IEigenPod.ValidatorInfo memory validatorInfo = eigenPod.validatorPubkeyToInfo(validatorPubkey);
 
             if (validatorInfo.status != IEigenPod.VALIDATOR_STATUS.ACTIVE) {
                 revert ValidatorNotActive();
             }
 
-            ValidatorData storage existingValidator = $.validators[validatorPubkeys[i]];
+            ValidatorData storage existingValidator = $.validators[validatorPubkey];
             if (existingValidator.index != 0 && block.number < existingValidator.registeredUntil) {
                 revert ValidatorAlreadyRegistered();
             }
 
             // Store the validator record
-            $.validators[validatorPubkeys[i]] = ValidatorData({
+            $.validators[validatorPubkey] = ValidatorData({
                 eigenPod: address(eigenPod),
                 index: validatorInfo.validatorIndex,
                 operator: msg.sender,
