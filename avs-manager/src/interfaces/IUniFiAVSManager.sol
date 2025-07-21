@@ -136,9 +136,6 @@ interface IUniFiAVSManager {
     /// @notice Thrown when an operator's delegate key is not set
     error DelegateKeyNotSet();
 
-    /// @notice Thrown when trying to update an operator commitment before the change delay has passed
-    error CommitmentChangeNotReady();
-
     /// @notice Thrown when attempting to deregister a validator that is already deregistered
     error ValidatorAlreadyDeregistered();
 

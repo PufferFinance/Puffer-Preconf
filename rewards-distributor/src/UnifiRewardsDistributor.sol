@@ -102,12 +102,13 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, AccessManaged, EIP
     ) private returns (uint256 totalAmountToClaim) {
         totalAmountToClaim = 0;
 
-        for (uint256 i = 0; i < blsPubkeyHashes.length; ++i) {
+        uint256 blsPubkeyHashesLength = blsPubkeyHashes.length;
+        for (uint256 i = 0; i < blsPubkeyHashesLength; ++i) {
             // All proofs must have the same claimer
             if (claimer != validatorClaimer[blsPubkeyHashes[i]]) revert InvalidInput();
 
             uint256 claimedSoFar = validatorClaimedAmount[token][blsPubkeyHashes[i]];
-            uint256 amountToClaim = amounts[i] - claimedSoFar;
+            uint256 amountToClaim = amounts[i] > claimedSoFar ? amounts[i] - claimedSoFar : 0;
             if (amountToClaim == 0) revert NothingToClaim();
 
             // Update the claimed amount to the latest amount
@@ -131,6 +132,7 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, AccessManaged, EIP
      */
     function setNewMerkleRoot(bytes32 newMerkleRoot) external restricted {
         if (newMerkleRoot == bytes32(0)) revert MerkleRootCannotBeZero();
+        if (newMerkleRoot == pendingMerkleRoot) revert MerkleRootCannotBeSame();
         if (pendingMerkleRoot != bytes32(0) && block.timestamp >= pendingMerkleRootActivationTimestamp) {
             merkleRoot = pendingMerkleRoot;
         }
@@ -163,18 +165,25 @@ contract UnifiRewardsDistributor is IUnifiRewardsDistributor, AccessManaged, EIP
      * proving their ownership
      */
     function registerClaimer(address claimer, PubkeyRegistrationParams[] calldata params) external {
-        for (uint256 i = 0; i < params.length; ++i) {
+        if (claimer == address(0)) revert InvalidInput();
+        if (params.length == 0) revert InvalidInput();
+
+        BLS.G1Point memory negatedG1Generator = NEGATED_G1_GENERATOR();
+
+        BLS.G1Point[] memory g1Points = new BLS.G1Point[](2);
+        BLS.G2Point[] memory g2Points = new BLS.G2Point[](2);
+        
+        g1Points[0] = negatedG1Generator;
+
+        uint256 paramsLength = params.length;
+        for (uint256 i = 0; i < paramsLength; ++i) {
             bytes32 pubKeyHash = getBlsPubkeyHash(params[i].publicKey);
 
             bytes32 structHash = keccak256(abi.encode(REWARDS_DISTRIBUTION_TYPEHASH, claimer, _useNonce(pubKeyHash)));
 
             BLS.G2Point memory messagePoint = BLS.hashToG2(abi.encodePacked(_hashTypedDataV4(structHash)));
 
-            BLS.G1Point[] memory g1Points = new BLS.G1Point[](2);
-            g1Points[0] = NEGATED_G1_GENERATOR();
             g1Points[1] = params[i].publicKey;
-
-            BLS.G2Point[] memory g2Points = new BLS.G2Point[](2);
             g2Points[0] = params[i].signature;
             g2Points[1] = messagePoint;
 

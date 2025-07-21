@@ -22,6 +22,8 @@ interface IUnifiRewardsDistributor {
     error MerkleRootCannotBeZero();
     /// @notice Thrown when a pending merkle root is not set
     error NoPendingMerkleRoot();
+    /// @notice Thrown when a pending merkle root is the same as the current merkle root
+    error MerkleRootCannotBeSame();
 
     /// @notice Emitted when a claimer is set for a validator
     event ClaimerSet(bytes32 indexed blsPubkeyHash, address indexed claimer);

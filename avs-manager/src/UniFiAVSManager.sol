@@ -17,9 +17,8 @@ import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.s
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManagedUpgradeable {
+contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgradeable, AccessManagedUpgradeable {
     using EnumerableSet for EnumerableSet.AddressSet;
-    using EnumerableSet for EnumerableSet.UintSet;
     using SafeERC20 for IERC20;
 
     address public constant BEACON_CHAIN_STRATEGY = 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
@@ -107,13 +106,15 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
         }
         EIGEN_POD_MANAGER = eigenPodManagerAddress;
         EIGEN_DELEGATION_MANAGER = eigenDelegationManagerAddress;
-        AVS_DIRECTORY = IAVSDirectory(address(avsDirectoryAddress));
-        EIGEN_REWARDS_COORDINATOR = IRewardsCoordinator(address(rewardsCoordinatorAddress));
+        AVS_DIRECTORY = avsDirectoryAddress;
+        EIGEN_REWARDS_COORDINATOR = rewardsCoordinatorAddress;
         _disableInitializers();
     }
 
     function initialize(address accessManager, uint64 initialDeregistrationDelay) public initializer {
         __AccessManaged_init(accessManager);
+        __Context_init();
+        __UUPSUpgradeable_init();
         _setDeregistrationDelay(initialDeregistrationDelay);
 
         // Initialize BEACON_CHAIN_STRATEGY as an allowed restaking strategy
@@ -179,19 +180,20 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
         uint256 newValidatorCount = validatorPubkeys.length;
 
         for (uint256 i = 0; i < newValidatorCount; i++) {
-            IEigenPod.ValidatorInfo memory validatorInfo = eigenPod.validatorPubkeyToInfo(validatorPubkeys[i]);
+            bytes memory validatorPubkey = validatorPubkeys[i];
+            IEigenPod.ValidatorInfo memory validatorInfo = eigenPod.validatorPubkeyToInfo(validatorPubkey);
 
             if (validatorInfo.status != IEigenPod.VALIDATOR_STATUS.ACTIVE) {
                 revert ValidatorNotActive();
             }
 
-            ValidatorData storage existingValidator = $.validators[validatorPubkeys[i]];
+            ValidatorData storage existingValidator = $.validators[validatorPubkey];
             if (existingValidator.index != 0 && block.number < existingValidator.registeredUntil) {
                 revert ValidatorAlreadyRegistered();
             }
 
             // Store the validator record
-            $.validators[validatorPubkeys[i]] = ValidatorData({
+            $.validators[validatorPubkey] = ValidatorData({
                 eigenPod: address(eigenPod),
                 index: validatorInfo.validatorIndex,
                 operator: msg.sender,
@@ -295,7 +297,7 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
      * @inheritdoc IUniFiAVSManager
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function setOperatorCommitment(OperatorCommitment memory newCommitment)
+    function setOperatorCommitment(OperatorCommitment calldata newCommitment)
         external
         registeredOperator(msg.sender)
         restricted
@@ -335,7 +337,7 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
      * @inheritdoc IUniFiAVSManager
      * @dev Restricted to the DAO
      */
-    function updateAVSMetadataURI(string memory _metadataURI) external restricted {
+    function updateAVSMetadataURI(string calldata _metadataURI) external restricted {
         AVS_DIRECTORY.updateAVSMetadataURI(_metadataURI);
     }
 

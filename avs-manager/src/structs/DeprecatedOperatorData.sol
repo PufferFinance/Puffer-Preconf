@@ -6,7 +6,7 @@ pragma solidity >=0.8.0 <0.9.0;
  * @notice Struct to store information about an operator in the UniFi AVS system.
  * @dev This struct is used to keep track of important operator details.
  */
-struct OperatorCommitment {
+struct DeprecatedOperatorCommitment {
     /// @notice The delegate key for the operator.
     bytes delegateKey;
     /// @notice Bitmap of chain IDs the operator is committed to.
@@ -15,9 +15,9 @@ struct OperatorCommitment {
 
 struct DeprecatedOperatorData {
     /// @notice The current commitment of the operator.
-    OperatorCommitment commitment;
+    DeprecatedOperatorCommitment commitment;
     /// @notice The pending commitment of the operator.
-    OperatorCommitment pendingCommitment;
+    DeprecatedOperatorCommitment pendingCommitment;
     /// @notice The number of validators associated with this operator.
     uint128 validatorCount;
     /// @notice The block number when the operator started the deregistration process.
@@ -31,11 +31,11 @@ struct DeprecatedOperatorData {
  * @notice Struct to store extended information about an operator in the UniFi AVS system.
  * @dev This struct combines OperatorData with additional status information.
  */
-struct OperatorDataExtended {
+struct DeprecatedOperatorDataExtended {
     /// @notice The current commitment of the operator.
-    OperatorCommitment commitment;
+    DeprecatedOperatorCommitment commitment;
     /// @notice The pending commitment of the operator.
-    OperatorCommitment pendingCommitment;
+    DeprecatedOperatorCommitment pendingCommitment;
     /// @notice The number of validators associated with this operator.
     uint128 validatorCount;
     /// @notice The block number when the operator started the deregistration process.
