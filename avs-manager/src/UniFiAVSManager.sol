@@ -17,7 +17,7 @@ import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.s
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManagedUpgradeable {
+contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgradeable, AccessManagedUpgradeable {
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
@@ -294,7 +294,7 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
      * @inheritdoc IUniFiAVSManager
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function setOperatorCommitment(OperatorCommitment memory newCommitment)
+    function setOperatorCommitment(OperatorCommitment calldata newCommitment)
         external
         registeredOperator(msg.sender)
         restricted
@@ -334,7 +334,7 @@ contract UniFiAVSManager is UniFiAVSManagerStorage, UUPSUpgradeable, AccessManag
      * @inheritdoc IUniFiAVSManager
      * @dev Restricted to the DAO
      */
-    function updateAVSMetadataURI(string memory _metadataURI) external restricted {
+    function updateAVSMetadataURI(string calldata _metadataURI) external restricted {
         AVS_DIRECTORY.updateAVSMetadataURI(_metadataURI);
     }
 
