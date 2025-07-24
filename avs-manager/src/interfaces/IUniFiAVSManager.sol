@@ -262,7 +262,7 @@ interface IUniFiAVSManager {
      * @notice Registers a new operator in the UniFi AVS.
      * @param operatorSignature The signature and associated data for operator registration.
      */
-    function registerOperator(ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) external;
+    function registerOperator(ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature) external;
 
     /**
      * @notice Registers a new operator in the UniFi AVS with a commitment.
@@ -270,8 +270,8 @@ interface IUniFiAVSManager {
      * @param initialCommitment The initial commitment for the operator.
      */
     function registerOperatorWithCommitment(
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature,
-        OperatorCommitment memory initialCommitment
+        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature,
+        OperatorCommitment calldata initialCommitment
     ) external;
 
     /**
@@ -300,13 +300,13 @@ interface IUniFiAVSManager {
      * @notice Sets the commitment for an operator.
      * @param newCommitment The new commitment to set.
      */
-    function setOperatorCommitment(OperatorCommitment memory newCommitment) external;
+    function setOperatorCommitment(OperatorCommitment calldata newCommitment) external;
 
     /**
      * @notice Updates the metadata URI for the AVS
      * @param _metadataURI is the metadata URI for the AVS
      */
-    function updateAVSMetadataURI(string memory _metadataURI) external;
+    function updateAVSMetadataURI(string calldata _metadataURI) external;
 
     /**
      * @notice Sets a new deregistration delay for operators.
