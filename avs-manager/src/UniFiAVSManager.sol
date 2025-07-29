@@ -3,9 +3,9 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { AccessManagedUpgradeable } from
-    "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
-import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
+    "@openzeppelin-v5/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
+import { EnumerableSet } from "@openzeppelin-v5/contracts/utils/structs/EnumerableSet.sol";
+import { ISignatureUtilsMixin } from "eigenlayer/interfaces/ISignatureUtilsMixin.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
@@ -14,8 +14,8 @@ import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 import { IUniFiAVSManager } from "./interfaces/IUniFiAVSManager.sol";
 import { UniFiAVSManagerStorage } from "./UniFiAVSManagerStorage.sol";
 import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin-v5/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin-v5/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgradeable, AccessManagedUpgradeable {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -128,7 +128,7 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
      * @inheritdoc IUniFiAVSManager
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
-    function registerOperator(ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature)
+    function registerOperator(ISignatureUtilsMixin.SignatureWithSaltAndExpiry calldata operatorSignature)
         external
         restricted
     {
@@ -142,7 +142,7 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
      * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
      */
     function registerOperatorWithCommitment(
-        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature,
+        ISignatureUtilsMixin.SignatureWithSaltAndExpiry calldata operatorSignature,
         OperatorCommitment calldata initialCommitment
     ) external restricted {
         AVS_DIRECTORY.registerOperatorToAVS(msg.sender, operatorSignature);

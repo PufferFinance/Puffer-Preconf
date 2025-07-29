@@ -4,14 +4,14 @@ pragma solidity >=0.8.0 <0.9.0;
 import { Script } from "forge-std/Script.sol";
 import { DeployerHelper } from "./DeployerHelper.s.sol";
 import { IUniFiAVSManager } from "../src/interfaces/IUniFiAVSManager.sol";
-import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
+import { ISignatureUtilsMixin } from "eigenlayer/interfaces/ISignatureUtilsMixin.sol";
 import { MockEigenPodManager } from "../test/mocks/MockEigenPodManager.sol";
 import { MockDelegationManager } from "../test/mocks/MockDelegationManager.sol";
 import { MockAVSDirectory } from "../test/mocks/MockAVSDirectory.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
-import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
+import { Strings } from "@openzeppelin-v5/contracts/utils/Strings.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
@@ -259,7 +259,7 @@ contract UniFiAVSScripts is Script, DeployerHelper {
     /// @param approverSalt The approver's salt
     function delegateFromPodOwner(
         address operator,
-        ISignatureUtils.SignatureWithExpiry memory approverSignatureAndExpiry,
+        ISignatureUtilsMixin.SignatureWithExpiry memory approverSignatureAndExpiry,
         bytes32 approverSalt
     ) public {
         vm.startBroadcast();
@@ -276,8 +276,8 @@ contract UniFiAVSScripts is Script, DeployerHelper {
     function delegateFromPodOwnerBySignature(
         address staker,
         address operator,
-        ISignatureUtils.SignatureWithExpiry memory stakerSignatureAndExpiry,
-        ISignatureUtils.SignatureWithExpiry memory approverSignatureAndExpiry,
+        ISignatureUtilsMixin.SignatureWithExpiry memory stakerSignatureAndExpiry,
+        ISignatureUtilsMixin.SignatureWithExpiry memory approverSignatureAndExpiry,
         bytes32 approverSalt
     ) public {
         vm.startBroadcast();
@@ -313,7 +313,7 @@ contract UniFiAVSScripts is Script, DeployerHelper {
     function registerOperatorToUniFiAVS(uint256 signerPk, IUniFiAVSManager.OperatorCommitment memory initialCommitment)
         public
     {
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
+        ISignatureUtilsMixin.SignatureWithSaltAndExpiry memory operatorSignature;
 
         vm.startBroadcast();
         (, operatorSignature) = _getOperatorSignature({
@@ -337,7 +337,7 @@ contract UniFiAVSScripts is Script, DeployerHelper {
     /// @notice Registers an operator with the UniFiAVSManager using only a delegate key
     /// @param signerPk The private key of the signer
     function registerOperatorToUniFiAVS(uint256 signerPk) public {
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
+        ISignatureUtilsMixin.SignatureWithSaltAndExpiry memory operatorSignature;
 
         vm.startBroadcast();
         (, operatorSignature) = _getOperatorSignature({
@@ -356,7 +356,7 @@ contract UniFiAVSScripts is Script, DeployerHelper {
     /// @param signerPk The private key of the signer
     /// @param delegateKey The delegate key for the operator
     function registerOperatorToUniFiAVSWithDelegateKey(uint256 signerPk, bytes memory delegateKey) public {
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature;
+        ISignatureUtilsMixin.SignatureWithSaltAndExpiry memory operatorSignature;
 
         vm.startBroadcast();
         (, operatorSignature) = _getOperatorSignature({
@@ -408,7 +408,7 @@ contract UniFiAVSScripts is Script, DeployerHelper {
         address avs,
         bytes32 salt,
         uint256 expiry
-    ) internal view returns (bytes32 digestHash, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) {
+    ) internal view returns (bytes32 digestHash, ISignatureUtilsMixin.SignatureWithSaltAndExpiry memory operatorSignature) {
         operatorSignature.expiry = expiry;
         operatorSignature.salt = salt;
         {

@@ -9,10 +9,10 @@ import { IRestakingOperator } from "../../src/interfaces/IRestakingOperator.sol"
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
-import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
+import { ISignatureUtilsMixin } from "eigenlayer/interfaces/ISignatureUtilsMixin.sol";
 import { AVSDeployment } from "../../script/DeploymentStructs.sol";
 import { BaseScript } from "../../script/BaseScript.s.sol";
-import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
+import { IAccessManaged } from "@openzeppelin-v5/contracts/access/manager/IAccessManaged.sol";
 
 contract UniFiAVSManagerForkTest is Test, BaseScript {
     UniFiAVSManager public avsManager;
@@ -153,7 +153,7 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         uint256 expiry = block.timestamp + 1 days;
 
         // Generate an invalid signature
-        (, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) =
+        (, ISignatureUtilsMixin.SignatureWithSaltAndExpiry memory operatorSignature) =
             _getOperatorSignature(operator, address(avsManager), salt, expiry);
         operatorSignature.signature = abi.encodePacked(bytes32(0), bytes32(0), uint8(0));
 
@@ -282,7 +282,7 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
         bytes32 salt = bytes32(uint256(1));
         uint256 expiry = block.timestamp + 1 days;
 
-        (bytes32 digestHash, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) =
+        (bytes32 digestHash, ISignatureUtilsMixin.SignatureWithSaltAndExpiry memory operatorSignature) =
             _getOperatorSignature(operator, address(avsManager), salt, expiry);
 
         // Update signature proof
@@ -300,7 +300,7 @@ contract UniFiAVSManagerForkTest is Test, BaseScript {
     function _getOperatorSignature(address _operator, address avs, bytes32 salt, uint256 expiry)
         internal
         view
-        returns (bytes32 digestHash, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature)
+        returns (bytes32 digestHash, ISignatureUtilsMixin.SignatureWithSaltAndExpiry memory operatorSignature)
     {
         operatorSignature.expiry = expiry;
         operatorSignature.salt = salt;

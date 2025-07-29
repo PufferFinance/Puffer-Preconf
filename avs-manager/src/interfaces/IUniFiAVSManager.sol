@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
-import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
+import { ISignatureUtilsMixin } from "eigenlayer/interfaces/ISignatureUtilsMixin.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
 import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
@@ -262,7 +262,7 @@ interface IUniFiAVSManager {
      * @notice Registers a new operator in the UniFi AVS.
      * @param operatorSignature The signature and associated data for operator registration.
      */
-    function registerOperator(ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature) external;
+    function registerOperator(ISignatureUtilsMixin.SignatureWithSaltAndExpiry calldata operatorSignature) external;
 
     /**
      * @notice Registers a new operator in the UniFi AVS with a commitment.
@@ -270,7 +270,7 @@ interface IUniFiAVSManager {
      * @param initialCommitment The initial commitment for the operator.
      */
     function registerOperatorWithCommitment(
-        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature,
+        ISignatureUtilsMixin.SignatureWithSaltAndExpiry calldata operatorSignature,
         OperatorCommitment calldata initialCommitment
     ) external;
 

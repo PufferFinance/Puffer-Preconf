@@ -12,7 +12,7 @@ import { MockAVSDirectory } from "../mocks/MockAVSDirectory.sol";
 import { MockStrategyManager } from "../mocks/MockStrategyManager.sol";
 import { MockRewardsCoordinator } from "../mocks/MockRewardsCoordinator.sol";
 import { MockERC20 } from "../mocks/MockERC20.sol";
-import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
+import { AccessManager } from "@openzeppelin-v5/contracts/access/manager/AccessManager.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 
 contract UnitTestHelper is Test, BaseScript {

@@ -8,8 +8,8 @@ import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
 import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.sol";
-import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
+import { ERC1967Proxy } from "@openzeppelin-v5/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { AccessManager } from "@openzeppelin-v5/contracts/access/manager/AccessManager.sol";
 import { console } from "forge-std/console.sol";
 
 import { MockEigenPodManager } from "../test/mocks/MockEigenPodManager.sol";

@@ -3,19 +3,19 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
 import { IUniFiAVSManager } from "../src/interfaces/IUniFiAVSManager.sol";
-import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
+import { ISignatureUtilsMixin } from "eigenlayer/interfaces/ISignatureUtilsMixin.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 import { BN254 } from "eigenlayer-middleware/libraries/BN254.sol";
 import { IBLSApkRegistry } from "eigenlayer-middleware/interfaces/IBLSApkRegistry.sol";
-import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
+import { Strings } from "@openzeppelin-v5/contracts/utils/Strings.sol";
 import { UnitTestHelper } from "../test/helpers/UnitTestHelper.sol";
 import { UniFiAVSManager } from "../src/UniFiAVSManager.sol";
 import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from "@openzeppelin-v5/contracts/token/ERC20/IERC20.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
-import { IERC20Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
+import { IERC20Errors } from "@openzeppelin-v5/contracts/interfaces/draft-IERC6093.sol";
 
 contract UniFiAVSManagerTest is UnitTestHelper {
     using BN254 for BN254.G1Point;
@@ -62,7 +62,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
     function _getOperatorSignature(uint256 _operatorPrivateKey, address avs, bytes32 salt, uint256 expiry)
         internal
         view
-        returns (bytes32 digestHash, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature)
+        returns (bytes32 digestHash, ISignatureUtilsMixin.SignatureWithSaltAndExpiry memory operatorSignature)
     {
         operatorSignature.expiry = expiry;
         operatorSignature.salt = salt;
@@ -83,9 +83,9 @@ contract UniFiAVSManagerTest is UnitTestHelper {
     function _registerOperatorParams(bytes32 salt, uint256 expiry)
         internal
         view
-        returns (ISignatureUtils.SignatureWithSaltAndExpiry memory)
+        returns (ISignatureUtilsMixin.SignatureWithSaltAndExpiry memory)
     {
-        (, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) = _getOperatorSignature({
+        (, ISignatureUtilsMixin.SignatureWithSaltAndExpiry memory operatorSignature) = _getOperatorSignature({
             _operatorPrivateKey: operatorPrivateKey,
             avs: address(avsManager),
             salt: salt,
@@ -96,7 +96,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
     }
 
     function _registerOperator() public {
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature =
+        ISignatureUtilsMixin.SignatureWithSaltAndExpiry memory operatorSignature =
             _registerOperatorParams({ salt: bytes32(uint256(1)), expiry: uint256(block.timestamp + 1 days) });
 
         vm.prank(operator);
@@ -138,7 +138,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         _setupOperator();
         assertFalse(mockAVSDirectory.isOperatorRegistered(operator));
 
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature =
+        ISignatureUtilsMixin.SignatureWithSaltAndExpiry memory operatorSignature =
             _registerOperatorParams({ salt: bytes32(uint256(1)), expiry: uint256(block.timestamp + 1 days) });
 
         vm.expectEmit(true, false, false, false);
@@ -163,7 +163,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
     function testRegisterOperator_AlreadyRegistered() public {
         _setupOperator();
 
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature =
+        ISignatureUtilsMixin.SignatureWithSaltAndExpiry memory operatorSignature =
             _registerOperatorParams({ salt: bytes32(uint256(1)), expiry: uint256(block.timestamp + 1 days) });
 
         // 1st registration
@@ -181,7 +181,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         _setupOperator();
         assertFalse(mockAVSDirectory.isOperatorRegistered(operator));
 
-        ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature =
+        ISignatureUtilsMixin.SignatureWithSaltAndExpiry memory operatorSignature =
             _registerOperatorParams({ salt: bytes32(uint256(1)), expiry: uint256(block.timestamp + 1 days) });
 
         uint256[] memory chainIds = new uint256[](1);
@@ -374,7 +374,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.prank(secondOperator);
         mockDelegationManager.setOperator(secondOperator, true);
 
-        ISignatureUtils.SignatureWithSaltAndExpiry memory secondOperatorSignature =
+        ISignatureUtilsMixin.SignatureWithSaltAndExpiry memory secondOperatorSignature =
             _registerOperatorParams({ salt: bytes32(uint256(2)), expiry: uint256(block.timestamp + 1 days) });
 
         vm.prank(secondOperator);

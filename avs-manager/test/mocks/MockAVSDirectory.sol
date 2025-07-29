@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
-import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
+import { ISignatureUtilsMixin } from "eigenlayer/interfaces/ISignatureUtilsMixin.sol";
 
 contract MockAVSDirectory {
     event AVSMetadataURIUpdated(address indexed avs, string metadataURI);
@@ -19,7 +19,7 @@ contract MockAVSDirectory {
             : IAVSDirectory.OperatorAVSRegistrationStatus.UNREGISTERED;
     }
 
-    function registerOperatorToAVS(address operator, ISignatureUtils.SignatureWithSaltAndExpiry memory) external {
+    function registerOperatorToAVS(address operator, ISignatureUtilsMixin.SignatureWithSaltAndExpiry memory) external {
         require(
             registeredOperators[operator] != true, "AVSDirectory.registerOperatorToAVS: operator already registered"
         );

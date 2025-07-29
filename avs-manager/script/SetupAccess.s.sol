@@ -3,8 +3,8 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "forge-std/Script.sol";
 import { BaseScript } from "./BaseScript.s.sol";
-import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
-import { Multicall } from "@openzeppelin/contracts/utils/Multicall.sol";
+import { AccessManager } from "@openzeppelin-v5/contracts/access/manager/AccessManager.sol";
+import { Multicall } from "@openzeppelin-v5/contracts/utils/Multicall.sol";
 import { UniFiAVSManager } from "../src/UniFiAVSManager.sol";
 import { AVSDeployment } from "./DeploymentStructs.sol";
 
