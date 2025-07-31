@@ -3,7 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { BaseScript } from "./BaseScript.s.sol";
 import { DeployerHelper } from "./DeployerHelper.s.sol";
-import { AccessManager } from "@openzeppelin-v5/contracts/access/manager/AccessManager.sol";
+import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { DeployEverything } from "./DeployEverything.s.sol";
 import { AVSDeployment } from "./DeploymentStructs.sol";
 import { console } from "forge-std/console.sol";

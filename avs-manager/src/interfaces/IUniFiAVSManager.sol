@@ -3,17 +3,19 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { ISignatureUtilsMixin } from "eigenlayer/interfaces/ISignatureUtilsMixin.sol";
-import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
+import { IAllocationManager } from "eigenlayer/interfaces/IAllocationManager.sol";
+import { IAVSRegistrar } from "eigenlayer/interfaces/IAVSRegistrar.sol";
 import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
+import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 
 /**
  * @title IUniFiAVSManager
  * @notice Interface for the UniFiAVSManager contract, which manages operators and validators in the UniFi AVS.
  * @dev This interface defines the main functions and events for operator and validator management.
  */
-interface IUniFiAVSManager {
+interface IUniFiAVSManager is IAVSRegistrar {
     /**
      * @title ValidatorData
      * @notice Struct to store information about a validator in the UniFi AVS system.
@@ -91,8 +93,6 @@ interface IUniFiAVSManager {
         OperatorCommitment pendingCommitment;
         /// @notice The number of validators associated with this operator.
         uint128 validatorCount;
-        /// @notice The block number when the operator started the deregistration process.
-        uint128 startDeregisterOperatorBlock;
         /// @notice The block number after which the pending commitment becomes valid.
         uint128 commitmentValidAfter;
         /// @notice Whether the operator is registered or not.
@@ -142,8 +142,8 @@ interface IUniFiAVSManager {
     /// @notice Thrown when a restaking strategy allowlist update fails
     error RestakingStrategyAllowlistUpdateFailed();
 
-    /// @notice Thrown when an AVS operator status call fails
-    error AVSOperatorStatusCallFailed();
+    /// @notice Thrown when an operator registration call fails
+    error OperatorRegistrationCallFailed();
 
     /// @notice Thrown when an invalid EigenPodManager address is provided
     error InvalidEigenPodManagerAddress();
@@ -151,8 +151,8 @@ interface IUniFiAVSManager {
     /// @notice Thrown when an invalid EigenDelegationManager address is provided
     error InvalidEigenDelegationManagerAddress();
 
-    /// @notice Thrown when an invalid AVSDirectory address is provided
-    error InvalidAVSDirectoryAddress();
+    /// @notice Thrown when an invalid AllocationManager address is provided
+    error InvalidAllocationManagerAddress();
 
     /// @notice Thrown when an invalid RewardsCoordinator address is provided
     error InvalidRewardsCoordinatorAddress();
@@ -160,18 +160,41 @@ interface IUniFiAVSManager {
     /// @notice Thrown when an operator is in the deregistration process and attempts to perform restricted actions
     error OperatorInDeregistrationProcess();
 
+    /// @notice Thrown when an unsupported AVS address is provided
+    error UnsupportedAVS();
+
+    /// @notice Thrown when invalid operator set IDs are provided
+    error InvalidOperatorSetIds();
+
+    /// @notice Thrown when caller is not the AllocationManager
+    error OnlyAllocationManager();
+
+    /// @notice Thrown when an invalid AVS address is provided
+    error InvalidAVSAddress();
+
+    /// @notice Thrown when no operator sets are provided for registration
+    error NoOperatorSetsProvided();
+
+    /// @notice Thrown when an invalid operator set ID is provided
+    error InvalidOperatorSetId();
+
+    /// @notice Thrown when an operator set does not exist
+    error OperatorSetDoesNotExist();
+
     /**
      * @notice Emitted when a new operator is registered in the UniFi AVS.
      * @param operator The address of the registered operator.
+     * @param operatorSetIds The operator set IDs the operator registered for.
      */
-    event OperatorRegistered(address indexed operator);
+    event OperatorRegistered(address indexed operator, uint32[] operatorSetIds);
 
     /**
      * @notice Emitted when a new operator is registered in the UniFi AVS with a commitment.
      * @param operator The address of the registered operator.
+     * @param operatorSetIds The operator set IDs the operator registered for.
      * @param commitment The commitment set for the operator.
      */
-    event OperatorRegisteredWithCommitment(address indexed operator, OperatorCommitment commitment);
+    event OperatorRegisteredWithCommitment(address indexed operator, uint32[] operatorSetIds, OperatorCommitment commitment);
 
     /**
      * @notice Emitted when a new validator is registered in the UniFi AVS .
@@ -197,8 +220,9 @@ interface IUniFiAVSManager {
     /**
      * @notice Emitted when an operator is deregistered from the UniFi AVS.
      * @param operator The address of the deregistered operator.
+     * @param operatorSetIds The operator set IDs the operator was deregistered from.
      */
-    event OperatorDeregistered(address indexed operator);
+    event OperatorDeregistered(address indexed operator, uint32[] operatorSetIds);
 
     /**
      * @notice Emitted when a validator is deregistered from the UniFi AVS.
@@ -217,6 +241,13 @@ interface IUniFiAVSManager {
         address indexed operator, OperatorCommitment oldCommitment, OperatorCommitment newCommitment
     );
 
+    /**
+     * @notice Emitted when an operator's commitment is changed.
+     * @param operator The address of the operator.
+     * @param oldCommitment The previous commitment for the operator.
+     * @param newCommitment The new commitment for the operator.
+     * @param validAfter The block number after which the new commitment becomes valid.
+     */
     event OperatorCommitmentChangeInitiated(
         address indexed operator, OperatorCommitment oldCommitment, OperatorCommitment newCommitment, uint128 validAfter
     );
@@ -241,6 +272,32 @@ interface IUniFiAVSManager {
     event OperatorRewardsSubmitted();
 
     /**
+     * @notice Emitted when an operator set is created.
+     * @param operatorSetId The ID of the created operator set.
+     */
+    event OperatorSetCreated(uint32 indexed operatorSetId);
+
+    /**
+     * @notice Emitted when strategies are added to an operator set.
+     * @param operatorSetId The ID of the operator set.
+     * @param strategies The strategies that were added.
+     */
+    event StrategiesAddedToOperatorSet(uint32 indexed operatorSetId, IStrategy[] strategies);
+
+    /**
+     * @notice Emitted when strategies are removed from an operator set.
+     * @param operatorSetId The ID of the operator set.
+     * @param strategies The strategies that were removed.
+     */
+    event StrategiesRemovedFromOperatorSet(uint32 indexed operatorSetId, IStrategy[] strategies);
+
+    /**
+     * @notice Emitted when the current operator set ID is set.
+     * @param operatorSetId The ID of the operator set.
+     */
+    event CurrentOperatorSetIdSet(uint32 indexed operatorSetId);
+
+    /**
      * @notice Returns the EigenPodManager contract.
      * @return IEigenPodManager The EigenPodManager contract.
      */
@@ -253,26 +310,12 @@ interface IUniFiAVSManager {
     function EIGEN_DELEGATION_MANAGER() external view returns (IDelegationManager);
 
     /**
-     * @notice Returns the AVSDirectory contract.
-     * @return IAVSDirectory The AVSDirectory contract.
+     * @notice Returns the AllocationManager contract.
+     * @return IAllocationManager The AllocationManager contract.
      */
-    function AVS_DIRECTORY() external view returns (IAVSDirectory);
+    function ALLOCATION_MANAGER() external view returns (IAllocationManager);
 
-    /**
-     * @notice Registers a new operator in the UniFi AVS.
-     * @param operatorSignature The signature and associated data for operator registration.
-     */
-    function registerOperator(ISignatureUtilsMixin.SignatureWithSaltAndExpiry calldata operatorSignature) external;
-
-    /**
-     * @notice Registers a new operator in the UniFi AVS with a commitment.
-     * @param operatorSignature The signature and associated data for operator registration.
-     * @param initialCommitment The initial commitment for the operator.
-     */
-    function registerOperatorWithCommitment(
-        ISignatureUtilsMixin.SignatureWithSaltAndExpiry calldata operatorSignature,
-        OperatorCommitment calldata initialCommitment
-    ) external;
+    // IAVSRegistrar functions are inherited - registerOperator, deregisterOperator, supportsAVS
 
     /**
      * @notice Registers validators for a given pod owner.
@@ -288,15 +331,6 @@ interface IUniFiAVSManager {
     function deregisterValidators(bytes[] calldata validatorPubkeys) external;
 
     /**
-     * @notice Starts the process of deregistering an operator from the UniFi AVS.
-     */
-    function startDeregisterOperator() external;
-
-    /**
-     * @notice Finishes the process of deregistering an operator from the UniFi AVS.
-     */
-    function finishDeregisterOperator() external;
-    /**
      * @notice Sets the commitment for an operator.
      * @param newCommitment The new commitment to set.
      */
@@ -309,11 +343,33 @@ interface IUniFiAVSManager {
     function updateAVSMetadataURI(string calldata _metadataURI) external;
 
     /**
-     * @notice Sets a new deregistration delay for operators.
-     * @param newDelay The new deregistration delay in seconds.
-     * @dev Restricted to the DAO
+     * @notice Creates a new operator set with specified strategies.
+     * @param operatorSetId The ID for the new operator set.
+     * @param strategies The strategies to add to the operator set.
      */
-    function setDeregistrationDelay(uint64 newDelay) external;
+    function createOperatorSet(uint32 operatorSetId, IStrategy[] calldata strategies) external;
+
+    /**
+     * @notice Adds strategies to an operator set.
+     * @param operatorSetId The ID of the operator set.
+     * @param strategies The strategies to add.
+     */
+    function addStrategiesToOperatorSet(uint32 operatorSetId, IStrategy[] calldata strategies) external;
+
+    /**
+     * @notice Removes strategies from an operator set.
+    /**
+     * @notice Removes strategies from an operator set.
+     * @param operatorSetId The ID of the operator set.
+     * @param strategies The strategies to remove.
+     */
+    function removeStrategiesFromOperatorSet(uint32 operatorSetId, IStrategy[] calldata strategies) external;
+
+    /**
+     * @notice Retrieves the current operator set ID.
+     * @return The current operator set ID.
+     */
+    function getCurrentOperatorSetId() external view returns (uint32);
 
     /**
      * @notice Add or remove a strategy address from the allowlist of restaking strategies
@@ -322,6 +378,12 @@ interface IUniFiAVSManager {
      * @dev Restricted to the DAO
      */
     function setAllowlistRestakingStrategy(address strategy, bool allowed) external;
+
+    /**
+     * @notice Retrieves the commitment delay.
+     * @return The commitment delay.
+     */
+    function getCommitmentDelay() external view returns (uint64);
 
     /**
      * @notice Retrieves information about a specific operator.
@@ -360,12 +422,6 @@ interface IUniFiAVSManager {
     function isValidatorInChainId(bytes calldata validatorPubkey, uint256 chainId) external view returns (bool);
 
     /**
-     * @notice Retrieves the current deregistration delay for operators.
-     * @return The current deregistration delay in seconds.
-     */
-    function getDeregistrationDelay() external view returns (uint64);
-
-    /**
      * @notice Returns the list of strategies that the operator has potentially restaked on the AVS
      * @param operator The address of the operator to get restaked strategies for
      * @dev This function is intended to be called off-chain
@@ -394,4 +450,10 @@ interface IUniFiAVSManager {
      * @param claimer The address of the claimer.
      */
     function setClaimerFor(address claimer) external;
+
+    /**
+     * @notice Sets the current operator set ID.
+     * @param operatorSetId The ID of the operator set.
+     */
+    function setCurrentOperatorSetId(uint32 operatorSetId) external;
 }

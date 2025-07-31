@@ -4,7 +4,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import { BaseScript } from "./BaseScript.s.sol";
 import { DeployUniFiAVSManager } from "./DeployUniFiAVSManager.s.sol";
 import { SetupAccess } from "./SetupAccess.s.sol";
-import { AccessManager } from "@openzeppelin-v5/contracts/access/manager/AccessManager.sol";
+import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { AVSDeployment } from "./DeploymentStructs.sol";
 
 /**
@@ -21,7 +21,7 @@ contract DeployEverything is BaseScript {
     function run(
         address eigenPodManager,
         address eigenDelegationManager,
-        address avsDirectory,
+        address allocationManager,
         address rewardsCoordinator,
         uint64 initialDeregistrationDelay
     ) public returns (AVSDeployment memory) {
@@ -36,7 +36,7 @@ contract DeployEverything is BaseScript {
             accessManager: address(accessManager),
             eigenPodManager: eigenPodManager,
             eigenDelegationManager: eigenDelegationManager,
-            avsDirectory: avsDirectory,
+            allocationManager: allocationManager,
             rewardsCoordinator: rewardsCoordinator,
             initialDeregistrationDelay: initialDeregistrationDelay
         });

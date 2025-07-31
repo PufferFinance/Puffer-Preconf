@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
+import { IAllocationManager, IAllocationManagerTypes } from "eigenlayer/interfaces/IAllocationManager.sol";
 import { IUniFiAVSManager } from "../src/interfaces/IUniFiAVSManager.sol";
 import { ISignatureUtilsMixin } from "eigenlayer/interfaces/ISignatureUtilsMixin.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 import { BN254 } from "eigenlayer-middleware/libraries/BN254.sol";
 import { IBLSApkRegistry } from "eigenlayer-middleware/interfaces/IBLSApkRegistry.sol";
-import { Strings } from "@openzeppelin-v5/contracts/utils/Strings.sol";
+import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { UnitTestHelper } from "../test/helpers/UnitTestHelper.sol";
 import { UniFiAVSManager } from "../src/UniFiAVSManager.sol";
 import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.sol";
-import { IERC20 } from "@openzeppelin-v5/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
-import { IERC20Errors } from "@openzeppelin-v5/contracts/interfaces/draft-IERC6093.sol";
+import { IERC20Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 contract UniFiAVSManagerTest is UnitTestHelper {
     using BN254 for BN254.G1Point;
@@ -58,7 +58,24 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         g2Point.Y[0] = abi.decode(res, (uint256));
     }
 
-    // With ECDSA key, he sign the hash confirming that the operator wants to be registered to a certain restaking service
+    // Helper function to register operator via AllocationManager (new pattern)
+    function _registerOperatorViaAllocationManager(
+        address operatorAddr,
+        uint32[] memory operatorSetIds,
+        bytes memory data
+    ) internal {
+        vm.prank(operatorAddr);
+        mockAllocationManager.registerToOperatorSets(
+            IAllocationManagerTypes.RegisterParams({
+                avs: address(avsManager),
+                operatorSetIds: operatorSetIds,
+                data: data
+            })
+        );
+    }
+
+    // With ECDSA key, he sign the hash confirming that the operator wants to be registered 
+    // to a certain restaking service
     function _getOperatorSignature(uint256 _operatorPrivateKey, address avs, bytes32 salt, uint256 expiry)
         internal
         view
@@ -67,7 +84,9 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         operatorSignature.expiry = expiry;
         operatorSignature.salt = salt;
         {
-            digestHash = mockAVSDirectory.calculateOperatorAVSRegistrationDigestHash(operator, avs, salt, expiry);
+            digestHash = mockAllocationManager.calculateOperatorRegistrationDigestHash(
+                operator, avs, salt, expiry
+            );
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(_operatorPrivateKey, digestHash);
             operatorSignature.signature = abi.encodePacked(r, s, v);
         }
@@ -125,9 +144,9 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
     function test_registerOperatorHelper() public {
         _setupOperator();
-        assertFalse(mockAVSDirectory.isOperatorRegistered(operator));
+        assertFalse(mockAllocationManager.isOperatorRegistered(operator));
         _registerOperator();
-        assertTrue(mockAVSDirectory.isOperatorRegistered(operator));
+        assertTrue(mockAllocationManager.isOperatorRegistered(operator));
 
         IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.commitment.delegateKey, delegatePubKey);
@@ -136,7 +155,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
     function testRegisterOperator() public {
         _setupOperator();
-        assertFalse(mockAVSDirectory.isOperatorRegistered(operator));
+        assertFalse(mockAllocationManager.isOperatorRegistered(operator));
 
         ISignatureUtilsMixin.SignatureWithSaltAndExpiry memory operatorSignature =
             _registerOperatorParams({ salt: bytes32(uint256(1)), expiry: uint256(block.timestamp + 1 days) });
@@ -147,7 +166,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.prank(operator);
         avsManager.registerOperator(operatorSignature);
 
-        assertTrue(mockAVSDirectory.isOperatorRegistered(operator));
+        assertTrue(mockAllocationManager.isOperatorRegistered(operator));
 
         IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.validatorCount, 0);
@@ -169,7 +188,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         // 1st registration
         vm.prank(operator);
         avsManager.registerOperator(operatorSignature);
-        assertTrue(mockAVSDirectory.isOperatorRegistered(operator));
+        assertTrue(mockAllocationManager.isOperatorRegistered(operator));
 
         // 2nd registration
         vm.prank(operator);
@@ -179,7 +198,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
     function testRegisterOperatorWithCommitment() public {
         _setupOperator();
-        assertFalse(mockAVSDirectory.isOperatorRegistered(operator));
+        assertFalse(mockAllocationManager.isOperatorRegistered(operator));
 
         ISignatureUtilsMixin.SignatureWithSaltAndExpiry memory operatorSignature =
             _registerOperatorParams({ salt: bytes32(uint256(1)), expiry: uint256(block.timestamp + 1 days) });
@@ -196,7 +215,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.prank(operator);
         avsManager.registerOperatorWithCommitment(operatorSignature, initialCommitment);
 
-        assertTrue(mockAVSDirectory.isOperatorRegistered(operator));
+        assertTrue(mockAllocationManager.isOperatorRegistered(operator));
 
         IUniFiAVSManager.OperatorDataExtended memory operatorData = avsManager.getOperator(operator);
         assertEq(operatorData.validatorCount, 0);
@@ -455,7 +474,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         vm.prank(operator);
         avsManager.finishDeregisterOperator();
 
-        assertFalse(mockAVSDirectory.isOperatorRegistered(operator), "Operator should be deregistered");
+        assertFalse(mockAllocationManager.isOperatorRegistered(operator), "Operator should be deregistered");
     }
 
     function testFinishDeregisterOperator_NotStarted() public {
@@ -652,9 +671,13 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
         // Before the commitment change takes effect
         assertTrue(
-            avsManager.isValidatorInChainId(validatorPubkeys[0], 1), "Validator should still be in Ethereum Mainnet"
+            avsManager.isValidatorInChainId(validatorPubkeys[0], 1), 
+            "Validator should still be in Ethereum Mainnet"
         );
-        assertFalse(avsManager.isValidatorInChainId(validatorPubkeys[0], 10), "Validator should not yet be in Optimism");
+        assertFalse(
+            avsManager.isValidatorInChainId(validatorPubkeys[0], 10), 
+            "Validator should not yet be in Optimism"
+        );
 
         // Advance to make the new commitment active
         vm.roll(block.number + avsManager.getDeregistrationDelay());
@@ -737,7 +760,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         string memory newMetadataURI = "https://example.com/new-metadata";
 
         vm.expectEmit(true, true, false, true);
-        emit IAVSDirectory.AVSMetadataURIUpdated(address(avsManager), newMetadataURI);
+        emit IAllocationManager.AVSMetadataURIUpdated(address(avsManager), newMetadataURI);
 
         vm.prank(DAO);
         avsManager.updateAVSMetadataURI(newMetadataURI);
@@ -965,28 +988,28 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         new UniFiAVSManager(
             IEigenPodManager(address(0)),
             IDelegationManager(address(0)),
-            IAVSDirectory(address(0)),
+            IAllocationManager(address(0)),
             IRewardsCoordinator(address(0))
         );
         vm.expectRevert(IUniFiAVSManager.InvalidEigenDelegationManagerAddress.selector);
         new UniFiAVSManager(
             IEigenPodManager(address(1)),
             IDelegationManager(address(0)),
-            IAVSDirectory(address(0)),
+            IAllocationManager(address(0)),
             IRewardsCoordinator(address(0))
         );
-        vm.expectRevert(IUniFiAVSManager.InvalidAVSDirectoryAddress.selector);
+        vm.expectRevert(IUniFiAVSManager.InvalidAllocationManagerAddress.selector);
         new UniFiAVSManager(
             IEigenPodManager(address(1)),
             IDelegationManager(address(1)),
-            IAVSDirectory(address(0)),
+            IAllocationManager(address(0)),
             IRewardsCoordinator(address(0))
         );
         vm.expectRevert(IUniFiAVSManager.InvalidRewardsCoordinatorAddress.selector);
         new UniFiAVSManager(
             IEigenPodManager(address(1)),
             IDelegationManager(address(1)),
-            IAVSDirectory(address(1)),
+            IAllocationManager(address(1)),
             IRewardsCoordinator(address(0))
         );
     }

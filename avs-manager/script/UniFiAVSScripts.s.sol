@@ -5,13 +5,13 @@ import { Script } from "forge-std/Script.sol";
 import { DeployerHelper } from "./DeployerHelper.s.sol";
 import { IUniFiAVSManager } from "../src/interfaces/IUniFiAVSManager.sol";
 import { ISignatureUtilsMixin } from "eigenlayer/interfaces/ISignatureUtilsMixin.sol";
-import { MockEigenPodManager } from "../test/mocks/MockEigenPodManager.sol";
+import { EigenPodManagerMock } from "../test/mocks/EigenPodManagerMock.sol";
 import { MockDelegationManager } from "../test/mocks/MockDelegationManager.sol";
-import { MockAVSDirectory } from "../test/mocks/MockAVSDirectory.sol";
+import { MockAllocationManager } from "../test/mocks/MockAllocationManager.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
-import { Strings } from "@openzeppelin-v5/contracts/utils/Strings.sol";
+import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
@@ -82,7 +82,7 @@ contract UniFiAVSScripts is Script, DeployerHelper {
     function createEigenPod(address podOwner) public {
         require(isHelderChain, "This function can only be called on the Helder chain");
         vm.startBroadcast();
-        MockEigenPodManager(address(eigenPodManager)).createPod(podOwner);
+        EigenPodManagerMock(address(eigenPodManager)).createPod(podOwner);
         vm.stopBroadcast();
     }
 
@@ -98,7 +98,7 @@ contract UniFiAVSScripts is Script, DeployerHelper {
         require(isHelderChain, "This function can only be called on the Helder chain");
         vm.startBroadcast();
         for (uint256 i = 0; i < validators.length; i++) {
-            MockEigenPodManager(address(eigenPodManager)).setValidator(podOwner, pubkeyHashes[i], validators[i]);
+            EigenPodManagerMock(address(eigenPodManager)).setValidator(podOwner, pubkeyHashes[i], validators[i]);
         }
         vm.stopBroadcast();
     }
@@ -144,7 +144,7 @@ contract UniFiAVSScripts is Script, DeployerHelper {
                 status: IEigenPod.VALIDATOR_STATUS.ACTIVE
             });
 
-            MockEigenPodManager(eigenPodManagerAddress).setValidator(podOwner, pubkeyHashes[i], validators[i]);
+            EigenPodManagerMock(eigenPodManagerAddress).setValidator(podOwner, pubkeyHashes[i], validators[i]);
 
             console.log("Added validator with index:", index);
         }
@@ -178,7 +178,7 @@ contract UniFiAVSScripts is Script, DeployerHelper {
                 status: IEigenPod.VALIDATOR_STATUS.ACTIVE
             });
 
-            MockEigenPodManager(eigenPodManagerAddress).setValidator(podOwner, pubkeyHashes[i], validators[i]);
+            EigenPodManagerMock(eigenPodManagerAddress).setValidator(podOwner, pubkeyHashes[i], validators[i]);
 
             console.log("Added validator with index:", validatorIndices[i]);
         }

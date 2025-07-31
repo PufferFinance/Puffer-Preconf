@@ -6,13 +6,13 @@ import { BaseScript } from "../../script/BaseScript.s.sol";
 import { DeployEverything } from "../../script/DeployEverything.s.sol";
 import { AVSDeployment } from "../../script/DeploymentStructs.sol";
 import { UniFiAVSManager } from "../../src/UniFiAVSManager.sol";
-import { MockEigenPodManager } from "../mocks/MockEigenPodManager.sol";
+import { EigenPodManagerMock } from "../mocks/EigenPodManagerMock.sol";
 import { MockDelegationManager } from "../mocks/MockDelegationManager.sol";
-import { MockAVSDirectory } from "../mocks/MockAVSDirectory.sol";
+import { MockAllocationManager } from "../mocks/MockAllocationManager.sol";
 import { MockStrategyManager } from "../mocks/MockStrategyManager.sol";
 import { MockRewardsCoordinator } from "../mocks/MockRewardsCoordinator.sol";
 import { MockERC20 } from "../mocks/MockERC20.sol";
-import { AccessManager } from "@openzeppelin-v5/contracts/access/manager/AccessManager.sol";
+import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 
 contract UnitTestHelper is Test, BaseScript {
@@ -27,9 +27,9 @@ contract UnitTestHelper is Test, BaseScript {
     address public timelock;
 
     UniFiAVSManager public avsManager;
-    MockEigenPodManager public mockEigenPodManager;
+    EigenPodManagerMock public mockEigenPodManager;
     MockDelegationManager public mockDelegationManager;
-    MockAVSDirectory public mockAVSDirectory;
+    MockAllocationManager public mockAllocationManager;
     MockStrategyManager public mockStrategyManager;
     MockRewardsCoordinator public mockRewardsCoordinator;
     MockERC20 public mockERC20;
@@ -73,15 +73,19 @@ contract UnitTestHelper is Test, BaseScript {
 
     function _deployContracts() public {
         // Deploy everything with one script
-        mockEigenPodManager = new MockEigenPodManager();
+        mockEigenPodManager = new EigenPodManagerMock();
         mockDelegationManager = new MockDelegationManager();
-        mockAVSDirectory = new MockAVSDirectory();
+        mockAllocationManager = new MockAllocationManager();
         mockStrategyManager = new MockStrategyManager();
         mockRewardsCoordinator = new MockRewardsCoordinator(IStrategyManager(address(mockStrategyManager)));
+        
+        // Set up the AVS registrar in the AllocationManager
+        mockAllocationManager.setAVSRegistrar(address(0), address(0)); // Will be set to the AVS contract later
+        
         AVSDeployment memory avsDeployment = new DeployEverything().run({
             eigenPodManager: address(mockEigenPodManager),
             eigenDelegationManager: address(mockDelegationManager),
-            avsDirectory: address(mockAVSDirectory),
+            allocationManager: address(mockAllocationManager),
             rewardsCoordinator: address(mockRewardsCoordinator),
             initialDeregistrationDelay: DEREGISTRATION_DELAY
         });
@@ -91,5 +95,8 @@ contract UnitTestHelper is Test, BaseScript {
         // accessManager = AccessManager(avsDeployment.accessManager);
         timelock = avsDeployment.timelock;
         avsManager = UniFiAVSManager(avsDeployment.avsManagerProxy);
+        
+        // Set the AVS as its own registrar in the AllocationManager
+        mockAllocationManager.setAVSRegistrar(address(avsManager), address(avsManager));
     }
 }

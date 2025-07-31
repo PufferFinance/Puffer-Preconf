@@ -4,8 +4,8 @@ pragma solidity >=0.8.0 <0.9.0;
 import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
-import { SafeERC20 } from "@openzeppelin-v5/contracts/token/ERC20/utils/SafeERC20.sol";
-import { IERC20 } from "@openzeppelin-v5/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract MockRewardsCoordinator {
     using SafeERC20 for IERC20;

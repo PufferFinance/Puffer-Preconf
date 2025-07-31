@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import { EnumerableSet } from "@openzeppelin-v5/contracts/utils/structs/EnumerableSet.sol";
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { IUniFiAVSManager } from "./interfaces/IUniFiAVSManager.sol";
 import { DeprecatedOperatorData } from "./structs/DeprecatedOperatorData.sol";
 
@@ -15,13 +15,14 @@ abstract contract UniFiAVSManagerStorage is IUniFiAVSManager {
         mapping(bytes32 => ValidatorData) _deprecated_validators;
         mapping(uint256 => bytes32) _deprecated_validatorIndexes;
         mapping(address => DeprecatedOperatorData) _deprecated_operators;
-        uint64 deregistrationDelay;
+        uint64 commitmentDelay;
         mapping(uint8 => uint256) _deprecated_bitmapIndexToChainId;
         mapping(uint256 => uint8) _deprecated_chainIdToBitmapIndex;
         EnumerableSet.AddressSet allowlistedRestakingStrategies;
         mapping(bytes validatorPubkey => ValidatorData validatorData) validators;
         mapping(uint256 validatorIndex => bytes validatorPubkey) validatorIndexes;
         mapping(address operator => OperatorData operatorData) operators;
+        uint32 currentOperatorSetId;
     }
 
     /**

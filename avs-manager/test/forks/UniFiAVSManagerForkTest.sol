@@ -12,7 +12,7 @@ import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
 import { ISignatureUtilsMixin } from "eigenlayer/interfaces/ISignatureUtilsMixin.sol";
 import { AVSDeployment } from "../../script/DeploymentStructs.sol";
 import { BaseScript } from "../../script/BaseScript.s.sol";
-import { IAccessManaged } from "@openzeppelin-v5/contracts/access/manager/IAccessManaged.sol";
+import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
 
 contract UniFiAVSManagerForkTest is Test, BaseScript {
     UniFiAVSManager public avsManager;

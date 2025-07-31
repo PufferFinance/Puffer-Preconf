@@ -6,13 +6,13 @@ import { UniFiAVSManager } from "../src/UniFiAVSManager.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
-import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
+import { IAllocationManager } from "eigenlayer/interfaces/IAllocationManager.sol";
 import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.sol";
-import { ERC1967Proxy } from "@openzeppelin-v5/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import { AccessManager } from "@openzeppelin-v5/contracts/access/manager/AccessManager.sol";
+import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 import { console } from "forge-std/console.sol";
 
-import { MockEigenPodManager } from "../test/mocks/MockEigenPodManager.sol";
+import { EigenPodManagerMock } from "../test/mocks/EigenPodManagerMock.sol";
 import { MockDelegationManager } from "../test/mocks/MockDelegationManager.sol";
 import { MockAVSDirectory } from "../test/mocks/MockAVSDirectory.sol";
 import { MockRewardsCoordinator } from "../test/mocks/MockRewardsCoordinator.sol";
@@ -28,7 +28,7 @@ contract DeployUniFiAVSManagerWithMocks is BaseScript {
     uint64 initialDeregistrationDelay = 0;
 
     function run() public broadcast returns (address, address) {
-        eigenPodManager = address(new MockEigenPodManager());
+        eigenPodManager = address(new EigenPodManagerMock());
         eigenDelegationManager = address(new MockDelegationManager());
         avsDirectory = address(new MockAVSDirectory());
         IStrategyManager strategyManager = IStrategyManager(address(new MockStrategyManager()));
@@ -38,7 +38,7 @@ contract DeployUniFiAVSManagerWithMocks is BaseScript {
         UniFiAVSManager uniFiAVSManagerImplementation = new UniFiAVSManager(
             IEigenPodManager(eigenPodManager),
             IDelegationManager(eigenDelegationManager),
-            IAVSDirectory(avsDirectory),
+            IAllocationManager(avsDirectory),
             IRewardsCoordinator(rewardsCoordinator)
         );
 
