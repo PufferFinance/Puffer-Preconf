@@ -78,10 +78,10 @@ contract UnitTestHelper is Test, BaseScript {
         mockAllocationManager = new MockAllocationManager();
         mockStrategyManager = new MockStrategyManager();
         mockRewardsCoordinator = new MockRewardsCoordinator(IStrategyManager(address(mockStrategyManager)));
-        
+
         // Set up the AVS registrar in the AllocationManager
         mockAllocationManager.setAVSRegistrar(address(0), address(0)); // Will be set to the AVS contract later
-        
+
         AVSDeployment memory avsDeployment = new DeployEverything().run({
             eigenPodManager: address(mockEigenPodManager),
             eigenDelegationManager: address(mockDelegationManager),
@@ -95,7 +95,7 @@ contract UnitTestHelper is Test, BaseScript {
         // accessManager = AccessManager(avsDeployment.accessManager);
         timelock = avsDeployment.timelock;
         avsManager = UniFiAVSManager(avsDeployment.avsManagerProxy);
-        
+
         // Set the AVS as its own registrar in the AllocationManager
         mockAllocationManager.setAVSRegistrar(address(avsManager), address(avsManager));
     }

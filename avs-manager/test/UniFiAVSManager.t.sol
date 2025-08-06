@@ -74,7 +74,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         );
     }
 
-    // With ECDSA key, he sign the hash confirming that the operator wants to be registered 
+    // With ECDSA key, he sign the hash confirming that the operator wants to be registered
     // to a certain restaking service
     function _getOperatorSignature(uint256 _operatorPrivateKey, address avs, bytes32 salt, uint256 expiry)
         internal
@@ -84,9 +84,7 @@ contract UniFiAVSManagerTest is UnitTestHelper {
         operatorSignature.expiry = expiry;
         operatorSignature.salt = salt;
         {
-            digestHash = mockAllocationManager.calculateOperatorRegistrationDigestHash(
-                operator, avs, salt, expiry
-            );
+            digestHash = mockAllocationManager.calculateOperatorRegistrationDigestHash(operator, avs, salt, expiry);
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(_operatorPrivateKey, digestHash);
             operatorSignature.signature = abi.encodePacked(r, s, v);
         }
@@ -671,13 +669,9 @@ contract UniFiAVSManagerTest is UnitTestHelper {
 
         // Before the commitment change takes effect
         assertTrue(
-            avsManager.isValidatorInChainId(validatorPubkeys[0], 1), 
-            "Validator should still be in Ethereum Mainnet"
+            avsManager.isValidatorInChainId(validatorPubkeys[0], 1), "Validator should still be in Ethereum Mainnet"
         );
-        assertFalse(
-            avsManager.isValidatorInChainId(validatorPubkeys[0], 10), 
-            "Validator should not yet be in Optimism"
-        );
+        assertFalse(avsManager.isValidatorInChainId(validatorPubkeys[0], 10), "Validator should not yet be in Optimism");
 
         // Advance to make the new commitment active
         vm.roll(block.number + avsManager.getDeregistrationDelay());

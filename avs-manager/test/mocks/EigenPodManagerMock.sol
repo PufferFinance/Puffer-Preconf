@@ -6,12 +6,12 @@ import "eigenlayer/interfaces/IStrategy.sol";
 import "eigenlayer/permissions/Pausable.sol";
 
 contract EigenPodManagerMock is Test, Pausable {
-    receive() external payable {}
-    fallback() external payable {}
+    receive() external payable { }
+    fallback() external payable { }
 
-    mapping(address => int) public podOwnerDepositShares;
+    mapping(address => int256) public podOwnerDepositShares;
 
-    mapping(address => uint) public podOwnerSharesWithdrawn;
+    mapping(address => uint256) public podOwnerSharesWithdrawn;
 
     struct BeaconChainSlashingFactor {
         bool isSet;
@@ -24,32 +24,32 @@ contract EigenPodManagerMock is Test, Pausable {
         _setPausedStatus(0);
     }
 
-    function podOwnerShares(address podOwner) external view returns (int) {
+    function podOwnerShares(address podOwner) external view returns (int256) {
         return podOwnerDepositShares[podOwner];
     }
 
-    function stakerDepositShares(address user, address) public view returns (uint depositShares) {
-        return podOwnerDepositShares[user] < 0 ? 0 : uint(podOwnerDepositShares[user]);
+    function stakerDepositShares(address user, address) public view returns (uint256 depositShares) {
+        return podOwnerDepositShares[user] < 0 ? 0 : uint256(podOwnerDepositShares[user]);
     }
 
-    function setPodOwnerShares(address podOwner, int shares) external {
+    function setPodOwnerShares(address podOwner, int256 shares) external {
         podOwnerDepositShares[podOwner] = shares;
     }
 
-    function addShares(address podOwner, IStrategy, uint shares) external returns (uint, uint) {
-        uint existingDepositShares = uint(podOwnerDepositShares[podOwner]);
-        podOwnerDepositShares[podOwner] += int(shares);
+    function addShares(address podOwner, IStrategy, uint256 shares) external returns (uint256, uint256) {
+        uint256 existingDepositShares = uint256(podOwnerDepositShares[podOwner]);
+        podOwnerDepositShares[podOwner] += int256(shares);
         return (existingDepositShares, shares);
     }
 
     function removeDepositShares(
         address podOwner,
         IStrategy, // strategy
-        uint shares
-    ) external returns (uint) {
-        int updatedShares = podOwnerDepositShares[podOwner] - int(shares);
+        uint256 shares
+    ) external returns (uint256) {
+        int256 updatedShares = podOwnerDepositShares[podOwner] - int256(shares);
         podOwnerDepositShares[podOwner] = updatedShares;
-        return uint(updatedShares);
+        return uint256(updatedShares);
     }
 
     function denebForkTimestamp() external pure returns (uint64) {
@@ -66,13 +66,13 @@ contract EigenPodManagerMock is Test, Pausable {
         /**
          * token
          */
-        uint shares
+        uint256 shares
     ) external {
         podOwnerSharesWithdrawn[podOwner] += shares;
     }
 
     function setBeaconChainSlashingFactor(address staker, uint64 bcsf) external {
-        _beaconChainSlashingFactor[staker] = BeaconChainSlashingFactor({isSet: true, slashingFactor: bcsf});
+        _beaconChainSlashingFactor[staker] = BeaconChainSlashingFactor({ isSet: true, slashingFactor: bcsf });
     }
 
     function beaconChainSlashingFactor(address staker) external view returns (uint64) {

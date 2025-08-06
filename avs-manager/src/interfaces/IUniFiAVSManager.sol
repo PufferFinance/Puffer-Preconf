@@ -44,8 +44,8 @@ interface IUniFiAVSManager is IAVSRegistrar {
         OperatorCommitment pendingCommitment;
         /// @notice The number of validators associated with this operator.
         uint128 validatorCount;
-        /// @notice The block number when the operator started the deregistration process.
-        uint64 startDeregisterOperatorBlock;
+        /// @notice The block number when the operator was deregistered.
+        uint64 deregisteredBlockNumber;
         /// @notice The block number after which the pending commitment becomes valid.
         uint64 commitmentValidAfter;
     }
@@ -172,8 +172,8 @@ interface IUniFiAVSManager is IAVSRegistrar {
     /// @notice Thrown when an invalid AVS address is provided
     error InvalidAVSAddress();
 
-    /// @notice Thrown when no operator sets are provided for registration
-    error NoOperatorSetsProvided();
+    /// @notice Thrown when an invalid number of operator sets are provided for registration
+    error InvalidOperatorSetsProvided();
 
     /// @notice Thrown when an invalid operator set ID is provided
     error InvalidOperatorSetId();
@@ -194,7 +194,9 @@ interface IUniFiAVSManager is IAVSRegistrar {
      * @param operatorSetIds The operator set IDs the operator registered for.
      * @param commitment The commitment set for the operator.
      */
-    event OperatorRegisteredWithCommitment(address indexed operator, uint32[] operatorSetIds, OperatorCommitment commitment);
+    event OperatorRegisteredWithCommitment(
+        address indexed operator, uint32[] operatorSetIds, OperatorCommitment commitment
+    );
 
     /**
      * @notice Emitted when a new validator is registered in the UniFi AVS .
@@ -358,7 +360,7 @@ interface IUniFiAVSManager is IAVSRegistrar {
 
     /**
      * @notice Removes strategies from an operator set.
-    /**
+     * /**
      * @notice Removes strategies from an operator set.
      * @param operatorSetId The ID of the operator set.
      * @param strategies The strategies to remove.

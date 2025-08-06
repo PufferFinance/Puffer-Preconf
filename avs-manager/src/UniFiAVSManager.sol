@@ -65,10 +65,12 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
      */
     function _isOperatorRegistered(address operator) internal view returns (bool) {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
-        return ALLOCATION_MANAGER.isMemberOfOperatorSet(operator, OperatorSet({
-            avs: address(this),
-            id: $.currentOperatorSetId
-        }));
+        if ($.currentOperatorSetId == 0) {
+            return false;
+        }
+        return ALLOCATION_MANAGER.isMemberOfOperatorSet(
+            operator, OperatorSet({ avs: address(this), id: $.currentOperatorSetId })
+        );
     }
 
     /**
@@ -124,24 +126,25 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
     // EXTERNAL FUNCTIONS
 
     /// @inheritdoc IAVSRegistrar
-    function registerOperator(
-        address operator,
-        address avs,
-        uint32[] calldata operatorSetIds,
-        bytes calldata data
-    ) external override {
+    function registerOperator(address operator, address avs, uint32[] calldata operatorSetIds, bytes calldata data)
+        external
+        override
+    {
         if (msg.sender != address(ALLOCATION_MANAGER)) {
             revert OnlyAllocationManager();
         }
         if (avs != address(this)) {
             revert InvalidAVSAddress();
         }
-        if (operatorSetIds.length == 0) {
-            revert NoOperatorSetsProvided();
-        }
 
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
-        
+
+        if (operatorSetIds.length != 1 || operatorSetIds[0] != $.currentOperatorSetId) {
+            revert InvalidOperatorSetsProvided();
+        }
+
+        $.operators[operator].deregisteredBlockNumber = 0;
+
         // Decode optional commitment data if provided
         OperatorCommitment memory initialCommitment;
         if (data.length > 0) {
@@ -154,25 +157,22 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
     }
 
     /// @inheritdoc IAVSRegistrar
-    function deregisterOperator(
-        address operator,
-        address avs,
-        uint32[] calldata operatorSetIds
-    ) external override {
+    function deregisterOperator(address operator, address avs, uint32[] calldata operatorSetIds) external override {
         if (msg.sender != address(ALLOCATION_MANAGER)) {
             revert OnlyAllocationManager();
         }
         if (avs != address(this)) {
             revert InvalidAVSAddress();
         }
-        
+
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
-        
-        // Only delete operator data if they have no validators
-        if ($.operators[operator].validatorCount == 0) {
-            delete $.operators[operator];
-        }
-        
+
+        OperatorData storage operatorData = $.operators[operator];
+        operatorData.deregisteredBlockNumber = uint64(block.number);
+        delete operatorData.commitment;
+        delete operatorData.pendingCommitment;
+        delete operatorData.validatorCount;
+
         emit OperatorDeregistered(operator, operatorSetIds);
     }
 
@@ -315,38 +315,31 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         for (uint256 i = 0; i < strategies.length; i++) {
             istrategies[i] = IStrategy(strategies[i]);
         }
-        
-        IAllocationManagerTypes.CreateSetParams[] memory params = 
-            new IAllocationManagerTypes.CreateSetParams[](1);
-        params[0] = IAllocationManagerTypes.CreateSetParams({
-            operatorSetId: operatorSetId,
-            strategies: istrategies
-        });
-        
+
+        IAllocationManagerTypes.CreateSetParams[] memory params = new IAllocationManagerTypes.CreateSetParams[](1);
+        params[0] = IAllocationManagerTypes.CreateSetParams({ operatorSetId: operatorSetId, strategies: istrategies });
+
         ALLOCATION_MANAGER.createOperatorSets(address(this), params);
         emit OperatorSetCreated(operatorSetId);
     }
 
     /**
-    * @inheritdoc IUniFiAVSManager
-    * @dev Restricted to the DAO
-    */
-    function addStrategiesToOperatorSet(
-        uint32 operatorSetId,
-        IStrategy[] calldata strategies
-    ) external restricted {
+     * @inheritdoc IUniFiAVSManager
+     * @dev Restricted to the DAO
+     */
+    function addStrategiesToOperatorSet(uint32 operatorSetId, IStrategy[] calldata strategies) external restricted {
         ALLOCATION_MANAGER.addStrategiesToOperatorSet(address(this), operatorSetId, strategies);
         emit StrategiesAddedToOperatorSet(operatorSetId, strategies);
     }
 
     /**
-    * @inheritdoc IUniFiAVSManager
-    * @dev Restricted to the DAO
-    */
-    function removeStrategiesFromOperatorSet(
-        uint32 operatorSetId,
-        IStrategy[] calldata strategies
-    ) external restricted {
+     * @inheritdoc IUniFiAVSManager
+     * @dev Restricted to the DAO
+     */
+    function removeStrategiesFromOperatorSet(uint32 operatorSetId, IStrategy[] calldata strategies)
+        external
+        restricted
+    {
         ALLOCATION_MANAGER.removeStrategiesFromOperatorSet(address(this), operatorSetId, strategies);
         emit StrategiesRemovedFromOperatorSet(operatorSetId, strategies);
     }
@@ -359,10 +352,7 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         if (operatorSetId == 0) {
             revert InvalidOperatorSetId();
         }
-        if (!ALLOCATION_MANAGER.isOperatorSet(OperatorSet({
-            avs: address(this),
-            id: operatorSetId
-        }))) {
+        if (!ALLOCATION_MANAGER.isOperatorSet(OperatorSet({ avs: address(this), id: operatorSetId }))) {
             revert OperatorSetDoesNotExist();
         }
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
@@ -580,7 +570,7 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
                 delegateKey: activeCommitment.delegateKey,
                 chainIds: activeCommitment.chainIds,
                 backedByStake: backedByStake,
-                registered: block.number < validatorData.registeredUntil
+                registered: block.number < validatorData.registeredUntil && _isOperatorRegistered(validatorData.operator)
             });
         }
     }

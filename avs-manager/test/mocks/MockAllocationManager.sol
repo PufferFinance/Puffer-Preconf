@@ -24,31 +24,27 @@ contract MockAllocationManager {
         return avsRegistrar[avs];
     }
 
-    function registerToOperatorSets(
-        IAllocationManagerTypes.RegisterParams calldata params
-    ) external {
+    function registerToOperatorSets(IAllocationManagerTypes.RegisterParams calldata params) external {
         require(address(avsRegistrar[params.avs]) != address(0) || params.avs != address(0), "Invalid AVS");
-        
+
         registeredOperators[msg.sender] = true;
-        
+
         IAVSRegistrar registrar = avsRegistrar[params.avs];
         if (address(registrar) == address(0)) {
             registrar = IAVSRegistrar(params.avs);
         }
-        
+
         registrar.registerOperator(msg.sender, params.avs, params.operatorSetIds, params.data);
     }
 
-    function deregisterFromOperatorSets(
-        IAllocationManagerTypes.DeregisterParams calldata params
-    ) external {
+    function deregisterFromOperatorSets(IAllocationManagerTypes.DeregisterParams calldata params) external {
         registeredOperators[params.operator] = false;
-        
+
         IAVSRegistrar registrar = avsRegistrar[params.avs];
         if (address(registrar) == address(0)) {
             registrar = IAVSRegistrar(params.avs);
         }
-        
+
         try registrar.deregisterOperator(params.operator, params.avs, params.operatorSetIds) {
             // Success
         } catch {
@@ -63,12 +59,9 @@ contract MockAllocationManager {
         emit AVSMetadataURIUpdated(avs, metadataURI);
     }
 
-    function createOperatorSets(
-        address avs,
-        IAllocationManagerTypes.CreateSetParams[] calldata params
-    ) external {
+    function createOperatorSets(address avs, IAllocationManagerTypes.CreateSetParams[] calldata params) external {
         require(avsRegisteredMetadata[avs], "AVS metadata not registered");
-        
+
         for (uint256 i = 0; i < params.length; i++) {
             emit OperatorSetCreated(params[i].operatorSetId);
         }
@@ -87,4 +80,4 @@ contract MockAllocationManager {
     {
         return keccak256(abi.encodePacked(operator, avs, salt, expiry));
     }
-} 
+}

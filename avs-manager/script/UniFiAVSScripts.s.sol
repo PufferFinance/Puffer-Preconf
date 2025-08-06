@@ -408,7 +408,11 @@ contract UniFiAVSScripts is Script, DeployerHelper {
         address avs,
         bytes32 salt,
         uint256 expiry
-    ) internal view returns (bytes32 digestHash, ISignatureUtilsMixin.SignatureWithSaltAndExpiry memory operatorSignature) {
+    )
+        internal
+        view
+        returns (bytes32 digestHash, ISignatureUtilsMixin.SignatureWithSaltAndExpiry memory operatorSignature)
+    {
         operatorSignature.expiry = expiry;
         operatorSignature.salt = salt;
         {
