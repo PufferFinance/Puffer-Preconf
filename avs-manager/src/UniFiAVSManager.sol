@@ -73,6 +73,12 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         );
     }
 
+    function _isValidatorRegistered(bytes memory validatorPubkey) internal view returns (bool) {
+        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
+        return $.validators[validatorPubkey].index != 0 && block.number < $.validators[validatorPubkey].registeredUntil
+            && _isOperatorRegistered($.validators[validatorPubkey].operator);
+    }
+
     /**
      * @dev Modifier to check if the operator is registered in the AVS
      * @param operator The address of the operator
@@ -211,8 +217,7 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
                 revert ValidatorNotActive();
             }
 
-            ValidatorData storage existingValidator = $.validators[validatorPubkey];
-            if (existingValidator.index != 0 && block.number < existingValidator.registeredUntil) {
+            if (_isValidatorRegistered(validatorPubkey)) {
                 revert ValidatorAlreadyRegistered();
             }
 
@@ -258,7 +263,7 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
                 revert NotValidatorOperator();
             }
 
-            if (validator.registeredUntil != type(uint64).max) {
+            if (_isValidatorRegistered(validatorPubkeys[i])) {
                 revert ValidatorAlreadyDeregistered();
             }
 
@@ -467,7 +472,7 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         ValidatorData storage validator = $.validators[validatorPubkey];
 
         // If the validator is never registered or is already deregistered, return false
-        if (validator.index == 0 || block.number >= validator.registeredUntil) {
+        if (!_isValidatorRegistered(validatorPubkey)) {
             return false;
         }
 
@@ -570,7 +575,7 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
                 delegateKey: activeCommitment.delegateKey,
                 chainIds: activeCommitment.chainIds,
                 backedByStake: backedByStake,
-                registered: block.number < validatorData.registeredUntil && _isOperatorRegistered(validatorData.operator)
+                registered: _isValidatorRegistered(validatorPubkey)
             });
         }
     }
