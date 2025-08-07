@@ -4,6 +4,8 @@ pragma solidity ^0.8.9;
 import "forge-std/Test.sol";
 import "eigenlayer/interfaces/IStrategy.sol";
 import "eigenlayer/permissions/Pausable.sol";
+import { EigenPodMock } from "./EigenPodMock.sol";
+import { IEigenPod, IEigenPodTypes } from "eigenlayer/interfaces/IEigenPod.sol";
 
 contract EigenPodManagerMock is Test, Pausable {
     receive() external payable { }
@@ -20,8 +22,37 @@ contract EigenPodManagerMock is Test, Pausable {
 
     mapping(address => BeaconChainSlashingFactor) _beaconChainSlashingFactor;
 
+    mapping(address podOwner => EigenPodMock pod) public pods;
+
     constructor(IPauserRegistry _pauserRegistry) Pausable(_pauserRegistry) {
         _setPausedStatus(0);
+    }
+
+    function hasPod(address podOwner) external view returns (bool) {
+        return address(pods[podOwner]) != address(0);
+    }
+
+    function getPod(address podOwner) external view returns (IEigenPod) {
+        return pods[podOwner];
+    }
+
+    // Mock function to create a new pod for testing
+    function createPod(address podOwner) external returns (EigenPodMock) {
+        EigenPodMock newPod = new EigenPodMock();
+        newPod.initialize(podOwner);
+        pods[podOwner] = newPod;
+        return newPod;
+    }
+
+    // Mock function to set validator status for a pod
+    function setValidatorStatus(address podOwner, bytes32 pubkeyHash, IEigenPodTypes.VALIDATOR_STATUS status) external {
+        require(address(pods[podOwner]) != address(0), "Pod does not exist");
+        pods[podOwner].setValidatorStatus(pubkeyHash, status);
+    }
+
+    function setValidator(address podOwner, bytes32 pubkeyHash, IEigenPodTypes.ValidatorInfo calldata validator) external {
+        require(address(pods[podOwner]) != address(0), "Pod does not exist");
+        pods[podOwner].setValidator(pubkeyHash, validator);
     }
 
     function podOwnerShares(address podOwner) external view returns (int256) {

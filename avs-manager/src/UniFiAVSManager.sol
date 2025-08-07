@@ -68,11 +68,18 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         if ($.currentOperatorSetId == 0) {
             return false;
         }
+        if ($.operators[operator].deregisteredBlockNumber != 0) {
+            return false;
+        }
         return ALLOCATION_MANAGER.isMemberOfOperatorSet(
             operator, OperatorSet({ avs: address(this), id: $.currentOperatorSetId })
         );
     }
 
+    /**
+     * @dev Internal function to check if a validator is registered
+     * @param validatorPubkey The BLS public key of the validator
+     */
     function _isValidatorRegistered(bytes memory validatorPubkey) internal view returns (bool) {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
         return $.validators[validatorPubkey].index != 0 && block.number < $.validators[validatorPubkey].registeredUntil
@@ -119,14 +126,14 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         // This is a no-op for the initial version of the contract
     }
 
-    function initializeV2(address accessManager, uint64 commitmentDelay) public reinitializer(2) {
+    function initializeV2(address accessManager, uint64 initialCommitmentDelay) public reinitializer(2) {
         __AccessManaged_init(accessManager);
         __Context_init();
         __UUPSUpgradeable_init();
 
         // Initialize BEACON_CHAIN_STRATEGY as an allowed restaking strategy
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
-        $.commitmentDelay = commitmentDelay;
+        $.commitmentDelay = initialCommitmentDelay;
     }
 
     // EXTERNAL FUNCTIONS
@@ -170,8 +177,12 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         if (avs != address(this)) {
             revert InvalidAVSAddress();
         }
-
+        
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
+        
+        if (operatorSetIds.length != 1 || operatorSetIds[0] != $.currentOperatorSetId) {
+            revert InvalidOperatorSetsProvided();
+        }
 
         OperatorData storage operatorData = $.operators[operator];
         operatorData.deregisteredBlockNumber = uint64(block.number);
@@ -230,13 +241,13 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
             });
 
             // Also track the mapping from index -> BLS key
-            $.validatorIndexes[validatorInfo.validatorIndex] = validatorPubkeys[i];
+            $.validatorIndexes[validatorInfo.validatorIndex] = validatorPubkey;
 
             emit ValidatorRegistered({
                 podOwner: podOwner,
                 operator: msg.sender,
                 delegateKey: delegateKey,
-                validatorPubkey: validatorPubkeys[i],
+                validatorPubkey: validatorPubkey,
                 validatorIndex: validatorInfo.validatorIndex
             });
         }
@@ -255,7 +266,8 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         uint256 validatorCount = validatorPubkeys.length;
 
         for (uint256 i = 0; i < validatorCount; i++) {
-            ValidatorData storage validator = $.validators[validatorPubkeys[i]];
+            bytes memory validatorPubkey = validatorPubkeys[i];
+            ValidatorData storage validator = $.validators[validatorPubkey];
 
             address operator = validator.operator;
 
@@ -263,14 +275,14 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
                 revert NotValidatorOperator();
             }
 
-            if (_isValidatorRegistered(validatorPubkeys[i])) {
-                revert ValidatorAlreadyDeregistered();
+            if (!_isValidatorRegistered(validatorPubkey)) {
+                revert ValidatorNotRegistered();
             }
 
             // Mark the validator as deregistered
             validator.registeredUntil = uint64(block.number);
 
-            emit ValidatorDeregistered({ operator: operator, validatorPubkey: validatorPubkeys[i] });
+            emit ValidatorDeregistered({ operator: operator, validatorPubkey: validatorPubkey });
         }
 
         $.operators[msg.sender].validatorCount -= uint128(validatorCount);
@@ -316,6 +328,10 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
      * @dev Restricted to the DAO
      */
     function createOperatorSet(uint32 operatorSetId, IStrategy[] calldata strategies) external restricted {
+        if (operatorSetId == 0) {
+            revert InvalidOperatorSetId();
+        }
+
         IStrategy[] memory istrategies = new IStrategy[](strategies.length);
         for (uint256 i = 0; i < strategies.length; i++) {
             istrategies[i] = IStrategy(strategies[i]);
@@ -413,7 +429,10 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
 
     function setCommitmentDelay(uint64 commitmentDelay) external restricted {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
+        uint64 oldDelay = $.commitmentDelay;
         $.commitmentDelay = commitmentDelay;
+
+        emit CommitmentDelaySet(oldDelay, commitmentDelay);
     }
 
     // GETTERS

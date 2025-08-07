@@ -7,13 +7,27 @@ import { DeployEverything } from "../../script/DeployEverything.s.sol";
 import { AVSDeployment } from "../../script/DeploymentStructs.sol";
 import { UniFiAVSManager } from "../../src/UniFiAVSManager.sol";
 import { EigenPodManagerMock } from "../mocks/EigenPodManagerMock.sol";
-import { MockDelegationManager } from "../mocks/MockDelegationManager.sol";
+import { DelegationManagerMock } from "../mocks/DelegationManagerMock.sol";
 import { MockAllocationManager } from "../mocks/MockAllocationManager.sol";
 import { MockStrategyManager } from "../mocks/MockStrategyManager.sol";
 import { MockRewardsCoordinator } from "../mocks/MockRewardsCoordinator.sol";
 import { MockERC20 } from "../mocks/MockERC20.sol";
-import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
+
 import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
+import { IAVSRegistrar } from "eigenlayer/interfaces/IAVSRegistrar.sol";
+import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
+import { IPauserRegistry } from "eigenlayer/interfaces/IPauserRegistry.sol";
+
+// Simple mock pauser registry for testing
+contract MockPauserRegistry {
+    function pauser() external pure returns (address) {
+        return address(0);
+    }
+    
+    function unpauser() external pure returns (address) {
+        return address(0);
+    }
+}
 
 contract UnitTestHelper is Test, BaseScript {
     address public constant ADDRESS_ZERO = address(0);
@@ -23,12 +37,11 @@ contract UnitTestHelper is Test, BaseScript {
     // Addresses that are supposed to be skipped when fuzzing
     mapping(address fuzzedAddress => bool isFuzzed) internal fuzzedAddressMapping;
 
-    AccessManager public accessManager;
     address public timelock;
 
     UniFiAVSManager public avsManager;
     EigenPodManagerMock public mockEigenPodManager;
-    MockDelegationManager public mockDelegationManager;
+    DelegationManagerMock public mockDelegationManager;
     MockAllocationManager public mockAllocationManager;
     MockStrategyManager public mockStrategyManager;
     MockRewardsCoordinator public mockRewardsCoordinator;
@@ -67,36 +80,56 @@ contract UnitTestHelper is Test, BaseScript {
         fuzzedAddressMapping[ADDRESS_CHEATS] = true;
         fuzzedAddressMapping[ADDRESS_ZERO] = true;
         fuzzedAddressMapping[ADDRESS_ONE] = true;
-        fuzzedAddressMapping[address(accessManager)] = true;
+        // fuzzedAddressMapping[address(accessManager)] = true; // Removed AccessManager
         fuzzedAddressMapping[address(avsManager)] = true;
     }
 
     function _deployContracts() public {
         // Deploy everything with one script
-        mockEigenPodManager = new EigenPodManagerMock();
-        mockDelegationManager = new MockDelegationManager();
+        // Create a simple mock pauser registry
+        address mockPauserRegistry = address(new MockPauserRegistry());
+        mockEigenPodManager = new EigenPodManagerMock(IPauserRegistry(mockPauserRegistry));
+        mockDelegationManager = new DelegationManagerMock();
         mockAllocationManager = new MockAllocationManager();
         mockStrategyManager = new MockStrategyManager();
         mockRewardsCoordinator = new MockRewardsCoordinator(IStrategyManager(address(mockStrategyManager)));
 
         // Set up the AVS registrar in the AllocationManager
-        mockAllocationManager.setAVSRegistrar(address(0), address(0)); // Will be set to the AVS contract later
+        mockAllocationManager.setAVSRegistrar(address(0), IAVSRegistrar(address(0))); // Will be set to the AVS contract later
 
         AVSDeployment memory avsDeployment = new DeployEverything().run({
             eigenPodManager: address(mockEigenPodManager),
             eigenDelegationManager: address(mockDelegationManager),
             allocationManager: address(mockAllocationManager),
             rewardsCoordinator: address(mockRewardsCoordinator),
-            initialDeregistrationDelay: DEREGISTRATION_DELAY
+            initialCommitmentDelay: DEREGISTRATION_DELAY
         });
 
         mockERC20 = new MockERC20("MockERC20", "MKR", 1000);
 
-        // accessManager = AccessManager(avsDeployment.accessManager);
+        // AccessManager removed for testing
         timelock = avsDeployment.timelock;
         avsManager = UniFiAVSManager(avsDeployment.avsManagerProxy);
 
         // Set the AVS as its own registrar in the AllocationManager
-        mockAllocationManager.setAVSRegistrar(address(avsManager), address(avsManager));
+        mockAllocationManager.setAVSRegistrar(address(avsManager), IAVSRegistrar(address(avsManager)));
+        
+        // Set up default operator set (id: 1) as existing
+        mockAllocationManager.setOperatorSetExists(address(avsManager), 1, true);
+        
+        // Register AVS metadata first (required by mock)
+        vm.prank(DAO);
+        avsManager.updateAVSMetadataURI("https://example.com/metadata");
+        
+        // Create and set the current operator set ID to 1
+        vm.startPrank(DAO);
+        IStrategy[] memory strategies = new IStrategy[](1);
+        strategies[0] = IStrategy(avsManager.BEACON_CHAIN_STRATEGY());
+        avsManager.createOperatorSet(1, strategies);
+        avsManager.setCurrentOperatorSetId(1);
+        
+        // Add BEACON_CHAIN_STRATEGY to allowlist
+        avsManager.setAllowlistRestakingStrategy(avsManager.BEACON_CHAIN_STRATEGY(), true);
+        vm.stopPrank();
     }
 }

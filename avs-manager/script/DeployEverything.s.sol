@@ -23,7 +23,7 @@ contract DeployEverything is BaseScript {
         address eigenDelegationManager,
         address allocationManager,
         address rewardsCoordinator,
-        uint64 initialDeregistrationDelay
+        uint64 initialCommitmentDelay
     ) public returns (AVSDeployment memory) {
         AVSDeployment memory deployment;
 
@@ -38,7 +38,7 @@ contract DeployEverything is BaseScript {
             eigenDelegationManager: eigenDelegationManager,
             allocationManager: allocationManager,
             rewardsCoordinator: rewardsCoordinator,
-            initialDeregistrationDelay: initialDeregistrationDelay
+            initialCommitmentDelay: initialCommitmentDelay
         });
 
         deployment.avsManagerImplementation = avsManagerImplementation;

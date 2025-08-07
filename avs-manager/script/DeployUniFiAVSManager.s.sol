@@ -18,7 +18,7 @@ contract DeployUniFiAVSManager is BaseScript {
         address eigenDelegationManager,
         address allocationManager,
         address rewardsCoordinator,
-        uint64 initialDeregistrationDelay
+        uint64 initialCommitmentDelay
     ) public returns (address, address) {
         vm.startBroadcast(_deployerPrivateKey);
         UniFiAVSManager uniFiAVSManagerImplementation = new UniFiAVSManager(
@@ -32,7 +32,7 @@ contract DeployUniFiAVSManager is BaseScript {
             address(
                 new ERC1967Proxy{ salt: bytes32("UniFiAVSManager") }(
                     address(uniFiAVSManagerImplementation),
-                    abi.encodeCall(UniFiAVSManager.initialize, (accessManager, initialDeregistrationDelay))
+                    abi.encodeCall(UniFiAVSManager.initializeV2, (accessManager, initialCommitmentDelay))
                 )
             )
         );

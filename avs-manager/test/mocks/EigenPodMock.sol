@@ -6,6 +6,29 @@ import "eigenlayer/interfaces/IEigenPod.sol";
 import "eigenlayer/mixins/SemVerMixin.sol";
 
 contract EigenPodMock is IEigenPod, SemVerMixin, Test {
+
+    mapping(bytes32 validatorPubkeyHash => ValidatorInfo validatorInfo) public validators;
+    mapping(bytes32 validatorPubkeyHash => mapping(uint64 slot => bool proven)) public provenWithdrawals;
+    address public owner;
+
+    function setValidator(bytes32 pubkeyHash, ValidatorInfo calldata validator) external {
+        validators[pubkeyHash].validatorIndex = validator.validatorIndex;
+        validators[pubkeyHash].restakedBalanceGwei = validator.restakedBalanceGwei;
+        validators[pubkeyHash].lastCheckpointedAt = validator.lastCheckpointedAt;
+        validators[pubkeyHash].status = validator.status;
+    }
+
+    function setValidatorStatus(bytes32 pubkeyHash, VALIDATOR_STATUS status) external {
+        validators[pubkeyHash].validatorIndex = validators[pubkeyHash].validatorIndex == 0
+            ? uint64(uint256(pubkeyHash))
+            : validators[pubkeyHash].validatorIndex;
+        validators[pubkeyHash].status = status;
+    }
+
+    function validatorStatus(bytes32 pubkeyHash) external view returns (VALIDATOR_STATUS) {
+        return validators[pubkeyHash].status;
+    }
+
     constructor() SemVerMixin("v9.9.9") { }
 
     function nonBeaconChainETHBalanceWei() external view returns (uint256) { }
@@ -14,7 +37,9 @@ contract EigenPodMock is IEigenPod, SemVerMixin, Test {
     function withdrawableRestakedExecutionLayerGwei() external view returns (uint64) { }
 
     /// @notice Used to initialize the pointers to contracts crucial to the pod's functionality, in beacon proxy construction from EigenPodManager
-    function initialize(address owner) external { }
+    function initialize(address _owner) external {
+        owner = _owner;
+    }
 
     /// @notice Called by EigenPodManager when the owner wants to create another ETH validator.
     function stake(bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external payable { }
@@ -31,7 +56,9 @@ contract EigenPodMock is IEigenPod, SemVerMixin, Test {
     function eigenPodManager() external view returns (IEigenPodManager) { }
 
     /// @notice The owner of this EigenPod
-    function podOwner() external view returns (address) { }
+    function podOwner() external view returns (address) {
+        return owner;
+    }
 
     /// @notice an indicator of whether or not the podOwner has ever "fully restaked" by successfully calling `verifyCorrectWithdrawalCredentials`.
     function hasRestaked() external view returns (bool) { }
@@ -41,9 +68,6 @@ contract EigenPodMock is IEigenPod, SemVerMixin, Test {
 
     /// @notice Returns the validatorInfo struct for the provided pubkeyHash
     function validatorPubkeyHashToInfo(bytes32 validatorPubkeyHash) external view returns (ValidatorInfo memory) { }
-
-    /// @notice This returns the status of a given validator
-    function validatorStatus(bytes32 pubkeyHash) external view returns (VALIDATOR_STATUS) { }
 
     /// @notice Number of validators with proven withdrawal credentials, who do not have proven full withdrawals
     function activeValidatorCount() external view returns (uint256) { }
@@ -97,7 +121,10 @@ contract EigenPodMock is IEigenPod, SemVerMixin, Test {
     function proofSubmitter() external view returns (address) { }
 
     function validatorStatus(bytes calldata pubkey) external view returns (VALIDATOR_STATUS) { }
-    function validatorPubkeyToInfo(bytes calldata validatorPubkey) external view returns (ValidatorInfo memory) { }
+    function validatorPubkeyToInfo(bytes calldata validatorPubkey) external view returns (ValidatorInfo memory) {
+        bytes32 pubkeyHash = sha256(abi.encodePacked(validatorPubkey, bytes16(0)));
+        return validators[pubkeyHash];
+    }
 
     /// @notice Query the 4788 oracle to get the parent block root of the slot with the given `timestamp`
     /// @param timestamp of the block for which the parent block root will be returned. MUST correspond

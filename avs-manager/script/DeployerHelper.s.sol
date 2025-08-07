@@ -15,6 +15,7 @@ abstract contract DeployerHelper is BaseScript {
     // Chain IDs
     uint256 public mainnet = 1;
     uint256 public holesky = 17000;
+    uint256 public hoodi = 560048;
     uint256 public binance = 56;
     uint256 public base = 8453;
     uint256 public sepolia = 11155111;
@@ -176,6 +177,9 @@ abstract contract DeployerHelper is BaseScript {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0xAcc1fb458a1317E886dB376Fc8141540537E68fE
             return 0xAcc1fb458a1317E886dB376Fc8141540537E68fE;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0x29e8572678e0c272350aa0b4B8f304E47EBcd5e7
+            return 0x29e8572678e0c272350aa0b4B8f304E47EBcd5e7;
         }
 
         revert("RewardsCoordinator not available for this chain");
@@ -337,9 +341,25 @@ abstract contract DeployerHelper is BaseScript {
         } else if (block.chainid == helder) {
             // https://holesky.etherscan.io/address/0x5d0F57C63Bd70843dc600A6da78fEcC7c390Cb34
             return 0x5d0F57C63Bd70843dc600A6da78fEcC7c390Cb34;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0xD58f6844f79eB1fbd9f7091d05f7cb30d3363926
+            return 0xD58f6844f79eB1fbd9f7091d05f7cb30d3363926;
         }
 
         revert("AVSDirectory not available for this chain");
+    }
+
+    function _getAllocationManager() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0x948a420b8CC1d6BFd0B6087C2E7c344a2CD0bc39
+            return 0x948a420b8CC1d6BFd0B6087C2E7c344a2CD0bc39;
+        }
+        else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0x95a7431400F362F3647a69535C5666cA0133CAA0
+            return 0x95a7431400F362F3647a69535C5666cA0133CAA0;
+        }
+
+        revert("AllocationManager not available for this chain");
     }
 
     function _getPufferVault() internal view returns (address) {

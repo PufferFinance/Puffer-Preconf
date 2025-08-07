@@ -136,8 +136,8 @@ interface IUniFiAVSManager is IAVSRegistrar {
     /// @notice Thrown when an operator's delegate key is not set
     error DelegateKeyNotSet();
 
-    /// @notice Thrown when attempting to deregister a validator that is already deregistered
-    error ValidatorAlreadyDeregistered();
+    /// @notice Thrown when attempting to deregister a validator that is not registered
+    error ValidatorNotRegistered();
 
     /// @notice Thrown when a restaking strategy allowlist update fails
     error RestakingStrategyAllowlistUpdateFailed();
@@ -255,11 +255,11 @@ interface IUniFiAVSManager is IAVSRegistrar {
     );
 
     /**
-     * @notice Emitted when the deregistration delay is updated.
-     * @param oldDelay The previous deregistration delay value.
-     * @param newDelay The new deregistration delay value.
+     * @notice Emitted when the commitment delay is updated.
+     * @param oldDelay The previous commitment delay value.
+     * @param newDelay The new commitment delay value.
      */
-    event DeregistrationDelaySet(uint64 oldDelay, uint64 newDelay);
+    event CommitmentDelaySet(uint64 oldDelay, uint64 newDelay);
 
     /**
      * @notice Emitted when a restaking strategy is added or removed from the allowlist.

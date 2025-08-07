@@ -7,7 +7,7 @@ import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessMana
 import { UniFiAVSManager } from "../src/UniFiAVSManager.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
-import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
+import { IAllocationManager } from "eigenlayer/interfaces/IAllocationManager.sol";
 import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.sol";
 import { ROLE_ID_OPERATIONS_MULTISIG, ROLE_ID_DAO } from "./Roles.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -18,14 +18,14 @@ contract UpgradeMainnetUniFiAVS is BaseScript, DeployerHelper {
         // Set addresses for EigenLayer contracts
         address eigenPodManager = _getEigenPodManager();
         address eigenDelegationManager = _getEigenDelegationManager();
-        address avsDirectory = _getAVSDirectory();
+        address allocationManager = _getAllocationManager();
         address uniFiAVSManagerProxy = _getUnifyAVSManagerProxy();
         address rewardsCoordinator = _getRewardsCoordinator();
 
         UniFiAVSManager uniFiAVSManagerImplementation = new UniFiAVSManager(
             IEigenPodManager(eigenPodManager),
             IDelegationManager(eigenDelegationManager),
-            IAVSDirectory(avsDirectory),
+            IAllocationManager(allocationManager),
             IRewardsCoordinator(rewardsCoordinator)
         );
 
@@ -43,11 +43,16 @@ contract UpgradeMainnetUniFiAVS is BaseScript, DeployerHelper {
 
         console.log("Access control calldata:");
 
-        bytes memory calldatas;
-        bytes4[] memory daoSelectors = new bytes4[](1);
+        bytes[] memory calldatas = new bytes[](2);
+        bytes4[] memory daoSelectors = new bytes4[](6);
         daoSelectors[0] = UniFiAVSManager.setAllowlistRestakingStrategy.selector;
+        daoSelectors[1] = UniFiAVSManager.setCommitmentDelay.selector;
+        daoSelectors[2] = UniFiAVSManager.createOperatorSet.selector;
+        daoSelectors[3] = UniFiAVSManager.setCurrentOperatorSetId.selector;
+        daoSelectors[4] = UniFiAVSManager.addStrategiesToOperatorSet.selector;
+        daoSelectors[5] = UniFiAVSManager.removeStrategiesFromOperatorSet.selector;
 
-        calldatas = abi.encodeWithSelector(
+        calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector, address(uniFiAVSManagerProxy), daoSelectors, ROLE_ID_DAO
         );
 
@@ -55,13 +60,17 @@ contract UpgradeMainnetUniFiAVS is BaseScript, DeployerHelper {
         operationsMultisigSelectors[0] = UniFiAVSManager.submitOperatorRewards.selector;
         operationsMultisigSelectors[1] = UniFiAVSManager.setClaimerFor.selector;
 
-        calldatas = abi.encodeWithSelector(
+        calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
             address(uniFiAVSManagerProxy),
             operationsMultisigSelectors,
             ROLE_ID_OPERATIONS_MULTISIG
         );
 
-        console.logBytes(calldatas);
+        for (uint256 i = 0; i < calldatas.length; i++) {
+            console.log("Calldata:");
+            console.logBytes(calldatas[i]);
+            console.log("----------------------------------------");
+        }
     }
 }
