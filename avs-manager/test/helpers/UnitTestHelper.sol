@@ -17,6 +17,7 @@ import { IStrategyManager } from "eigenlayer/interfaces/IStrategyManager.sol";
 import { IAVSRegistrar } from "eigenlayer/interfaces/IAVSRegistrar.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IPauserRegistry } from "eigenlayer/interfaces/IPauserRegistry.sol";
+import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
 
 // Simple mock pauser registry for testing
 contract MockPauserRegistry {
@@ -37,6 +38,7 @@ contract UnitTestHelper is Test, BaseScript {
     // Addresses that are supposed to be skipped when fuzzing
     mapping(address fuzzedAddress => bool isFuzzed) internal fuzzedAddressMapping;
 
+    AccessManager public accessManager;
     address public timelock;
 
     UniFiAVSManager public avsManager;
@@ -80,7 +82,7 @@ contract UnitTestHelper is Test, BaseScript {
         fuzzedAddressMapping[ADDRESS_CHEATS] = true;
         fuzzedAddressMapping[ADDRESS_ZERO] = true;
         fuzzedAddressMapping[ADDRESS_ONE] = true;
-        // fuzzedAddressMapping[address(accessManager)] = true; // Removed AccessManager
+        fuzzedAddressMapping[address(accessManager)] = true;
         fuzzedAddressMapping[address(avsManager)] = true;
     }
 
@@ -107,7 +109,7 @@ contract UnitTestHelper is Test, BaseScript {
 
         mockERC20 = new MockERC20("MockERC20", "MKR", 1000);
 
-        // AccessManager removed for testing
+        // accessManager = AccessManager(avsDeployment.accessManager);
         timelock = avsDeployment.timelock;
         avsManager = UniFiAVSManager(avsDeployment.avsManagerProxy);
 

@@ -141,6 +141,9 @@ abstract contract DeployerHelper is BaseScript {
         } else if (block.chainid == helder) {
             // https://holesky.etherscan.io/address/0x27065dA1e634119b5f50167A650B7109B8965350
             return 0x27065dA1e634119b5f50167A650B7109B8965350;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0xcd1442415Fc5C29Aa848A49d2e232720BE07976c
+            return 0xcd1442415Fc5C29Aa848A49d2e232720BE07976c;
         }
 
         revert("EigenPodManager not available for this chain");
@@ -251,6 +254,9 @@ abstract contract DeployerHelper is BaseScript {
         } else if (block.chainid == helder) {
             // https://holesky.etherscan.io/address/0x239eD3B6B4bd3a1cCaDB79d2A8c4862BB2324D89
             return 0x239eD3B6B4bd3a1cCaDB79d2A8c4862BB2324D89;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/	0x867837a9722C512e0862d8c2E15b8bE220E8b87d
+            return 	0x867837a9722C512e0862d8c2E15b8bE220E8b87d;
         }
 
         revert("eigen delegation manager not available for this chain");
@@ -385,6 +391,9 @@ abstract contract DeployerHelper is BaseScript {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0x20377c306451140119C9967Ba6D0158a05b4eD07
             return 0x20377c306451140119C9967Ba6D0158a05b4eD07;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0xD591b120c63916B1d195d54d863cff5d6632219e
+            return 0xD591b120c63916B1d195d54d863cff5d6632219e;
         }
 
         revert("PufferModuleManager not available for this chain");
@@ -486,6 +495,9 @@ abstract contract DeployerHelper is BaseScript {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0
             return 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
+        } else if (block.chainid == hoodi) {
+            // TODO: Add Hoodi OPS Multisig
+            return 0xb20332fb753496be0C64a3e9B71812101DC42774;
         }
 
         revert("OPSMultisig not available for this chain");

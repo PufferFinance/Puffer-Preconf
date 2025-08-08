@@ -131,7 +131,6 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         __Context_init();
         __UUPSUpgradeable_init();
 
-        // Initialize BEACON_CHAIN_STRATEGY as an allowed restaking strategy
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
         $.commitmentDelay = initialCommitmentDelay;
     }
@@ -163,6 +162,7 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         if (data.length > 0) {
             initialCommitment = abi.decode(data, (OperatorCommitment));
             $.operators[operator].commitment = initialCommitment;
+            $.operators[operator].commitmentValidAfter = 0;
             emit OperatorRegisteredWithCommitment(operator, operatorSetIds, initialCommitment);
         } else {
             emit OperatorRegistered(operator, operatorSetIds);
@@ -189,6 +189,7 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         delete operatorData.commitment;
         delete operatorData.pendingCommitment;
         delete operatorData.validatorCount;
+        delete operatorData.commitmentValidAfter;
 
         emit OperatorDeregistered(operator, operatorSetIds);
     }
