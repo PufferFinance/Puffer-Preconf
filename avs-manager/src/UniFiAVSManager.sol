@@ -5,7 +5,6 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import { ISignatureUtilsMixin } from "eigenlayer/interfaces/ISignatureUtilsMixin.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
 import { IAllocationManager, IAllocationManagerTypes } from "eigenlayer/interfaces/IAllocationManager.sol";
 import { IAVSRegistrar } from "eigenlayer/interfaces/IAVSRegistrar.sol";
@@ -19,10 +18,22 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { OperatorSet } from "eigenlayer/libraries/OperatorSetLib.sol";
 
+/**
+ * @title UniFiAVSManager
+ * @notice The main contract for managing operators and validators in the UniFi AVS (Actively Validated Service)
+ * @dev This contract implements the IAVSRegistrar interface and manages operator/validator registration,
+ *      commitments, rewards distribution, and operator set management. It integrates with EigenLayer
+ *      for delegation and staking functionality.
+ * @author Puffer Finance
+ */
 contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgradeable, AccessManagedUpgradeable {
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
+    /**
+     * @notice The address of the beacon chain strategy contract
+     * @dev This is a constant address used to identify beacon chain strategies in EigenLayer
+     */
     address public constant BEACON_CHAIN_STRATEGY = 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
 
     /**
@@ -77,16 +88,6 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
     }
 
     /**
-     * @dev Internal function to check if a validator is registered
-     * @param validatorPubkey The BLS public key of the validator
-     */
-    function _isValidatorRegistered(bytes memory validatorPubkey) internal view returns (bool) {
-        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
-        return $.validators[validatorPubkey].index != 0 && block.number < $.validators[validatorPubkey].registeredUntil
-            && _isOperatorRegistered($.validators[validatorPubkey].operator);
-    }
-
-    /**
      * @dev Modifier to check if the operator is registered in the AVS
      * @param operator The address of the operator
      */
@@ -97,6 +98,14 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         _;
     }
 
+    /**
+     * @notice Constructor for UniFiAVSManager
+     * @param eigenPodManagerAddress The address of the EigenLayer PodManager contract
+     * @param eigenDelegationManagerAddress The address of the EigenLayer DelegationManager contract
+     * @param allocationManagerAddress The address of the EigenLayer AllocationManager contract
+     * @param rewardsCoordinatorAddress The address of the EigenLayer RewardsCoordinator contract
+     * @dev Sets immutable contract addresses and disables initializers for the implementation contract
+     */
     constructor(
         IEigenPodManager eigenPodManagerAddress,
         IDelegationManager eigenDelegationManagerAddress,
@@ -122,10 +131,21 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         _disableInitializers();
     }
 
+    /**
+     * @notice Initializer function for the first version of the contract
+     * @dev This is a no-op for the initial version of the contract. Parameters are ignored.
+     *      This function exists to maintain upgrade compatibility.
+     */
     function initialize(address, uint64) public initializer {
         // This is a no-op for the initial version of the contract
     }
 
+    /**
+     * @notice Initializer function for version 2 of the contract
+     * @param accessManager The address of the access manager contract for role-based access control
+     * @param initialCommitmentDelay The initial delay in blocks for operator commitment changes
+     * @dev Sets up access control, context, UUPS upgradeability, and initial commitment delay
+     */
     function initializeV2(address accessManager, uint64 initialCommitmentDelay) public reinitializer(2) {
         __AccessManaged_init(accessManager);
         __Context_init();
@@ -135,7 +155,7 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         $.commitmentDelay = initialCommitmentDelay;
     }
 
-    // EXTERNAL FUNCTIONS
+    // ============ EXTERNAL FUNCTIONS ============
 
     /// @inheritdoc IAVSRegistrar
     function registerOperator(address operator, address avs, uint32[] calldata operatorSetIds, bytes calldata data)
@@ -229,7 +249,7 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
                 revert ValidatorNotActive();
             }
 
-            if (_isValidatorRegistered(validatorPubkey)) {
+            if ($.validators[validatorPubkey].operator == msg.sender && _isValidatorRegistered(validatorPubkey)) {
                 revert ValidatorAlreadyRegistered();
             }
 
@@ -424,10 +444,20 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         emit OperatorRewardsSubmitted();
     }
 
+    /**
+     * @notice Sets the claimer address for rewards in the EigenLayer RewardsCoordinator
+     * @param claimer The address that will be able to claim rewards for this AVS
+     * @dev This function is restricted to authorized users and delegates to the EigenLayer RewardsCoordinator
+     */
     function setClaimerFor(address claimer) external restricted {
         EIGEN_REWARDS_COORDINATOR.setClaimerFor(claimer);
     }
 
+    /**
+     * @notice Sets the commitment delay for operator commitment changes
+     * @param commitmentDelay The new delay in blocks that operators must wait before commitment changes become active
+     * @dev This function is restricted to authorized users and emits a CommitmentDelaySet event
+     */
     function setCommitmentDelay(uint64 commitmentDelay) external restricted {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
         uint64 oldDelay = $.commitmentDelay;
@@ -436,13 +466,21 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         emit CommitmentDelaySet(oldDelay, commitmentDelay);
     }
 
-    // GETTERS
+    // ============ GETTER FUNCTIONS ============
 
+    /**
+     * @notice Gets the current active operator set ID
+     * @return The current operator set ID that new operators will register to
+     */
     function getCurrentOperatorSetId() external view returns (uint32) {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
         return $.currentOperatorSetId;
     }
 
+    /**
+     * @notice Gets the current commitment delay in blocks
+     * @return The number of blocks an operator must wait before a commitment change becomes active
+     */
     function getCommitmentDelay() external view returns (uint64) {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
         return $.commitmentDelay;
@@ -484,8 +522,11 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
     }
 
     /**
-     * @notice Checks if a given validator is committed to a particular chain ID,
-     * by looking up its operator's active chain commitments.
+     * @notice Checks if a given validator is committed to a particular chain ID
+     * @param validatorPubkey The BLS public key of the validator
+     * @param chainId The chain ID to check commitment for
+     * @return True if the validator's operator is committed to the specified chain ID, false otherwise
+     * @dev Looks up the validator's operator and checks their active chain commitments
      */
     function isValidatorInChainId(bytes calldata validatorPubkey, uint256 chainId) external view returns (bool) {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
@@ -552,8 +593,14 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         return $.allowlistedRestakingStrategies.values();
     }
 
-    // INTERNAL FUNCTIONS
+    // ============ INTERNAL FUNCTIONS ============
 
+    /**
+     * @notice Internal function to get extended operator data
+     * @param operator The address of the operator
+     * @return OperatorDataExtended struct containing comprehensive operator information
+     * @dev Combines stored operator data with computed fields like registration status
+     */
     function _getOperator(address operator) internal view returns (OperatorDataExtended memory) {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
         OperatorData storage operatorData = $.operators[operator];
@@ -569,6 +616,12 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         });
     }
 
+    /**
+     * @notice Internal function to get extended validator data
+     * @param validatorPubkey The BLS public key of the validator
+     * @return validator ValidatorDataExtended struct containing comprehensive validator information
+     * @dev Combines stored validator data with EigenPod information and operator commitments
+     */
     function _getValidator(bytes memory validatorPubkey)
         internal
         view
@@ -600,6 +653,22 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         }
     }
 
+    /**
+     * @dev Internal function to check if a validator is registered
+     * @param validatorPubkey The BLS public key of the validator
+     */
+    function _isValidatorRegistered(bytes memory validatorPubkey) internal view returns (bool) {
+        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
+        return $.validators[validatorPubkey].index != 0 && block.number < $.validators[validatorPubkey].registeredUntil
+            && _isOperatorRegistered($.validators[validatorPubkey].operator);
+    }
+
+    /**
+     * @notice Internal function to get the active commitment for an operator
+     * @param operatorData The stored operator data
+     * @return The active operator commitment (either current or pending if delay has passed)
+     * @dev If the commitment delay has passed, returns the pending commitment; otherwise returns current commitment
+     */
     function _getActiveCommitment(OperatorData storage operatorData)
         internal
         view
@@ -611,5 +680,10 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         return operatorData.commitment;
     }
 
+    /**
+     * @notice Internal function to authorize contract upgrades
+     * @param newImplementation The address of the new implementation contract
+     * @dev This function is restricted to authorized users and is required by UUPSUpgradeable
+     */
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
 }
