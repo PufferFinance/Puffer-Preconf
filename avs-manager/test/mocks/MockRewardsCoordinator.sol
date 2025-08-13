@@ -65,13 +65,6 @@ contract MockRewardsCoordinator {
             isOperatorDirectedAVSRewardsSubmissionHash[avs][operatorDirectedRewardsSubmissionHash] = true;
             submissionNonce[avs] = nonce + 1;
 
-            emit IRewardsCoordinator.OperatorDirectedAVSRewardsSubmissionCreated({
-                caller: msg.sender,
-                avs: avs,
-                operatorDirectedRewardsSubmissionHash: operatorDirectedRewardsSubmissionHash,
-                submissionNonce: nonce,
-                operatorDirectedRewardsSubmission: operatorDirectedRewardsSubmission
-            });
             operatorDirectedRewardsSubmission.token.safeTransferFrom(msg.sender, address(this), totalAmount);
         }
     }

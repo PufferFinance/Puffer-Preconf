@@ -6,11 +6,6 @@
     "name": "Puffer Finance UniFi",
     "url": "https://puffer.fi"
   },
-  "dependencies": {
-    "@openzeppelin/contracts": "5.0.1",
-    "@openzeppelin/contracts-upgradeable": "5.0.1",
-    "eigenlayer-contracts": "https://github.com/Layr-Labs/eigenlayer-contracts.git#ecaff63"
-  },
   "devDependencies": {
     "@crytic/properties": "https://github.com/crytic/properties#f1ff61b",
     "@prb/test": "0.6.4",
@@ -39,5 +34,9 @@
     "coverage-lcov": "forge coverage --force --no-match-coverage \"(script|test|mock|node_modules|integrations|echidna)\" --report lcov",
     "coverage": "forge coverage --force --no-match-coverage \"(script|test|mock|node_modules|integrations|echidna)\"",
     "slither": "slither ."
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.4.0",
+    "@openzeppelin/contracts-upgradeable": "^5.4.0"
   }
 }

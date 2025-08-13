@@ -14,19 +14,19 @@ contract DeployUniFiToMainnet is BaseScript, DeployerHelper {
         // Set addresses for EigenLayer contracts
         address eigenPodManager = _getEigenPodManager();
         address eigenDelegationManager = _getEigenDelegationManager();
-        address avsDirectory = _getAVSDirectory();
+        address allocationManager = _getAllocationManager();
         address opsWallet = _getOPSMultisig();
         address rewardsCoordinator = _getRewardsCoordinator();
-        uint64 initialDeregistrationDelay = 0;
+        uint64 initialCommitmentDelay = 0;
 
         // Deploy everything else
         DeployEverything deployEverything = new DeployEverything();
         deployment = deployEverything.run({
             eigenPodManager: eigenPodManager,
             eigenDelegationManager: eigenDelegationManager,
-            avsDirectory: avsDirectory,
+            allocationManager: allocationManager,
             rewardsCoordinator: rewardsCoordinator,
-            initialDeregistrationDelay: initialDeregistrationDelay
+            initialCommitmentDelay: initialCommitmentDelay
         });
 
         vm.startBroadcast(_deployerPrivateKey);
@@ -45,6 +45,6 @@ contract DeployUniFiToMainnet is BaseScript, DeployerHelper {
 
         console.log("EigenPodManager address:", eigenPodManager);
         console.log("EigenDelegationManager address:", eigenDelegationManager);
-        console.log("AVSDirectory address:", avsDirectory);
+        console.log("AllocationManager address:", allocationManager);
     }
 }

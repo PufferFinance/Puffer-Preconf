@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { AccessManager } from "@openzeppelin/contracts/access/manager/AccessManager.sol";
-import { UUPSUpgradeable } from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { BaseScript } from "./BaseScript.s.sol";
 import { console } from "forge-std/console.sol";
 
@@ -15,6 +15,7 @@ abstract contract DeployerHelper is BaseScript {
     // Chain IDs
     uint256 public mainnet = 1;
     uint256 public holesky = 17000;
+    uint256 public hoodi = 560048;
     uint256 public binance = 56;
     uint256 public base = 8453;
     uint256 public sepolia = 11155111;
@@ -140,6 +141,9 @@ abstract contract DeployerHelper is BaseScript {
         } else if (block.chainid == helder) {
             // https://holesky.etherscan.io/address/0x27065dA1e634119b5f50167A650B7109B8965350
             return 0x27065dA1e634119b5f50167A650B7109B8965350;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0xcd1442415Fc5C29Aa848A49d2e232720BE07976c
+            return 0xcd1442415Fc5C29Aa848A49d2e232720BE07976c;
         }
 
         revert("EigenPodManager not available for this chain");
@@ -176,6 +180,9 @@ abstract contract DeployerHelper is BaseScript {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0xAcc1fb458a1317E886dB376Fc8141540537E68fE
             return 0xAcc1fb458a1317E886dB376Fc8141540537E68fE;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0x29e8572678e0c272350aa0b4B8f304E47EBcd5e7
+            return 0x29e8572678e0c272350aa0b4B8f304E47EBcd5e7;
         }
 
         revert("RewardsCoordinator not available for this chain");
@@ -247,6 +254,9 @@ abstract contract DeployerHelper is BaseScript {
         } else if (block.chainid == helder) {
             // https://holesky.etherscan.io/address/0x239eD3B6B4bd3a1cCaDB79d2A8c4862BB2324D89
             return 0x239eD3B6B4bd3a1cCaDB79d2A8c4862BB2324D89;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/	0x867837a9722C512e0862d8c2E15b8bE220E8b87d
+            return 	0x867837a9722C512e0862d8c2E15b8bE220E8b87d;
         }
 
         revert("eigen delegation manager not available for this chain");
@@ -337,9 +347,25 @@ abstract contract DeployerHelper is BaseScript {
         } else if (block.chainid == helder) {
             // https://holesky.etherscan.io/address/0x5d0F57C63Bd70843dc600A6da78fEcC7c390Cb34
             return 0x5d0F57C63Bd70843dc600A6da78fEcC7c390Cb34;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0xD58f6844f79eB1fbd9f7091d05f7cb30d3363926
+            return 0xD58f6844f79eB1fbd9f7091d05f7cb30d3363926;
         }
 
         revert("AVSDirectory not available for this chain");
+    }
+
+    function _getAllocationManager() internal view returns (address) {
+        if (block.chainid == mainnet) {
+            // https://etherscan.io/address/0x948a420b8CC1d6BFd0B6087C2E7c344a2CD0bc39
+            return 0x948a420b8CC1d6BFd0B6087C2E7c344a2CD0bc39;
+        }
+        else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0x95a7431400F362F3647a69535C5666cA0133CAA0
+            return 0x95a7431400F362F3647a69535C5666cA0133CAA0;
+        }
+
+        revert("AllocationManager not available for this chain");
     }
 
     function _getPufferVault() internal view returns (address) {
@@ -365,6 +391,9 @@ abstract contract DeployerHelper is BaseScript {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0x20377c306451140119C9967Ba6D0158a05b4eD07
             return 0x20377c306451140119C9967Ba6D0158a05b4eD07;
+        } else if (block.chainid == hoodi) {
+            // https://hoodi.etherscan.io/address/0xD591b120c63916B1d195d54d863cff5d6632219e
+            return 0xD591b120c63916B1d195d54d863cff5d6632219e;
         }
 
         revert("PufferModuleManager not available for this chain");
@@ -466,6 +495,9 @@ abstract contract DeployerHelper is BaseScript {
         } else if (block.chainid == holesky) {
             // https://holesky.etherscan.io/address/0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0
             return 0xDDDeAfB492752FC64220ddB3E7C9f1d5CcCdFdF0;
+        } else if (block.chainid == hoodi) {
+            // TODO: Add Hoodi OPS Multisig
+            return 0xb20332fb753496be0C64a3e9B71812101DC42774;
         }
 
         revert("OPSMultisig not available for this chain");

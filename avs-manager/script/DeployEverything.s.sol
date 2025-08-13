@@ -21,9 +21,9 @@ contract DeployEverything is BaseScript {
     function run(
         address eigenPodManager,
         address eigenDelegationManager,
-        address avsDirectory,
+        address allocationManager,
         address rewardsCoordinator,
-        uint64 initialDeregistrationDelay
+        uint64 initialCommitmentDelay
     ) public returns (AVSDeployment memory) {
         AVSDeployment memory deployment;
 
@@ -36,9 +36,9 @@ contract DeployEverything is BaseScript {
             accessManager: address(accessManager),
             eigenPodManager: eigenPodManager,
             eigenDelegationManager: eigenDelegationManager,
-            avsDirectory: avsDirectory,
+            allocationManager: allocationManager,
             rewardsCoordinator: rewardsCoordinator,
-            initialDeregistrationDelay: initialDeregistrationDelay
+            initialCommitmentDelay: initialCommitmentDelay
         });
 
         deployment.avsManagerImplementation = avsManagerImplementation;

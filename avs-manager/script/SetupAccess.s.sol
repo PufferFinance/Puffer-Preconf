@@ -68,11 +68,14 @@ contract SetupAccess is BaseScript {
     function _setupUniFiAVSManagerRoles() internal view returns (bytes[] memory) {
         bytes[] memory calldatas = new bytes[](3);
 
-        bytes4[] memory daoSelectors = new bytes4[](0);
-        daoSelectors = new bytes4[](3);
-        daoSelectors[0] = UniFiAVSManager.setDeregistrationDelay.selector;
+        bytes4[] memory daoSelectors = new bytes4[](7);
+        daoSelectors[0] = UniFiAVSManager.setCommitmentDelay.selector;
         daoSelectors[1] = UniFiAVSManager.updateAVSMetadataURI.selector;
         daoSelectors[2] = UniFiAVSManager.setAllowlistRestakingStrategy.selector;
+        daoSelectors[3] = UniFiAVSManager.createOperatorSet.selector;
+        daoSelectors[4] = UniFiAVSManager.addStrategiesToOperatorSet.selector;
+        daoSelectors[5] = UniFiAVSManager.removeStrategiesFromOperatorSet.selector;
+        daoSelectors[6] = UniFiAVSManager.setCurrentOperatorSetId.selector;
 
         calldatas[0] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,
@@ -81,15 +84,11 @@ contract SetupAccess is BaseScript {
             ROLE_ID_DAO
         );
 
-        bytes4[] memory publicSelectors = new bytes4[](0);
-        publicSelectors = new bytes4[](7);
+        bytes4[] memory publicSelectors = new bytes4[](4);
         publicSelectors[0] = UniFiAVSManager.registerOperator.selector;
         publicSelectors[1] = UniFiAVSManager.registerValidators.selector;
-        publicSelectors[2] = UniFiAVSManager.startDeregisterOperator.selector;
-        publicSelectors[3] = UniFiAVSManager.finishDeregisterOperator.selector;
-        publicSelectors[4] = UniFiAVSManager.deregisterValidators.selector;
-        publicSelectors[5] = UniFiAVSManager.setOperatorCommitment.selector;
-        publicSelectors[6] = UniFiAVSManager.registerOperatorWithCommitment.selector;
+        publicSelectors[2] = UniFiAVSManager.deregisterValidators.selector;
+        publicSelectors[3] = UniFiAVSManager.setOperatorCommitment.selector;
 
         calldatas[1] = abi.encodeWithSelector(
             AccessManager.setTargetFunctionRole.selector,

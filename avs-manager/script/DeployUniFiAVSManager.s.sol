@@ -5,7 +5,7 @@ import { BaseScript } from "./BaseScript.s.sol";
 import { UniFiAVSManager } from "../src/UniFiAVSManager.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
-import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
+import { IAllocationManager } from "eigenlayer/interfaces/IAllocationManager.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.sol";
 
@@ -16,15 +16,15 @@ contract DeployUniFiAVSManager is BaseScript {
         address accessManager,
         address eigenPodManager,
         address eigenDelegationManager,
-        address avsDirectory,
+        address allocationManager,
         address rewardsCoordinator,
-        uint64 initialDeregistrationDelay
+        uint64 initialCommitmentDelay
     ) public returns (address, address) {
         vm.startBroadcast(_deployerPrivateKey);
         UniFiAVSManager uniFiAVSManagerImplementation = new UniFiAVSManager(
             IEigenPodManager(eigenPodManager),
             IDelegationManager(eigenDelegationManager),
-            IAVSDirectory(avsDirectory),
+            IAllocationManager(allocationManager),
             IRewardsCoordinator(rewardsCoordinator)
         );
 
@@ -32,7 +32,7 @@ contract DeployUniFiAVSManager is BaseScript {
             address(
                 new ERC1967Proxy{ salt: bytes32("UniFiAVSManager") }(
                     address(uniFiAVSManagerImplementation),
-                    abi.encodeCall(UniFiAVSManager.initialize, (accessManager, initialDeregistrationDelay))
+                    abi.encodeCall(UniFiAVSManager.initializeV2, (accessManager, initialCommitmentDelay))
                 )
             )
         );

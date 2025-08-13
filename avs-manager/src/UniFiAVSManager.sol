@@ -5,22 +5,35 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 import { AccessManagedUpgradeable } from
     "@openzeppelin/contracts-upgradeable/access/manager/AccessManagedUpgradeable.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import { ISignatureUtils } from "eigenlayer/interfaces/ISignatureUtils.sol";
 import { IStrategy } from "eigenlayer/interfaces/IStrategy.sol";
-import { IAVSDirectory } from "eigenlayer/interfaces/IAVSDirectory.sol";
+import { IAllocationManager, IAllocationManagerTypes } from "eigenlayer/interfaces/IAllocationManager.sol";
+import { IAVSRegistrar } from "eigenlayer/interfaces/IAVSRegistrar.sol";
 import { IDelegationManager } from "eigenlayer/interfaces/IDelegationManager.sol";
 import { IEigenPodManager } from "eigenlayer/interfaces/IEigenPodManager.sol";
-import { IEigenPod } from "eigenlayer/interfaces/IEigenPod.sol";
+import { IEigenPod, IEigenPodTypes } from "eigenlayer/interfaces/IEigenPod.sol";
 import { IUniFiAVSManager } from "./interfaces/IUniFiAVSManager.sol";
 import { UniFiAVSManagerStorage } from "./UniFiAVSManagerStorage.sol";
 import { IRewardsCoordinator } from "eigenlayer/interfaces/IRewardsCoordinator.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { OperatorSet } from "eigenlayer/libraries/OperatorSetLib.sol";
 
+/**
+ * @title UniFiAVSManager
+ * @notice The main contract for managing operators and validators in the UniFi AVS (Actively Validated Service)
+ * @dev This contract implements the IAVSRegistrar interface and manages operator/validator registration,
+ *      commitments, rewards distribution, and operator set management. It integrates with EigenLayer
+ *      for delegation and staking functionality.
+ * @author Puffer Finance
+ */
 contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgradeable, AccessManagedUpgradeable {
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
 
+    /**
+     * @notice The address of the beacon chain strategy contract
+     * @dev This is a constant address used to identify beacon chain strategies in EigenLayer
+     */
     address public constant BEACON_CHAIN_STRATEGY = 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
 
     /**
@@ -36,9 +49,9 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
      */
     IRewardsCoordinator public immutable EIGEN_REWARDS_COORDINATOR;
     /**
-     * @notice The AVSDirectory contract
+     * @notice The AllocationManager contract
      */
-    IAVSDirectory public immutable override AVS_DIRECTORY;
+    IAllocationManager public immutable override ALLOCATION_MANAGER;
 
     /**
      * @dev Modifier to check if the pod is delegated to the msg.sender
@@ -58,21 +71,20 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
     }
 
     /**
-     * @dev Internal function to get AVS operator status via staticcall
+     * @dev Internal function to check if operator is registered to any operator sets
      * @param operator The address of the operator
      */
-    function _getAvsOperatorStatus(address operator)
-        internal
-        view
-        returns (IAVSDirectory.OperatorAVSRegistrationStatus)
-    {
-        (bool success, bytes memory data) = address(AVS_DIRECTORY).staticcall(
-            abi.encodeWithSelector(bytes4(keccak256("avsOperatorStatus(address,address)")), address(this), operator)
-        );
-        if (!success) {
-            revert AVSOperatorStatusCallFailed();
+    function _isOperatorRegistered(address operator) internal view returns (bool) {
+        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
+        if ($.currentOperatorSetId == 0) {
+            return false;
         }
-        return abi.decode(data, (IAVSDirectory.OperatorAVSRegistrationStatus));
+        if ($.operators[operator].deregisteredBlockNumber != 0) {
+            return false;
+        }
+        return ALLOCATION_MANAGER.isMemberOfOperatorSet(
+            operator, OperatorSet({ avs: address(this), id: $.currentOperatorSetId })
+        );
     }
 
     /**
@@ -80,16 +92,24 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
      * @param operator The address of the operator
      */
     modifier registeredOperator(address operator) {
-        if (_getAvsOperatorStatus(operator) == IAVSDirectory.OperatorAVSRegistrationStatus.UNREGISTERED) {
+        if (!_isOperatorRegistered(operator)) {
             revert OperatorNotRegistered();
         }
         _;
     }
 
+    /**
+     * @notice Constructor for UniFiAVSManager
+     * @param eigenPodManagerAddress The address of the EigenLayer PodManager contract
+     * @param eigenDelegationManagerAddress The address of the EigenLayer DelegationManager contract
+     * @param allocationManagerAddress The address of the EigenLayer AllocationManager contract
+     * @param rewardsCoordinatorAddress The address of the EigenLayer RewardsCoordinator contract
+     * @dev Sets immutable contract addresses and disables initializers for the implementation contract
+     */
     constructor(
         IEigenPodManager eigenPodManagerAddress,
         IDelegationManager eigenDelegationManagerAddress,
-        IAVSDirectory avsDirectoryAddress,
+        IAllocationManager allocationManagerAddress,
         IRewardsCoordinator rewardsCoordinatorAddress
     ) {
         if (address(eigenPodManagerAddress) == address(0)) {
@@ -98,58 +118,105 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         if (address(eigenDelegationManagerAddress) == address(0)) {
             revert InvalidEigenDelegationManagerAddress();
         }
-        if (address(avsDirectoryAddress) == address(0)) {
-            revert InvalidAVSDirectoryAddress();
+        if (address(allocationManagerAddress) == address(0)) {
+            revert InvalidAllocationManagerAddress();
         }
         if (address(rewardsCoordinatorAddress) == address(0)) {
             revert InvalidRewardsCoordinatorAddress();
         }
         EIGEN_POD_MANAGER = eigenPodManagerAddress;
         EIGEN_DELEGATION_MANAGER = eigenDelegationManagerAddress;
-        AVS_DIRECTORY = avsDirectoryAddress;
+        ALLOCATION_MANAGER = allocationManagerAddress;
         EIGEN_REWARDS_COORDINATOR = rewardsCoordinatorAddress;
         _disableInitializers();
     }
 
-    function initialize(address accessManager, uint64 initialDeregistrationDelay) public initializer {
+    /**
+     * @notice Initializer function for the first version of the contract
+     * @dev This is a no-op for the initial version of the contract. Parameters are ignored.
+     *      This function exists to maintain upgrade compatibility.
+     */
+    function initialize(address, uint64) public initializer {
+        // This is a no-op for the initial version of the contract
+    }
+
+    /**
+     * @notice Initializer function for version 2 of the contract
+     * @param accessManager The address of the access manager contract for role-based access control
+     * @param initialCommitmentDelay The initial delay in blocks for operator commitment changes
+     * @dev Sets up access control, context, UUPS upgradeability, and initial commitment delay
+     */
+    function initializeV2(address accessManager, uint64 initialCommitmentDelay) public reinitializer(2) {
         __AccessManaged_init(accessManager);
         __Context_init();
         __UUPSUpgradeable_init();
-        _setDeregistrationDelay(initialDeregistrationDelay);
 
-        // Initialize BEACON_CHAIN_STRATEGY as an allowed restaking strategy
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
-        $.allowlistedRestakingStrategies.add(BEACON_CHAIN_STRATEGY);
+        $.commitmentDelay = initialCommitmentDelay;
     }
 
-    // EXTERNAL FUNCTIONS
+    // ============ EXTERNAL FUNCTIONS ============
 
-    /**
-     * @inheritdoc IUniFiAVSManager
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
-     */
-    function registerOperator(ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature)
+    /// @inheritdoc IAVSRegistrar
+    function registerOperator(address operator, address avs, uint32[] calldata operatorSetIds, bytes calldata data)
         external
-        restricted
+        override
     {
-        AVS_DIRECTORY.registerOperatorToAVS(msg.sender, operatorSignature);
+        if (msg.sender != address(ALLOCATION_MANAGER)) {
+            revert OnlyAllocationManager();
+        }
+        if (avs != address(this)) {
+            revert InvalidAVSAddress();
+        }
 
-        emit OperatorRegistered(msg.sender);
+        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
+
+        if (operatorSetIds.length != 1 || operatorSetIds[0] != $.currentOperatorSetId) {
+            revert InvalidOperatorSetsProvided();
+        }
+
+        $.operators[operator].deregisteredBlockNumber = 0;
+
+        // Decode optional commitment data if provided
+        OperatorCommitment memory initialCommitment;
+        if (data.length > 0) {
+            initialCommitment = abi.decode(data, (OperatorCommitment));
+            $.operators[operator].commitment = initialCommitment;
+            $.operators[operator].commitmentValidAfter = 0;
+            emit OperatorRegisteredWithCommitment(operator, operatorSetIds, initialCommitment);
+        } else {
+            emit OperatorRegistered(operator, operatorSetIds);
+        }
     }
 
-    /**
-     * @inheritdoc IUniFiAVSManager
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
-     */
-    function registerOperatorWithCommitment(
-        ISignatureUtils.SignatureWithSaltAndExpiry calldata operatorSignature,
-        OperatorCommitment calldata initialCommitment
-    ) external restricted {
-        AVS_DIRECTORY.registerOperatorToAVS(msg.sender, operatorSignature);
+    /// @inheritdoc IAVSRegistrar
+    function deregisterOperator(address operator, address avs, uint32[] calldata operatorSetIds) external override {
+        if (msg.sender != address(ALLOCATION_MANAGER)) {
+            revert OnlyAllocationManager();
+        }
+        if (avs != address(this)) {
+            revert InvalidAVSAddress();
+        }
+        
+        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
+        
+        if (operatorSetIds.length != 1 || operatorSetIds[0] != $.currentOperatorSetId) {
+            revert InvalidOperatorSetsProvided();
+        }
 
-        _getUniFiAVSManagerStorage().operators[msg.sender].commitment = initialCommitment;
+        OperatorData storage operatorData = $.operators[operator];
+        operatorData.deregisteredBlockNumber = uint64(block.number);
+        delete operatorData.commitment;
+        delete operatorData.pendingCommitment;
+        delete operatorData.validatorCount;
+        delete operatorData.commitmentValidAfter;
 
-        emit OperatorRegisteredWithCommitment(msg.sender, initialCommitment);
+        emit OperatorDeregistered(operator, operatorSetIds);
+    }
+
+    /// @inheritdoc IAVSRegistrar
+    function supportsAVS(address avs) external view override returns (bool) {
+        return avs == address(this);
     }
 
     /**
@@ -163,11 +230,6 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         restricted
     {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
-
-        // Check if the operator is in the deregistration process
-        if ($.operators[msg.sender].startDeregisterOperatorBlock != 0) {
-            revert OperatorInDeregistrationProcess();
-        }
 
         bytes memory delegateKey = _getActiveCommitment($.operators[msg.sender]).delegateKey;
 
@@ -183,12 +245,11 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
             bytes memory validatorPubkey = validatorPubkeys[i];
             IEigenPod.ValidatorInfo memory validatorInfo = eigenPod.validatorPubkeyToInfo(validatorPubkey);
 
-            if (validatorInfo.status != IEigenPod.VALIDATOR_STATUS.ACTIVE) {
+            if (validatorInfo.status != IEigenPodTypes.VALIDATOR_STATUS.ACTIVE) {
                 revert ValidatorNotActive();
             }
 
-            ValidatorData storage existingValidator = $.validators[validatorPubkey];
-            if (existingValidator.index != 0 && block.number < existingValidator.registeredUntil) {
+            if ($.validators[validatorPubkey].operator == msg.sender && _isValidatorRegistered(validatorPubkey)) {
                 revert ValidatorAlreadyRegistered();
             }
 
@@ -201,20 +262,19 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
             });
 
             // Also track the mapping from index -> BLS key
-            $.validatorIndexes[validatorInfo.validatorIndex] = validatorPubkeys[i];
+            $.validatorIndexes[validatorInfo.validatorIndex] = validatorPubkey;
 
             emit ValidatorRegistered({
                 podOwner: podOwner,
                 operator: msg.sender,
                 delegateKey: delegateKey,
-                validatorPubkey: validatorPubkeys[i],
+                validatorPubkey: validatorPubkey,
                 validatorIndex: validatorInfo.validatorIndex
             });
         }
 
         OperatorData storage operator = $.operators[msg.sender];
         operator.validatorCount += uint128(newValidatorCount);
-        operator.startDeregisterOperatorBlock = 0;
     }
 
     /**
@@ -227,7 +287,8 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         uint256 validatorCount = validatorPubkeys.length;
 
         for (uint256 i = 0; i < validatorCount; i++) {
-            ValidatorData storage validator = $.validators[validatorPubkeys[i]];
+            bytes memory validatorPubkey = validatorPubkeys[i];
+            ValidatorData storage validator = $.validators[validatorPubkey];
 
             address operator = validator.operator;
 
@@ -235,62 +296,17 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
                 revert NotValidatorOperator();
             }
 
-            if (validator.registeredUntil != type(uint64).max) {
-                revert ValidatorAlreadyDeregistered();
+            if (!_isValidatorRegistered(validatorPubkey)) {
+                revert ValidatorNotRegistered();
             }
 
             // Mark the validator as deregistered
             validator.registeredUntil = uint64(block.number);
 
-            emit ValidatorDeregistered({ operator: operator, validatorPubkey: validatorPubkeys[i] });
+            emit ValidatorDeregistered({ operator: operator, validatorPubkey: validatorPubkey });
         }
 
         $.operators[msg.sender].validatorCount -= uint128(validatorCount);
-    }
-
-    /**
-     * @inheritdoc IUniFiAVSManager
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
-     */
-    function startDeregisterOperator() external registeredOperator(msg.sender) restricted {
-        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
-
-        OperatorData storage operator = $.operators[msg.sender];
-
-        if (operator.validatorCount > 0) {
-            revert OperatorHasValidators();
-        }
-
-        if (operator.startDeregisterOperatorBlock != 0) {
-            revert DeregistrationAlreadyStarted();
-        }
-
-        operator.startDeregisterOperatorBlock = uint64(block.number);
-
-        emit OperatorDeregisterStarted(msg.sender);
-    }
-
-    /**
-     * @inheritdoc IUniFiAVSManager
-     * @dev Restricted in this context is like `whenNotPaused` modifier from Pausable.sol
-     */
-    function finishDeregisterOperator() external registeredOperator(msg.sender) restricted {
-        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
-
-        OperatorData storage operator = $.operators[msg.sender];
-
-        if (operator.startDeregisterOperatorBlock == 0) {
-            revert DeregistrationNotStarted();
-        }
-
-        if (block.number < operator.startDeregisterOperatorBlock + $.deregistrationDelay) {
-            revert DeregistrationDelayNotElapsed();
-        }
-
-        delete $.operators[msg.sender];
-        emit OperatorDeregistered(msg.sender);
-
-        AVS_DIRECTORY.deregisterOperatorFromAVS(msg.sender);
     }
 
     /**
@@ -305,17 +321,12 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
         OperatorData storage operator = $.operators[msg.sender];
 
-        // Check if the operator is in the deregistration process
-        if (operator.startDeregisterOperatorBlock != 0) {
-            revert OperatorInDeregistrationProcess();
-        }
-
         if (operator.commitmentValidAfter != 0 && block.number >= operator.commitmentValidAfter) {
             operator.commitment = operator.pendingCommitment;
         }
 
         operator.pendingCommitment = newCommitment;
-        operator.commitmentValidAfter = uint64(block.number) + $.deregistrationDelay;
+        operator.commitmentValidAfter = uint64(block.number) + $.commitmentDelay;
 
         emit OperatorCommitmentChangeInitiated({
             operator: msg.sender,
@@ -329,16 +340,66 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
      * @inheritdoc IUniFiAVSManager
      * @dev Restricted to the DAO
      */
-    function setDeregistrationDelay(uint64 newDelay) external restricted {
-        _setDeregistrationDelay(newDelay);
+    function updateAVSMetadataURI(string calldata _metadataURI) external restricted {
+        ALLOCATION_MANAGER.updateAVSMetadataURI(address(this), _metadataURI);
     }
 
     /**
      * @inheritdoc IUniFiAVSManager
      * @dev Restricted to the DAO
      */
-    function updateAVSMetadataURI(string calldata _metadataURI) external restricted {
-        AVS_DIRECTORY.updateAVSMetadataURI(_metadataURI);
+    function createOperatorSet(uint32 operatorSetId, IStrategy[] calldata strategies) external restricted {
+        if (operatorSetId == 0) {
+            revert InvalidOperatorSetId();
+        }
+
+        IStrategy[] memory istrategies = new IStrategy[](strategies.length);
+        for (uint256 i = 0; i < strategies.length; i++) {
+            istrategies[i] = IStrategy(strategies[i]);
+        }
+
+        IAllocationManagerTypes.CreateSetParams[] memory params = new IAllocationManagerTypes.CreateSetParams[](1);
+        params[0] = IAllocationManagerTypes.CreateSetParams({ operatorSetId: operatorSetId, strategies: istrategies });
+
+        ALLOCATION_MANAGER.createOperatorSets(address(this), params);
+        emit OperatorSetCreated(operatorSetId);
+    }
+
+    /**
+     * @inheritdoc IUniFiAVSManager
+     * @dev Restricted to the DAO
+     */
+    function addStrategiesToOperatorSet(uint32 operatorSetId, IStrategy[] calldata strategies) external restricted {
+        ALLOCATION_MANAGER.addStrategiesToOperatorSet(address(this), operatorSetId, strategies);
+        emit StrategiesAddedToOperatorSet(operatorSetId, strategies);
+    }
+
+    /**
+     * @inheritdoc IUniFiAVSManager
+     * @dev Restricted to the DAO
+     */
+    function removeStrategiesFromOperatorSet(uint32 operatorSetId, IStrategy[] calldata strategies)
+        external
+        restricted
+    {
+        ALLOCATION_MANAGER.removeStrategiesFromOperatorSet(address(this), operatorSetId, strategies);
+        emit StrategiesRemovedFromOperatorSet(operatorSetId, strategies);
+    }
+
+    /**
+     * @inheritdoc IUniFiAVSManager
+     * @dev Restricted to the DAO
+     */
+    function setCurrentOperatorSetId(uint32 operatorSetId) external restricted {
+        if (operatorSetId == 0) {
+            revert InvalidOperatorSetId();
+        }
+        if (!ALLOCATION_MANAGER.isOperatorSet(OperatorSet({ avs: address(this), id: operatorSetId }))) {
+            revert OperatorSetDoesNotExist();
+        }
+        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
+        $.currentOperatorSetId = operatorSetId;
+        emit CurrentOperatorSetIdSet(operatorSetId);
     }
 
     /**
@@ -383,18 +444,46 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         emit OperatorRewardsSubmitted();
     }
 
+    /**
+     * @notice Sets the claimer address for rewards in the EigenLayer RewardsCoordinator
+     * @param claimer The address that will be able to claim rewards for this AVS
+     * @dev This function is restricted to authorized users and delegates to the EigenLayer RewardsCoordinator
+     */
     function setClaimerFor(address claimer) external restricted {
         EIGEN_REWARDS_COORDINATOR.setClaimerFor(claimer);
     }
 
-    // GETTERS
+    /**
+     * @notice Sets the commitment delay for operator commitment changes
+     * @param commitmentDelay The new delay in blocks that operators must wait before commitment changes become active
+     * @dev This function is restricted to authorized users and emits a CommitmentDelaySet event
+     */
+    function setCommitmentDelay(uint64 commitmentDelay) external restricted {
+        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
+        uint64 oldDelay = $.commitmentDelay;
+        $.commitmentDelay = commitmentDelay;
+
+        emit CommitmentDelaySet(oldDelay, commitmentDelay);
+    }
+
+    // ============ GETTER FUNCTIONS ============
 
     /**
-     * @inheritdoc IUniFiAVSManager
+     * @notice Gets the current active operator set ID
+     * @return The current operator set ID that new operators will register to
      */
-    function getDeregistrationDelay() external view returns (uint64) {
+    function getCurrentOperatorSetId() external view returns (uint32) {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
-        return $.deregistrationDelay;
+        return $.currentOperatorSetId;
+    }
+
+    /**
+     * @notice Gets the current commitment delay in blocks
+     * @return The number of blocks an operator must wait before a commitment change becomes active
+     */
+    function getCommitmentDelay() external view returns (uint64) {
+        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
+        return $.commitmentDelay;
     }
 
     /**
@@ -433,15 +522,18 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
     }
 
     /**
-     * @notice Checks if a given validator is committed to a particular chain ID,
-     * by looking up its operator's active chain commitments.
+     * @notice Checks if a given validator is committed to a particular chain ID
+     * @param validatorPubkey The BLS public key of the validator
+     * @param chainId The chain ID to check commitment for
+     * @return True if the validator's operator is committed to the specified chain ID, false otherwise
+     * @dev Looks up the validator's operator and checks their active chain commitments
      */
     function isValidatorInChainId(bytes calldata validatorPubkey, uint256 chainId) external view returns (bool) {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
         ValidatorData storage validator = $.validators[validatorPubkey];
 
         // If the validator is never registered or is already deregistered, return false
-        if (validator.index == 0 || block.number >= validator.registeredUntil) {
+        if (!_isValidatorRegistered(validatorPubkey)) {
             return false;
         }
 
@@ -501,8 +593,14 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
         return $.allowlistedRestakingStrategies.values();
     }
 
-    // INTERNAL FUNCTIONS
+    // ============ INTERNAL FUNCTIONS ============
 
+    /**
+     * @notice Internal function to get extended operator data
+     * @param operator The address of the operator
+     * @return OperatorDataExtended struct containing comprehensive operator information
+     * @dev Combines stored operator data with computed fields like registration status
+     */
     function _getOperator(address operator) internal view returns (OperatorDataExtended memory) {
         UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
         OperatorData storage operatorData = $.operators[operator];
@@ -513,12 +611,17 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
             validatorCount: operatorData.validatorCount,
             commitment: activeCommitment,
             pendingCommitment: operatorData.pendingCommitment,
-            startDeregisterOperatorBlock: operatorData.startDeregisterOperatorBlock,
-            isRegistered: _getAvsOperatorStatus(operator) == IAVSDirectory.OperatorAVSRegistrationStatus.REGISTERED,
+            isRegistered: _isOperatorRegistered(operator),
             commitmentValidAfter: operatorData.commitmentValidAfter
         });
     }
 
+    /**
+     * @notice Internal function to get extended validator data
+     * @param validatorPubkey The BLS public key of the validator
+     * @return validator ValidatorDataExtended struct containing comprehensive validator information
+     * @dev Combines stored validator data with EigenPod information and operator commitments
+     */
     function _getValidator(bytes memory validatorPubkey)
         internal
         view
@@ -545,11 +648,27 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
                 delegateKey: activeCommitment.delegateKey,
                 chainIds: activeCommitment.chainIds,
                 backedByStake: backedByStake,
-                registered: block.number < validatorData.registeredUntil
+                registered: _isValidatorRegistered(validatorPubkey)
             });
         }
     }
 
+    /**
+     * @dev Internal function to check if a validator is registered
+     * @param validatorPubkey The BLS public key of the validator
+     */
+    function _isValidatorRegistered(bytes memory validatorPubkey) internal view returns (bool) {
+        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
+        return $.validators[validatorPubkey].index != 0 && block.number < $.validators[validatorPubkey].registeredUntil
+            && _isOperatorRegistered($.validators[validatorPubkey].operator);
+    }
+
+    /**
+     * @notice Internal function to get the active commitment for an operator
+     * @param operatorData The stored operator data
+     * @return The active operator commitment (either current or pending if delay has passed)
+     * @dev If the commitment delay has passed, returns the pending commitment; otherwise returns current commitment
+     */
     function _getActiveCommitment(OperatorData storage operatorData)
         internal
         view
@@ -562,16 +681,9 @@ contract UniFiAVSManager is IUniFiAVSManager, UniFiAVSManagerStorage, UUPSUpgrad
     }
 
     /**
-     * @dev Internal function to set or update the deregistration delay
-     * @param newDelay The new deregistration delay to set
+     * @notice Internal function to authorize contract upgrades
+     * @param newImplementation The address of the new implementation contract
+     * @dev This function is restricted to authorized users and is required by UUPSUpgradeable
      */
-    function _setDeregistrationDelay(uint64 newDelay) internal {
-        UniFiAVSStorage storage $ = _getUniFiAVSManagerStorage();
-        uint64 oldDelay = $.deregistrationDelay;
-        $.deregistrationDelay = newDelay;
-
-        emit DeregistrationDelaySet(oldDelay, newDelay);
-    }
-
     function _authorizeUpgrade(address newImplementation) internal virtual override restricted { }
 }
